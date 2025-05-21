@@ -1,33 +1,31 @@
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
-import 'react-native-reanimated';
+import { FontAwesome } from "@expo/vector-icons";
+import {
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider,
+} from "@react-navigation/native";
+import { useFonts } from "expo-font";
+import { Stack, Tabs } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { useEffect } from "react";
+import "react-native-reanimated";
+import { useColorScheme } from "@/components/useColorScheme";
+import Colors from "@/constants/Colors";
 
-import { useColorScheme } from '@/components/useColorScheme';
-
-export {
-  // Catch any errors thrown by the Layout component.
-  ErrorBoundary,
-} from 'expo-router';
+export { ErrorBoundary } from "expo-router";
 
 export const unstable_settings = {
-  // Ensure that reloading on `/modal` keeps a back button present.
-  initialRouteName: '(tabs)',
+  initialRouteName: "(tabs)",
 };
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+    SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
     ...FontAwesome.font,
   });
 
-  // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
     if (error) throw error;
   }, [error]);
@@ -47,12 +45,92 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
+  const theme = colorScheme === "dark" ? DarkTheme : DefaultTheme;
+
+  const modifiedTheme = {
+    ...theme,
+    colors: {
+      ...theme.colors,
+      primary: Colors[colorScheme ?? "light"].primary,
+      background: Colors[colorScheme ?? "light"].background,
+      card: Colors[colorScheme ?? "light"].card,
+      text: Colors[colorScheme ?? "light"].text,
+      border: Colors[colorScheme ?? "light"].border,
+    },
+  };
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={modifiedTheme}>
       <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+        {/* Main tabs (will appear in tab bar) */}
+        <Stack.Screen
+          name="(tabs)"
+          options={{
+            headerShown: false,
+          }}
+        />
+
+        {/* Add School screen (won't appear in tab bar) */}
+        <Stack.Screen
+          name="schools/add"
+          options={{
+            title: "Add School",
+            headerBackTitle: "Back",
+            headerTintColor: modifiedTheme.colors.primary,
+            headerStyle: {
+              backgroundColor: modifiedTheme.colors.card,
+            },
+            headerTitleStyle: {
+              fontWeight: "600",
+            },
+            presentation: "modal", // Optional: makes it slide up on iOS
+          }}
+        />
+
+        {/* Pending Requests screen (won't appear in tab bar) */}
+        <Stack.Screen
+          name="schools/requests"
+          options={{
+            title: "Pending Requests",
+            headerBackTitle: "Back",
+            headerTintColor: modifiedTheme.colors.primary,
+          }}
+        />
+
+        <Stack.Screen
+          name="subjectSelect"
+          options={{
+            title: "",
+            headerBackTitle: "Schools",
+            headerTintColor: modifiedTheme.colors.primary,
+          }}
+        />
+
+        <Stack.Screen
+          name="classSelect"
+          options={{
+            title: "",
+            headerBackTitle: "subjects",
+            headerTintColor: modifiedTheme.colors.primary,
+          }}
+        />
+
+        <Stack.Screen
+          name="students"
+          options={{
+            title: "",
+            headerBackTitle: "classes",
+            headerTintColor: modifiedTheme.colors.primary,
+          }}
+        />
+
+        {/* Other modal screens */}
+        <Stack.Screen
+          name="modal"
+          options={{
+            presentation: "modal",
+          }}
+        />
       </Stack>
     </ThemeProvider>
   );
