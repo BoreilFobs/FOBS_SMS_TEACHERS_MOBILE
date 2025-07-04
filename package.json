@@ -22,7 +22,9 @@
     "@fortawesome/react-native-fontawesome": "^0.3.2",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/native": "^7.1.14",
+    "@react-navigation/stack": "^7.4.2",
     "axios": "^1.10.0",
+    "dotenv": "^17.0.1",
     "expo": "^53.0.12",
     "expo-auth-session": "~6.2.0",
     "expo-blur": "^14.1.5",
@@ -42,6 +44,8 @@
     "react-native-screens": "~4.11.1",
     "react-native-svg": "^15.12.0",
     "react-native-web": "~0.20.0",
+    "react-navigation": "^5.0.0",
+    "type": "^2.7.3",
     "undefined": "expo-auth-session/providers/google"
   },
   "devDependencies": {

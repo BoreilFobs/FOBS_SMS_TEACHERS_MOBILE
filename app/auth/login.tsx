@@ -6,29 +6,34 @@ import {
     TextInput, 
     TouchableOpacity, 
     ImageBackground, 
-    Image,
-    Platform,
     KeyboardAvoidingView,
     Animated,
     Easing,
     ScrollView,
-    Alert
+    Alert,
+    ActivityIndicator,
+    Platform
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
-import { makeRedirectUri } from 'expo-auth-session';
-import { register, login, googleAuth } from '@/services/api';
-import { useAuth } from '@/context/AuthContext';
+import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
+import Constants from 'expo-constants';
 
-WebBrowser.maybeCompleteAuthSession();
 
-export default function AuthScreen() {
+// const API_URL = 'http://192.168.100.169:8000/api'; // Replace with your backend URL
+const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+console.log(API_URL);
+
+
+export default function login() {
+    const router = useRouter();
+    const navigation = useNavigation();
     const colorScheme = useColorScheme();
     const colors = Colors[colorScheme ?? 'light'];
     const [isLogin, setIsLogin] = useState(true);
@@ -37,17 +42,7 @@ export default function AuthScreen() {
     const [name, setName] = useState('');
     const [fadeAnim] = useState(new Animated.Value(0));
     const [slideAnim] = useState(new Animated.Value(30));
-    const { setUser } = useAuth();
-
-    const [request, response, promptAsync] = Google.useAuthRequest({
-        clientId: 'YOUR_GOOGLE_CLIENT_ID',
-        iosClientId: 'YOUR_IOS_CLIENT_ID',
-        androidClientId: 'YOUR_ANDROID_CLIENT_ID',
-        webClientId: 'YOUR_WEB_CLIENT_ID',
-        redirectUri: makeRedirectUri({
-            native: `${makeRedirectUri()}/redirect`,
-        }),
-    });
+    const [isLoading, setIsLoading] = useState(false);
 
     React.useEffect(() => {
         Animated.parallel([
@@ -63,11 +58,7 @@ export default function AuthScreen() {
                 useNativeDriver: true,
             }),
         ]).start();
-
-        if (response?.type === 'success') {
-            // Optionally handle Google response here if not using handleGoogleAuth
-        }
-    }, [response]);
+    }, []);
 
     const toggleAuthMode = () => {
         Animated.sequence([
@@ -99,50 +90,92 @@ export default function AuthScreen() {
         });
     };
 
-    const handleSubmit = async () => {
-        try {
-            let response;
-            if (isLogin) {
-                response = await login({ email, password });
-            } else {
-                response = await register({ 
-                    name, 
-                    email, 
-                    password, 
-                    password_confirmation: password 
-                });
-            }
-            await AsyncStorage.setItem('auth_token', response.data.access_token);
-            setUser(response.data.user);
-        } catch (error: any) {
-            Alert.alert(
-                'Error',
-                error.response?.data?.message || 'An error occurred',
-                [{ text: 'OK' }]
-            );
+    const validateForm = () => {
+        if (!email || !password) {
+            Alert.alert('Error', 'Please fill in all fields');
+            return false;
         }
+        
+        if (!isLogin && !name) {
+            Alert.alert('Error', 'Please enter your name');
+            return false;
+        }
+        
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            Alert.alert('Error', 'Please enter a valid email address');
+            return false;
+        }
+        
+        if (password.length < 6) {
+            Alert.alert('Error', 'Password must be at least 6 characters');
+            return false;
+        }
+        
+        return true;
     };
 
-    const handleGoogleAuth = async () => {
-        try {
-            const result = await promptAsync();
-            if (result.type === 'success') {
-                const response = await googleAuth(result.authentication?.accessToken || '');
-                await AsyncStorage.setItem('auth_token', response.data.access_token);
-                setUser(response.data.user);
+   const handleAuth = async () => {
+    if (!validateForm()) return;
+    
+    setIsLoading(true);
+    
+    try {
+        const endpoint = isLogin ? '/login' : '/register';
+        const data = isLogin 
+            ? { email, password }
+            : { name, email, password, password_confirmation: password };
+
+        const response = await axios.post(`${API_URL}${endpoint}`, data, {
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
             }
-        } catch (error: any) {
-            Alert.alert(
-                'Error',
-                error.response?.data?.message || 'An error occurred',
-                [{ text: 'OK' }]
-            );
+        });
+
+        if (response.data.token) {
+            await AsyncStorage.setItem('auth_token', response.data.token);
+            router.push('/(tabs)');
+        } else {
+            throw new Error('Authentication token missing in response');
         }
-    };
+        
+    } catch (error) {
+        let errorMessage = 'Authentication failed. Please try again.';
+        
+        if (axios.isAxiosError(error)) {
+            // Handle Axios errors (network errors, 4xx/5xx responses)
+            if (error.response?.data) {
+                const errorData = error.response.data as {
+                    message?: string;
+                    errors?: Record<string, string[]>;
+                };
+                
+                if (errorData.errors) {
+                    errorMessage = Object.entries(errorData.errors)
+                        .map(([field, messages]) => 
+                            `${field}: ${messages.join(', ')}`
+                        )
+                        .join('\n');
+                } else if (errorData.message) {
+                    errorMessage = errorData.message;
+                }
+            } else if (error.response?.status === 401) {
+                errorMessage = 'Invalid credentials';
+            }
+        } else if (error instanceof Error) {
+            errorMessage = error.message;
+        }
+
+        Alert.alert('Error', errorMessage);
+    } finally {
+        setIsLoading(false);
+    }
+};
 
     return (
         <ImageBackground 
-            source={{uri: 'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg' }} 
+            source={{uri: 'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg'}} 
             style={styles.container}
             blurRadius={2}
         >
@@ -152,7 +185,10 @@ export default function AuthScreen() {
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.keyboardAvoid}
             >
-                <ScrollView contentContainerStyle={styles.scrollContainer}>
+                <ScrollView 
+                    contentContainerStyle={styles.scrollContainer}
+                    keyboardShouldPersistTaps="handled"
+                >
                     <Animated.View 
                         style={[
                             styles.authContainer,
@@ -187,6 +223,8 @@ export default function AuthScreen() {
                                     placeholderTextColor={colors.textSecondary}
                                     value={name}
                                     onChangeText={setName}
+                                    autoCapitalize="words"
+                                    editable={!isLoading}
                                 />
                             </View>
                         )}
@@ -201,6 +239,7 @@ export default function AuthScreen() {
                                 autoCapitalize="none"
                                 value={email}
                                 onChangeText={setEmail}
+                                editable={!isLoading}
                             />
                         </View>
 
@@ -213,44 +252,36 @@ export default function AuthScreen() {
                                 secureTextEntry
                                 value={password}
                                 onChangeText={setPassword}
+                                editable={!isLoading}
                             />
                         </View>
 
                         <TouchableOpacity 
-                            style={[styles.primaryButton, { backgroundColor: colors.primary }]}
+                            style={[
+                                styles.primaryButton, 
+                                { 
+                                    backgroundColor: colors.primary,
+                                    opacity: isLoading ? 0.7 : 1
+                                }
+                            ]}
                             activeOpacity={0.8}
-                            onPress={handleSubmit}
+                            onPress={handleAuth}
+                            disabled={isLoading}
                         >
-                            <Text style={styles.buttonText}>
-                                {isLogin ? 'Sign In' : 'Sign Up'}
-                            </Text>
-                        </TouchableOpacity>
-
-                        <View style={styles.dividerContainer}>
-                            <View style={[styles.divider, { backgroundColor: colors.border }]} />
-                            <Text style={[styles.dividerText, { color: colors.textSecondary }]}>OR</Text>
-                            <View style={[styles.divider, { backgroundColor: colors.border }]} />
-                        </View>
-
-                        <TouchableOpacity 
-                            style={[styles.googleButton, { backgroundColor: colors.card, borderColor: colors.border }]}
-                            onPress={handleGoogleAuth}
-                            activeOpacity={0.7}
-                            disabled={!request}
-                        >
-                            <Image 
-                                source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg' }} 
-                                style={styles.googleLogo}
-                            />
-                            <Text style={[styles.googleButtonText, { color: colors.text }]}>
-                                Continue with Google
-                            </Text>
+                            {isLoading ? (
+                                <ActivityIndicator color="white" />
+                            ) : (
+                                <Text style={styles.buttonText}>
+                                    {isLogin ? 'Sign In' : 'Sign Up'}
+                                </Text>
+                            )}
                         </TouchableOpacity>
 
                         <TouchableOpacity 
                             onPress={toggleAuthMode}
                             style={styles.toggleAuth}
                             activeOpacity={0.7}
+                            disabled={isLoading}
                         >
                             <Text style={[styles.toggleText, { color: colors.textSecondary }]}>
                                 {isLogin ? "Don't have an account? " : 'Already have an account? '}
@@ -265,7 +296,6 @@ export default function AuthScreen() {
         </ImageBackground>
     );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,

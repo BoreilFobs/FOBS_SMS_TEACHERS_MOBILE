@@ -11,6 +11,7 @@ import { useEffect } from "react";
 // import "react-native-reanimated";
 import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
+import AuthWrapper from "@/components/AuthWrapper";
 
 export { ErrorBoundary } from "expo-router";
 
@@ -121,6 +122,16 @@ function RootLayoutNav() {
             title: "",
             headerBackTitle: "classes",
             headerTintColor: modifiedTheme.colors.primary,
+          }}
+        />
+
+        <Stack.Screen
+          name="auth/login"
+          options={{
+            title: "hello",
+            headerBackTitle: "classes",
+            headerTintColor: modifiedTheme.colors.primary,
+            headerShown: false
           }}
         />
 

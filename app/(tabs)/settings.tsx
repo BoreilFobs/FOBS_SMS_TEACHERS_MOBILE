@@ -11,6 +11,7 @@ import { Feather, FontAwesome } from "@expo/vector-icons";
 import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 import { Link } from "expo-router";
+import { handleLogout } from '@/utils/auth';
 
 export default function SettingsScreen() {
   const colorScheme = useColorScheme();
@@ -180,7 +181,7 @@ export default function SettingsScreen() {
 
       <TouchableOpacity
         style={[styles.logoutButton, { backgroundColor: colors.error + "20" }]}
-        onPress={() => console.log("Logout")}
+        onPress={() => handleLogout()}
       >
         <FontAwesome name="sign-out" size={20} color={colors.error} />
         <Text style={[styles.logoutText, { color: colors.error }]}>

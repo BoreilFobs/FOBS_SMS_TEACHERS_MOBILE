@@ -3,12 +3,14 @@ import { Tabs } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import Colors from "@/constants/Colors";
 import { useColorScheme } from "@/components/useColorScheme";
+import AuthWrapper from "@/components/AuthWrapper";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const currentColors = Colors[colorScheme ?? "light"];
 
   return (
+    <AuthWrapper>
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: currentColors.tint,
@@ -52,5 +54,6 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    </AuthWrapper>
   );
 }
