@@ -126,10 +126,20 @@ function RootLayoutNav() {
         />
 
         <Stack.Screen
-          name="auth/login"
+          name="auth/index"
           options={{
-            title: "hello",
-            headerBackTitle: "classes",
+            title: "login",
+            headerBackTitle: "login",
+            headerTintColor: modifiedTheme.colors.primary,
+            headerShown: false
+          }}
+        />
+
+        <Stack.Screen
+          name="setup"
+          options={{
+            title: "setup",
+            headerBackTitle: "setup",
             headerTintColor: modifiedTheme.colors.primary,
             headerShown: false
           }}

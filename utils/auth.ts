@@ -35,7 +35,7 @@ export const handleLogout = async () => {
     await AsyncStorage.multiRemove(['auth_token', 'user_data']);
 
     // 4. Redirect to login
-    router.push('/auth/login');
+    router.push('/auth/');
 
   } catch (error) {
     console.error('Logout failed:', error);
