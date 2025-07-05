@@ -6,6 +6,7 @@ import {
   Switch,
   TouchableOpacity,
   ScrollView,
+  Platform,
 } from "react-native";
 import { Feather, FontAwesome } from "@expo/vector-icons";
 import { useColorScheme } from "@/components/useColorScheme";
@@ -15,7 +16,7 @@ import { handleLogout } from '@/utils/auth';
 
 export default function SettingsScreen() {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const colors = Colors[colorScheme ?? "dark"];
   const [isDarkMode, setIsDarkMode] = useState(colorScheme === "dark");
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
@@ -195,6 +196,7 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    marginBottom: Platform.OS == 'web' ? 50 : 0,
   },
   scrollContent: {
     padding: 16,

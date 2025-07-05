@@ -4,10 +4,10 @@ const Colors = {
     background: "#f8fafc", // Very light blue-gray
     card: "#ffffff", // White
     text: "#0f172a", // Dark blue-gray
-    textSecondary: "#64748b", // Medium blue-gray
+    textSecondary: "#2f373f", // Medium blue-gray
     border: "#e2e8f0", // Light blue-gray
     tint: "#3b82f6", // Bright blue
-    tabIconDefault: "#94a3b8", // Slate blue-gray
+    tabIconDefault: "#2f373f", // Slate blue-gray
     tabBar: "#ffffff", // White
     success: "#10b981", // Emerald
     warning: "#f59e0b", // Amber

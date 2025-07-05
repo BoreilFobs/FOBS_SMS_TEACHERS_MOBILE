@@ -85,6 +85,7 @@ function RootLayoutNav() {
               fontWeight: "600",
             },
             presentation: "modal", // Optional: makes it slide up on iOS
+            headerShown: false,
           }}
         />
 

@@ -158,9 +158,11 @@ export default function AuthScreen() {
         if (response.data.token) {
             await AsyncStorage.setItem('auth_token', response.data.token);
             await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
+            await AsyncStorage.setItem('teacher', JSON.stringify(response.data.teacher));
             await AsyncStorage.setItem('user_id', parseInt(response.data.user.id).toString());
 
             if (isLogin) {
+              
                 router.push('/(tabs)');
             } else {
                 router.push('/setup');

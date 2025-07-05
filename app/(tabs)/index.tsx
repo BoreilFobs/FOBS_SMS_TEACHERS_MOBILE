@@ -5,15 +5,18 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Image,
+  ImageBackground,
   StatusBar,
   Dimensions,
   Platform,
+  Image,
 } from "react-native";
-import { Feather, FontAwesome } from "@expo/vector-icons";
+import { Feather, FontAwesome, MaterialIcons } from "@expo/vector-icons";
 import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 import { Link, useRouter } from "expo-router";
+import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 
 const { width } = Dimensions.get("window");
 const CARD_HEIGHT = Dimensions.get("window").height / 3.5;
@@ -27,79 +30,81 @@ interface School {
 }
 
 const schoolsData: School[] = [
+  
   {
-    id: "1",
-    name: "Government bilingual High School",
-    acronym: "GBHS",
-    image: {
-      uri: "https://images.unsplash.com/photo-1588072432836-e10032774350",
-    },
+    id: "4",
+    name: "Government High School",
+    acronym: "GHS",
+    image: { uri: "https://images.unsplash.com/photo-1588072432836-e10032774350" },
     status: "active",
   },
   {
-    id: "2",
-    name: "Azimuth higher int",
-    acronym: "INSA",
-    image: {
-      uri: "https://images.unsplash.com/photo-1546410531-bb4caa6b424d",
-    },
-    status: "active",
-  },
-  {
-    id: "3",
-    name: "UNIVERSITY OF BUEA",
-    acronym: "UBA",
-    image: {
-      uri: "https://images.unsplash.com/photo-1588072432836-e10032774350",
-    },
+    id: "5",
+    name: "Presbyterian Secondary School",
+    acronym: "PSS",
+    image: { uri: "https://images.unsplash.com/photo-1546410531-bb4caa6b424d" },
     status: "pending",
+  },
+  {
+    id: "6",
+    name: "Baptist High School",
+    acronym: "BHS",
+    image: { uri: "https://images.unsplash.com/photo-1588072432836-e10032774350" },
+    status: "active",
   },
 ];
 
 export default function SchoolsScreen() {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const colors = Colors[colorScheme ?? "dark"];
   const router = useRouter();
 
   const renderSchoolItem = ({ item }: { item: School }) => (
     <TouchableOpacity
-      style={[styles.schoolCard, { backgroundColor: colors.card }]}
+      style={styles.schoolCard}
       activeOpacity={0.9}
       onPress={() => router.push("/subjectSelect")}
     >
-      <Image
+      <ImageBackground
         source={item.image}
         style={styles.schoolImage}
         resizeMode="cover"
-      />
-      <View style={styles.schoolInfo}>
-        <Text
-          style={[styles.schoolName, { color: colors.text }]}
-          numberOfLines={1}
-        >
-          {item.name}
-        </Text>
-        <View style={styles.bottomRow}>
-          <Text style={[styles.schoolAcronym, { color: colors.textSecondary }]}>
-            {item.acronym}
+      >
+        <LinearGradient
+          colors={["transparent", "rgba(0,0,0,0.8)"]}
+          style={styles.imageOverlay}
+        />
+        <View style={styles.schoolInfo}>
+          <Text style={styles.schoolName} numberOfLines={2}>
+            {item.name}
           </Text>
-          {item.status === "pending" ? (
-            <View style={styles.pendingBadge}>
-              <Text style={styles.pendingText}>Pending Approval</Text>
-            </View>
-          ) : (
-            <View style={styles.activeBadge}>
-              <Feather name="check" size={14} color="#fff" />
-              <Text style={styles.activeText}>Active</Text>
-            </View>
-          )}
+          <View style={styles.bottomRow}>
+            <Text style={styles.schoolAcronym}>{item.acronym}</Text>
+            {item.status === "pending" ? (
+              <View style={styles.pendingBadge}>
+                <MaterialIcons name="pending" size={14} color="#92400E" />
+                <Text style={styles.pendingText}>Pending</Text>
+              </View>
+            ) : (
+              <View style={styles.activeBadge}>
+                <Feather name="check-circle" size={14} color="#fff" />
+                <Text style={styles.activeText}>Active</Text>
+              </View>
+            )}
+          </View>
         </View>
-      </View>
+      </ImageBackground>
     </TouchableOpacity>
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <ImageBackground
+      source={require("@/assets/images/auth-bg2.jpg")}
+      style={styles.container}
+      blurRadius={10}
+    >
+      <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
+      
       <StatusBar
         barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}
         translucent
@@ -107,45 +112,32 @@ export default function SchoolsScreen() {
       />
 
       <View style={[styles.header, { marginTop: StatusBar.currentHeight }]}>
-        <Text
-          style={[
-            styles.title,
-            {
-              color: colors.primary,
-              fontFamily: Platform.OS === "ios" ? "Chalkduster" : "fantasy",
-              fontWeight: "900",
-            },
-          ]}
-        >
-          FOBS-SMS
-        </Text>
+        <View>
+          <Text style={styles.title}>FobsSMS</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+            Select a school to begin
+          </Text>
+        </View>
         <View style={styles.headerActions}>
-          <Link
-            href="/schools/requests"
+          <TouchableOpacity 
+            style={styles.iconButton}
             onPress={() => router.push("/schools/requests")}
-            asChild
           >
-            <TouchableOpacity style={styles.requestButton}>
+            <View style={styles.badgeContainer}>
               <FontAwesome name="bell" size={20} color={colors.primary} />
               <View style={[styles.badge, { backgroundColor: colors.error }]}>
                 <Text style={styles.badgeText}>2</Text>
               </View>
-            </TouchableOpacity>
-          </Link>
-          <Link
-            href="/schools/add"
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.iconButton}
             onPress={() => router.push("/schools/add")}
-            asChild
           >
-            <TouchableOpacity style={styles.addButton}>
-              <Feather name="plus" size={24} color={colors.primary} />
-            </TouchableOpacity>
-          </Link>
+            <Feather name="plus" size={24} color={colors.primary} />
+          </TouchableOpacity>
         </View>
       </View>
-      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-        Select a school to start filling marks
-      </Text>
 
       <FlatList
         data={schoolsData}
@@ -155,14 +147,14 @@ export default function SchoolsScreen() {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Feather name="inbox" size={48} color={colors.textSecondary} />
+            <MaterialIcons name="school" size={48} color={colors.textSecondary} />
             <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
               No schools added yet
             </Text>
           </View>
         }
       />
-    </View>
+    </ImageBackground>
   );
 }
 
@@ -176,29 +168,40 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 20,
-    paddingBottom: 0,
-    paddingTop: Platform.OS === "ios" ? 70 : 0,
+    paddingTop: Platform.OS === "ios" ? 60 : 20,
   },
   title: {
-    fontSize: 42,
+    fontSize: 32,
     fontWeight: "800",
     letterSpacing: -0.5,
+    color: "#2563eb",
+    fontFamily: Platform.OS === "ios" ? "Chalkduster" : "fantasy",
+  },
+  subtitle: {
+    fontSize: 14,
+    fontWeight: "500",
+    opacity: 0.8,
+    marginTop: 4,
   },
   headerActions: {
     flexDirection: "row",
-    gap: 20,
+    gap: 16,
   },
-  requestButton: {
+  iconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badgeContainer: {
     position: "relative",
-    padding: 8,
-  },
-  addButton: {
-    padding: 8,
   },
   badge: {
     position: "absolute",
-    top: 4,
-    right: 4,
+    top: -4,
+    right: -4,
     borderRadius: 10,
     width: 18,
     height: 18,
@@ -218,24 +221,31 @@ const styles = StyleSheet.create({
     height: CARD_HEIGHT,
     borderRadius: 24,
     overflow: "hidden",
-    elevation: 4,
+    elevation: 8,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
   },
   schoolImage: {
     width: "100%",
-    height: "70%",
+    height: "100%",
+    justifyContent: "flex-end",
+  },
+  imageOverlay: {
+    ...StyleSheet.absoluteFillObject,
   },
   schoolInfo: {
-    padding: 16,
-    height: "30%",
-    justifyContent: "space-between",
+    padding: 20,
   },
   schoolName: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "700",
+    color: "white",
+    marginBottom: 12,
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   bottomRow: {
     flexDirection: "row",
@@ -244,23 +254,30 @@ const styles = StyleSheet.create({
   },
   schoolAcronym: {
     fontSize: 16,
-    opacity: 0.7,
-    fontWeight: "600",
+    fontWeight: "700",
+    color: "white",
+    opacity: 0.9,
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   pendingBadge: {
-    backgroundColor: "#FEF3C7",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  activeBadge: {
-    backgroundColor: "#10B981",
+    backgroundColor: "rgba(254, 243, 199, 0.9)",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 4,
+  },
+  activeBadge: {
+    backgroundColor: "rgba(16, 185, 129, 0.9)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
   pendingText: {
     color: "#92400E",
@@ -283,10 +300,5 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     opacity: 0.6,
-  },
-  subtitle: {
-    fontSize: 16,
-    marginBottom: 24,
-    fontWeight: "500",
   },
 });
