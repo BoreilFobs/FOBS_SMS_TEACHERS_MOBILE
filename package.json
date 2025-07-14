@@ -48,7 +48,8 @@
     "react-native-web": "~0.20.0",
     "react-navigation": "^5.0.0",
     "type": "^2.7.3",
-    "undefined": "expo-auth-session/providers/google"
+    "undefined": "expo-auth-session/providers/google",
+    "zustand": "^5.0.6"
   },
   "devDependencies": {
     "@babel/core": "^7.27.4",

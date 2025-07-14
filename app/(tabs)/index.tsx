@@ -10,63 +10,43 @@ import {
   Dimensions,
   Platform,
   Image,
+  ActivityIndicator,
+  RefreshControl
 } from "react-native";
+import { TeacherSchoolResponse, SchoolResponse } from '@../../hooks/types'; // Adjust the import path as necessary
 import { Feather, FontAwesome, MaterialIcons } from "@expo/vector-icons";
 import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 import { Link, useRouter } from "expo-router";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
+import { useSchools } from "@/hooks/useSchools"; // Import our custom hook
+import useUserStore from '@/utils/stores/userStore';
 
 const { width } = Dimensions.get("window");
 const CARD_HEIGHT = Dimensions.get("window").height / 3.5;
-
-interface School {
-  id: string;
-  name: string;
-  acronym: string;
-  image: any;
-  status: "active" | "pending";
-}
-
-const schoolsData: School[] = [
-  
-  {
-    id: "4",
-    name: "Government High School",
-    acronym: "GHS",
-    image: { uri: "https://images.unsplash.com/photo-1588072432836-e10032774350" },
-    status: "active",
-  },
-  {
-    id: "5",
-    name: "Presbyterian Secondary School",
-    acronym: "PSS",
-    image: { uri: "https://images.unsplash.com/photo-1546410531-bb4caa6b424d" },
-    status: "pending",
-  },
-  {
-    id: "6",
-    name: "Baptist High School",
-    acronym: "BHS",
-    image: { uri: "https://images.unsplash.com/photo-1588072432836-e10032774350" },
-    status: "active",
-  },
-];
 
 export default function SchoolsScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
   const router = useRouter();
+  const { user, teacher, loadUserData } = useUserStore();
+  if (!teacher || !user) {
+    loadUserData();
+  } 
+  const { schoolData, loading, error, refetch } = useSchools(teacher?.id);
+  console.log(schoolData);
 
-  const renderSchoolItem = ({ item }: { item: School }) => (
+ 
+
+   const renderSchoolItem = ({ item }: { item: typeof schoolData[0] }) => (
     <TouchableOpacity
       style={styles.schoolCard}
       activeOpacity={0.9}
-      onPress={() => router.push("/subjectSelect")}
+      onPress={() => router.push(`/subjects/${item.school.id}`)}
     >
       <ImageBackground
-        source={item.image}
+        source={{ uri: item.school.logo_url }}
         style={styles.schoolImage}
         resizeMode="cover"
       >
@@ -76,11 +56,11 @@ export default function SchoolsScreen() {
         />
         <View style={styles.schoolInfo}>
           <Text style={styles.schoolName} numberOfLines={2}>
-            {item.name}
+            {item.school.name}
           </Text>
           <View style={styles.bottomRow}>
-            <Text style={styles.schoolAcronym}>{item.acronym}</Text>
-            {item.status === "pending" ? (
+            <Text style={styles.schoolAcronym}>{item.school.acronym}</Text>
+            {!item.teacher_school.isActive ? (
               <View style={styles.pendingBadge}>
                 <MaterialIcons name="pending" size={14} color="#92400E" />
                 <Text style={styles.pendingText}>Pending</Text>
@@ -97,12 +77,37 @@ export default function SchoolsScreen() {
     </TouchableOpacity>
   );
 
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.container, styles.errorContainer]}>
+        <MaterialIcons name="error-outline" size={48} color={colors.error} />
+        <Text style={[styles.errorText, { color: colors.text }]}>{error}</Text>
+        <TouchableOpacity 
+          style={[styles.retryButton, { backgroundColor: colors.primary }]}
+          onPress={refetch}
+        >
+          <Text style={styles.retryText}>Try Again</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <ImageBackground
       source={require("@/assets/images/auth-bg2.jpg")}
       style={styles.container}
       blurRadius={10}
     >
+      <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
+      <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
       <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
       
       <StatusBar
@@ -140,17 +145,30 @@ export default function SchoolsScreen() {
       </View>
 
       <FlatList
-        data={schoolsData}
+        data={schoolData}
         renderItem={renderSchoolItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.school.id.toString()}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={refetch}
+            tintColor={colors.primary}
+          />
+        }
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <MaterialIcons name="school" size={48} color={colors.textSecondary} />
             <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-              No schools added yet
+              No schools found
             </Text>
+            <TouchableOpacity 
+              style={[styles.addButton, { backgroundColor: colors.primary }]}
+              onPress={() => router.push("/schools/add")}
+            >
+              <Text style={styles.addButtonText}>Add School</Text>
+            </TouchableOpacity>
           </View>
         }
       />
@@ -161,144 +179,170 @@ export default function SchoolsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 20,
+    paddingTop:Platform.OS === "ios" ? 40 : 10,
+    backgroundColor: 'transparent',
   },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    marginTop: 16,
+    fontSize: 16,
+    textAlign: 'center',
     marginBottom: 20,
-    paddingTop: Platform.OS === "ios" ? 60 : 20,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: "800",
-    letterSpacing: -0.5,
-    color: "#2563eb",
-    fontFamily: Platform.OS === "ios" ? "Chalkduster" : "fantasy",
+  retryButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
   },
-  subtitle: {
-    fontSize: 14,
-    fontWeight: "500",
-    opacity: 0.8,
-    marginTop: 4,
+  retryText: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
-  headerActions: {
-    flexDirection: "row",
-    gap: 16,
+  addButton: {
+    marginTop: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
   },
-  iconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  badgeContainer: {
-    position: "relative",
-  },
-  badge: {
-    position: "absolute",
-    top: -4,
-    right: -4,
-    borderRadius: 10,
-    width: 18,
-    height: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  badgeText: {
-    color: "white",
-    fontSize: 10,
-    fontWeight: "bold",
-  },
-  listContent: {
-    gap: 20,
-    paddingBottom: 30,
+  addButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
   schoolCard: {
     height: CARD_HEIGHT,
-    borderRadius: 24,
-    overflow: "hidden",
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 16,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
-    shadowRadius: 12,
+    shadowRadius: 4,
   },
   schoolImage: {
-    width: "100%",
-    height: "100%",
-    justifyContent: "flex-end",
+    flex: 1,
+    justifyContent: 'flex-end',
   },
   imageOverlay: {
     ...StyleSheet.absoluteFillObject,
   },
   schoolInfo: {
-    padding: 20,
+    padding: 16,
   },
   schoolName: {
+    color: 'white',
     fontSize: 20,
-    fontWeight: "700",
-    color: "white",
-    marginBottom: 12,
-    textShadowColor: "rgba(0,0,0,0.5)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    fontWeight: 'bold',
+    marginBottom: 8,
   },
   bottomRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   schoolAcronym: {
+    color: 'white',
     fontSize: 16,
-    fontWeight: "700",
-    color: "white",
-    opacity: 0.9,
-    textShadowColor: "rgba(0,0,0,0.5)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    fontWeight: '600',
   },
   pendingBadge: {
-    backgroundColor: "rgba(254, 243, 199, 0.9)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  activeBadge: {
-    backgroundColor: "rgba(16, 185, 129, 0.9)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   pendingText: {
-    color: "#92400E",
+    color: '#92400E',
     fontSize: 12,
-    fontWeight: "600",
+    marginLeft: 4,
+    fontWeight: '500',
+  },
+  activeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#065F46',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   activeText: {
-    color: "#fff",
+    color: 'white',
     fontSize: 12,
-    fontWeight: "600",
+    marginLeft: 4,
+    fontWeight: '500',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
+    fontFamily: Platform.OS === "ios" ? "Chalkduster" : "fantasy",
+    fontSize: 50,
+    color: Colors.dark.primary ,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 14,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  badgeContainer: {
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  badgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 32,
   },
   emptyState: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 40,
-    marginTop: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
   },
   emptyText: {
     marginTop: 16,
     fontSize: 16,
-    opacity: 0.6,
+    textAlign: 'center',
   },
 });

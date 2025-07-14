@@ -32,7 +32,7 @@ export const handleLogout = async () => {
     }
 
     // 3. Clear local storage
-    await AsyncStorage.multiRemove(['auth_token', 'user_data']);
+    await AsyncStorage.multiRemove(['auth_token', 'user_data', 'user_id', 'user', 'teacher']);
 
     // 4. Redirect to login
     router.push('/auth/');

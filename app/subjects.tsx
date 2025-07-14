@@ -23,7 +23,7 @@ interface Subject {
   color: string;
 }
 
-export default function SubjectSelectionScreen() {
+export default function SubjectsScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
 

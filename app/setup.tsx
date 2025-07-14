@@ -72,53 +72,6 @@ export default function TeacherSetupScreen() {
     }
   };
 
-  // const handleSubmit = async () => {
-  //   setIsLoading(true);
-  //   try {
-  //     const userId = await AsyncStorage.getItem('user_id');
-  //     console.log('User ID:', userId);
-      
-  //     // Simulate API call      const userId = await AsyncStorage.getItem('user_id'); // Assuming user_id is stored
-  //     if (!userId) {
-  //       throw new Error('User ID not found. Please log in again.');
-  //     }
-
-  //     let profilePhotoUrl = null;
-  //     if (formData.profilePhoto) {
-  //       const photoData = new FormData();
-  //       photoData.append('profile_photo', {
-  //         uri: formData.profilePhoto,
-  //         name: `profile_${userId}.jpg`,
-  //         type: 'image/jpeg',
-  //       } as any);}
-           
-      
-
-  //     const setupData = {
-  //       user_id: userId,
-  //       qualifications: formData.qualifications,
-  //       specialization: formData.specialization,
-  //       bio: formData.bio,
-  //       profile_photo: formData.profilePhoto,
-  //     };
-
-  //     await axios.post(`${API_URL}/teacher/setup`, setupData, {
-  //       headers: {
-  //         'Accept': 'application/json',
-  //         'Content-Type': 'application/json',
-  //         'Authorization': `Bearer ${await AsyncStorage.getItem('auth_token')}`
-  //       },
-  //     });
-  //     // Alert.alert('Success', 'Setup information saved successfully!');
-
-  //     await new Promise(resolve => setTimeout(resolve, 1500));
-  //     router.push('/(tabs)');
-  //   } catch (error) {
-  //     Alert.alert('Error', 'Failed to save setup information');
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
 
 const handleSubmit = async () => {
   setIsLoading(true);
