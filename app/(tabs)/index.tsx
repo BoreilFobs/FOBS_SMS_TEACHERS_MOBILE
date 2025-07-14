@@ -40,41 +40,43 @@ export default function SchoolsScreen() {
  
 
    const renderSchoolItem = ({ item }: { item: typeof schoolData[0] }) => (
-    <TouchableOpacity
-      style={styles.schoolCard}
-      activeOpacity={0.9}
-      onPress={() => router.push(`/subjects/${item.school.id}`)}
-    >
-      <ImageBackground
-        source={{ uri: item.school.logo_url }}
-        style={styles.schoolImage}
-        resizeMode="cover"
+    // <Link href={"/classSelect"} asChild>
+      <TouchableOpacity
+        style={styles.schoolCard}
+        activeOpacity={0.9}
+        onPress={() => router.push(`/subjects?schoolId=${item.school.id}`)}
       >
-        <LinearGradient
-          colors={["transparent", "rgba(0,0,0,0.8)"]}
-          style={styles.imageOverlay}
-        />
-        <View style={styles.schoolInfo}>
-          <Text style={styles.schoolName} numberOfLines={2}>
-            {item.school.name}
-          </Text>
-          <View style={styles.bottomRow}>
-            <Text style={styles.schoolAcronym}>{item.school.acronym}</Text>
-            {!item.teacher_school.isActive ? (
-              <View style={styles.pendingBadge}>
-                <MaterialIcons name="pending" size={14} color="#92400E" />
-                <Text style={styles.pendingText}>Pending</Text>
-              </View>
-            ) : (
-              <View style={styles.activeBadge}>
-                <Feather name="check-circle" size={14} color="#fff" />
-                <Text style={styles.activeText}>Active</Text>
-              </View>
-            )}
+        <ImageBackground
+          source={{ uri: item.school.logo_url }}
+          style={styles.schoolImage}
+          resizeMode="cover"
+        >
+          <LinearGradient
+            colors={["transparent", "rgba(0,0,0,0.8)"]}
+            style={styles.imageOverlay}
+          />
+          <View style={styles.schoolInfo}>
+            <Text style={styles.schoolName} numberOfLines={2}>
+              {item.school.name}
+            </Text>
+            <View style={styles.bottomRow}>
+              <Text style={styles.schoolAcronym}>{item.school.acronym}</Text>
+              {!item.teacher_school.isActive ? (
+                <View style={styles.pendingBadge}>
+                  <MaterialIcons name="pending" size={14} color="#92400E" />
+                  <Text style={styles.pendingText}>Pending</Text>
+                </View>
+              ) : (
+                <View style={styles.activeBadge}>
+                  <Feather name="check-circle" size={14} color="#fff" />
+                  <Text style={styles.activeText}>Active</Text>
+                </View>
+              )}
+            </View>
           </View>
-        </View>
-      </ImageBackground>
-    </TouchableOpacity>
+        </ImageBackground>
+      </TouchableOpacity>
+    // </Link>
   );
 
   if (loading) {

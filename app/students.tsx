@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -8,29 +8,82 @@ import {
   Modal,
   TextInput,
   Pressable,
+  Dimensions,
+  ImageBackground,
+  StatusBar,
+  ActivityIndicator,
+  RefreshControl
 } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialIcons } from "@expo/vector-icons";
 import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
+import { useLocalSearchParams } from "expo-router";
+import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 
 interface Student {
-  id: string;
+  id: number;
   name: string;
-  currentMark: number | null;
+  currentMark?: number | null;
+}
+
+interface ClassInfo {
+  id: number;
+  name: string;
 }
 
 export default function StudentMarksScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
-  const [students, setStudents] = useState<Student[]>([
-    { id: "1", name: "John Doe", currentMark: null },
-    { id: "2", name: "Jane Smith", currentMark: 85 },
-    { id: "3", name: "Michael Johnson", currentMark: null },
-    { id: "4", name: "Emily Williams", currentMark: 72 },
-    { id: "5", name: "Robert Brown", currentMark: null },
-  ]);
+  const params = useLocalSearchParams();
+  const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+  
+  const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [markInput, setMarkInput] = useState("");
+
+  const classId = params.class_id as string;
+
+  const fetchStudents = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `${API_URL}/class-students?class_id=${classId}`
+      );
+      const data = await response.json();
+      
+      if (data.success) {
+        setClassInfo(data.class);
+        setStudents(data.students.map((student: any) => ({
+          ...student,
+          currentMark: null // Initialize marks as null
+        })));
+      } else {
+        setError(data.message || 'Failed to fetch students');
+      }
+    } catch (err) {
+      setError('Network error occurred');
+      console.error(err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchStudents();
+  };
+
+  useEffect(() => {
+    if (classId) {
+      fetchStudents();
+    }
+  }, [classId]);
 
   const handleMarkSubmit = () => {
     if (!selectedStudent) return;
@@ -44,37 +97,100 @@ export default function StudentMarksScreen() {
     setStudents(updatedStudents);
     setSelectedStudent(null);
     setMarkInput("");
+    // Here you would typically also make an API call to save the mark
   };
 
+  if (loading && !refreshing) {
+    return (
+      <ImageBackground
+        source={require("@/assets/images/auth-bg2.jpg")}
+        style={styles.container}
+        blurRadius={10}
+      >
+        <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
+        <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
+        <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
+      </ImageBackground>
+    );
+  }
+
+  if (error) {
+    return (
+      <ImageBackground
+        source={require("@/assets/images/auth-bg2.jpg")}
+        style={styles.container}
+        blurRadius={10}
+      >
+        <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
+        <View style={styles.errorContainer}>
+          <MaterialIcons name="error-outline" size={48} color={colors.error} />
+          <Text style={[styles.errorText, { color: colors.text }]}>{error}</Text>
+          <TouchableOpacity 
+            style={[styles.retryButton, { backgroundColor: colors.primary }]}
+            onPress={fetchStudents}
+          >
+            <Text style={styles.retryText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      </ImageBackground>
+    );
+  }
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <ImageBackground
+      source={require("@/assets/images/auth-bg2.jpg")}
+      style={styles.container}
+      blurRadius={10}
+    >
+      <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
+      <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
+      
+      <StatusBar
+        barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}
+        translucent
+        backgroundColor="transparent"
+      />
+
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Students</Text>
+        <Text style={[styles.title, { color: colors.text }]}>
+          {classInfo?.name || 'Class'}
+        </Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Tap to enter marks
+          {students.length} students • Tap to enter marks
         </Text>
       </View>
 
       <FlatList
         data={students}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
           <TouchableOpacity
-            style={[styles.studentCard, { backgroundColor: colors.card }]}
+            style={[
+              styles.studentCard, 
+              { 
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              }
+            ]}
             onPress={() => {
               setSelectedStudent(item);
               setMarkInput(item.currentMark?.toString() || "");
             }}
           >
+            <LinearGradient
+              colors={['#6366F130', '#6366F110']}
+              style={styles.studentAvatar}
+            >
+              <Feather name="user" size={20} color="#6366F1" />
+            </LinearGradient>
+            
             <View style={styles.studentInfo}>
-              <Text style={[styles.studentId, { color: colors.textSecondary }]}>
-                #{item.id}
-              </Text>
               <Text style={[styles.studentName, { color: colors.text }]}>
                 {item.name}
               </Text>
             </View>
+            
             <View style={styles.markContainer}>
               {item.currentMark ? (
                 <Text style={[styles.markText, { color: colors.primary }]}>
@@ -86,6 +202,21 @@ export default function StudentMarksScreen() {
             </View>
           </TouchableOpacity>
         )}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+          />
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Feather name="users" size={48} color={colors.textSecondary} />
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+              No students found
+            </Text>
+          </View>
+        }
       />
 
       {/* Mark Entry Modal */}
@@ -95,128 +226,173 @@ export default function StudentMarksScreen() {
         animationType="fade"
         onRequestClose={() => setSelectedStudent(null)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
-              Enter Mark for {selectedStudent?.name}
-            </Text>
+        <BlurView
+          intensity={30}
+          tint={colorScheme}
+          style={StyleSheet.absoluteFill}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Enter Mark for {selectedStudent?.name}
+              </Text>
 
-            <TextInput
-              style={[
-                styles.markInput,
-                {
-                  color: colors.text,
-                  borderColor: colors.border,
-                  backgroundColor: colors.background,
-                },
-              ]}
-              placeholder="Enter mark (0-100)"
-              placeholderTextColor={colors.textSecondary}
-              keyboardType="numeric"
-              value={markInput}
-              onChangeText={setMarkInput}
-              maxLength={3}
-            />
-
-            <View style={styles.modalButtons}>
-              <Pressable
-                style={[styles.cancelButton, { borderColor: colors.border }]}
-                onPress={() => setSelectedStudent(null)}
-              >
-                <Text style={[styles.buttonText, { color: colors.text }]}>
-                  Cancel
-                </Text>
-              </Pressable>
-
-              <Pressable
+              <TextInput
                 style={[
-                  styles.submitButton,
-                  { backgroundColor: colors.primary },
+                  styles.markInput,
+                  {
+                    color: colors.text,
+                    borderColor: colors.border,
+                    backgroundColor: colors.background,
+                  },
                 ]}
-                onPress={handleMarkSubmit}
-                disabled={!markInput}
-              >
-                <Text style={styles.buttonText}>Submit</Text>
-              </Pressable>
+                placeholder="Enter mark (0-100)"
+                placeholderTextColor={colors.textSecondary}
+                keyboardType="numeric"
+                value={markInput}
+                onChangeText={setMarkInput}
+                maxLength={3}
+              />
+
+              <View style={styles.modalButtons}>
+                <Pressable
+                  style={[styles.cancelButton, { borderColor: colors.border }]}
+                  onPress={() => setSelectedStudent(null)}
+                >
+                  <Text style={[styles.buttonText, { color: colors.text }]}>
+                    Cancel
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  style={[
+                    styles.submitButton,
+                    { backgroundColor: colors.primary },
+                  ]}
+                  onPress={handleMarkSubmit}
+                  disabled={!markInput}
+                >
+                  <Text style={styles.buttonText}>Submit</Text>
+                </Pressable>
+              </View>
             </View>
           </View>
-        </View>
+        </BlurView>
       </Modal>
-    </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+  },
+  loader: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
-    marginBottom: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    marginBottom: 16,
   },
   title: {
-    fontSize: 28,
-    fontWeight: "800",
+    fontSize: 32,
+    fontWeight: '800',
     marginBottom: 4,
-    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 16,
     opacity: 0.8,
   },
   listContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 32,
     gap: 12,
-    paddingBottom: 24,
   },
   studentCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
     padding: 16,
-    elevation: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  studentAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
   },
   studentInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  studentId: {
-    fontSize: 14,
-    opacity: 0.7,
+    flex: 1,
   },
   studentName: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   markContainer: {
     minWidth: 40,
-    alignItems: "flex-end",
+    alignItems: 'flex-end',
   },
   markText: {
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: '700',
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 48,
+  },
+  emptyText: {
+    marginTop: 16,
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  errorText: {
+    marginTop: 16,
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  retryButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryText: {
+    color: '#fff',
+    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
   },
   modalContent: {
-    width: "100%",
-    borderRadius: 16,
+    width: '100%',
+    borderRadius: 20,
     padding: 24,
     gap: 24,
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: "600",
+    fontWeight: '600',
     marginBottom: 8,
   },
   markInput: {
@@ -227,8 +403,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   modalButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     gap: 12,
   },
   cancelButton: {
@@ -236,16 +412,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     padding: 14,
-    alignItems: "center",
+    alignItems: 'center',
   },
   submitButton: {
     flex: 1,
     borderRadius: 12,
     padding: 14,
-    alignItems: "center",
+    alignItems: 'center',
   },
   buttonText: {
-    color: "white",
-    fontWeight: "600",
+    color: 'white',
+    fontWeight: '600',
   },
 });

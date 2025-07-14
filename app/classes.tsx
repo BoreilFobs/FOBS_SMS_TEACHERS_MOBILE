@@ -22,45 +22,44 @@ import useUserStore from '@/utils/stores/userStore';
 const { width } = Dimensions.get("window");
 const CARD_HEIGHT = width * 0.4;
 
-interface Subject {
+interface Class {
   id: number;
   name: string;
-  code: string;
+  level: string;
+  academic_year: string;
 }
 
-export default function SubjectsScreen() {
+export default function ClassSelectionScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { user, teacher } = useUserStore();
+  const { teacher } = useUserStore();
   
-  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const schoolId = params.schoolId as string;
   const teacherId = teacher?.id;
+  const subjectId = params.subjectId as string;
   const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+  console.log(`Fetching classes for schoolId: ${schoolId}, teacherId: ${teacherId}, subjectId: ${subjectId}`);
 
-  console.log("Fetching subjects for schoolId:", schoolId, "and teacherId:", teacherId);
-
-  const fetchSubjects = async () => {
+  const fetchClasses = async () => {
+    
     try {
       setLoading(true);
-      
       const response = await fetch(
-        `${API_URL}/teacher-subjects?school_id=${schoolId}&teacher_id=${teacherId}`, // Replace with actual schoolId and teacherId
+        `${API_URL}/teacher-classes?school_id=${schoolId}&teacher_id=${teacherId}&subject_id=${subjectId}`
       );
       const data = await response.json();
-      console.log('API Response:', data.success);
-      
       
       if (data.success) {
-        setSubjects(data.data);
+        setClasses(data.data);
       } else {
-        setError(data.message || 'Failed to fetch subjects');
+        setError(data.message || 'Failed to fetch classes');
       }
     } catch (err) {
       setError('Network error occurred');
@@ -73,44 +72,43 @@ export default function SubjectsScreen() {
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchSubjects();
+    fetchClasses();
   };
 
   useEffect(() => {
-    if (schoolId && teacherId) {
-      fetchSubjects();
+    if (schoolId && teacherId && subjectId) {
+      fetchClasses();
     }
-  }, [schoolId, teacherId]);
+  }, [schoolId, teacherId, subjectId]);
 
-  const renderSubjectCard = ({ item }: { item: Subject }) => {
-    // Get icon and color based on subject name or code
-    const subjectConfig = getSubjectConfig(item.name);
+  const renderClassCard = ({ item }: { item: Class }) => {
+    const classConfig = getClassConfig(item.name);
     
     return (
       <TouchableOpacity
         style={[
-          styles.subjectCard,
+          styles.classCard,
           {
             backgroundColor: colors.card,
             borderColor: colors.border,
           },
         ]}
         activeOpacity={0.9}
-        onPress={() => router.push(`/classes?subjectId=${item.id}&schoolId=${schoolId}`)}
+        onPress={() => router.push(`/students?class_id=${item.id}`)}
       >
         <LinearGradient
-          colors={[subjectConfig.color + '30', subjectConfig.color + '10']}
+          colors={[classConfig.color + '30', classConfig.color + '10']}
           style={styles.iconContainer}
         >
-          <Feather name={subjectConfig.icon} size={28} color={subjectConfig.color} />
+          <Feather name={classConfig.icon} size={28} color={classConfig.color} />
         </LinearGradient>
         
         <View style={styles.textContainer}>
-          <Text style={[styles.subjectName, { color: colors.text }]}>
+          <Text style={[styles.className, { color: colors.text }]}>
             {item.name}
           </Text>
-          <Text style={[styles.subjectCode, { color: colors.textSecondary }]}>
-            {item.code}
+          <Text style={[styles.classDetails, { color: colors.textSecondary }]}>
+            {item.level} • {item.academic_year}
           </Text>
         </View>
         
@@ -127,26 +125,18 @@ export default function SubjectsScreen() {
   };
 
   if (loading && !refreshing) {
-  return (
-    <ImageBackground
-      source={require("@/assets/images/auth-bg2.jpg")}
-      style={styles.container}
-      blurRadius={10}
-    >
-      <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
-      <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
-      
-      <View style={styles.loadingContainer}>
-        <View style={styles.loadingCard}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.text }]}>
-            Loading your subjects...
-          </Text>
-        </View>
-      </View>
-    </ImageBackground>
-  );
-}
+    return (
+      <ImageBackground
+        source={require("@/assets/images/auth-bg2.jpg")}
+        style={styles.container}
+        blurRadius={10}
+      >
+        <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
+        <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
+        <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
+      </ImageBackground>
+    );
+  }
 
   if (error) {
     return (
@@ -156,33 +146,20 @@ export default function SubjectsScreen() {
         blurRadius={10}
       >
         <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
-        <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
-        
         <View style={styles.errorContainer}>
-          <View style={styles.errorCard}>
-            <MaterialIcons 
-              name="error-outline" 
-              size={48} 
-              color={colors.error} 
-              style={styles.errorIcon}
-            />
-            <Text style={[styles.errorTitle, { color: colors.text }]}>
-              Something went wrong
-            </Text>
-            <Text style={[styles.errorText, { color: colors.textSecondary }]}>
-              {error}
-            </Text>
-            <TouchableOpacity 
-              style={[styles.retryButton, { backgroundColor: colors.primary }]}
-              onPress={fetchSubjects}
-            >
-              <Text style={styles.retryText}>Try Again</Text>
-            </TouchableOpacity>
-          </View>
+          <MaterialIcons name="error-outline" size={48} color={colors.error} />
+          <Text style={[styles.errorText, { color: colors.text }]}>{error}</Text>
+          <TouchableOpacity 
+            style={[styles.retryButton, { backgroundColor: colors.primary }]}
+            onPress={fetchClasses}
+          >
+            <Text style={styles.retryText}>Try Again</Text>
+          </TouchableOpacity>
         </View>
       </ImageBackground>
     );
   }
+
   return (
     <ImageBackground
       source={require("@/assets/images/auth-bg2.jpg")}
@@ -198,18 +175,16 @@ export default function SubjectsScreen() {
         backgroundColor="transparent"
       />
 
-      <View style={[styles.header, { marginTop: StatusBar.currentHeight }]}>
-        <View>
-          <Text style={[styles.title, { color: colors.text }]}>Get a Subject </Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Select a subject to continue
-          </Text>
-        </View>
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: colors.text }]}>Select Class</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          Choose a class to continue
+        </Text>
       </View>
 
       <FlatList
-        data={subjects}
-        renderItem={renderSubjectCard}
+        data={classes}
+        renderItem={renderClassCard}
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
@@ -224,9 +199,9 @@ export default function SubjectsScreen() {
         }
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <MaterialIcons name="book" size={48} color={colors.textSecondary} />
+            <Feather name="users" size={48} color={colors.textSecondary} />
             <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-              No subjects assigned
+              No classes assigned
             </Text>
           </View>
         }
@@ -235,28 +210,31 @@ export default function SubjectsScreen() {
   );
 }
 
-// Helper function to get icon and color based on subject
-function getSubjectConfig(subjectName: string) {
-  const lowerName = subjectName.toLowerCase();
+// Helper function to get icon and color based on class
+function getClassConfig(className: string) {
+  const lowerName = className.toLowerCase();
   
-  if (lowerName.includes('math')) {
-    return { icon: 'hash', color: '#6366F1' };
-  } else if (lowerName.includes('eng')) {
-    return { icon: 'book-open', color: '#10B981' };
-  } else if (lowerName.includes('phy')) {
-    return { icon: 'aperture', color: '#EF4444' };
-  } else if (lowerName.includes('chem')) {
-    return { icon: 'droplet', color: '#F59E0B' };
-  } else if (lowerName.includes('bio')) {
-    return { icon: 'activity', color: '#8B5CF6' };
+  if (lowerName.includes('form 1')) {
+    return { icon: 'users', color: '#6366F1' };
+  } else if (lowerName.includes('form 2')) {
+    return { icon: 'users', color: '#10B981' };
+  } else if (lowerName.includes('form 3')) {
+    return { icon: 'users', color: '#EF4444' };
+  } else if (lowerName.includes('form 4')) {
+    return { icon: 'users', color: '#F59E0B' };
   } else {
-    return { icon: 'book', color: '#64748B' };
+    return { icon: 'users', color: '#64748B' };
   }
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  loader: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     paddingHorizontal: 24,
@@ -281,7 +259,7 @@ const styles = StyleSheet.create({
     gap: 16,
     marginBottom: 16,
   },
-  subjectCard: {
+  classCard: {
     width: (width - 48) / 2,
     borderRadius: 20,
     padding: 20,
@@ -303,12 +281,12 @@ const styles = StyleSheet.create({
   textContainer: {
     marginBottom: 16,
   },
-  subjectName: {
+  className: {
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 4,
   },
-  subjectCode: {
+  classDetails: {
     fontSize: 14,
     opacity: 0.8,
     fontWeight: '500',
@@ -329,84 +307,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
   },
-  headerBlur: {
-    paddingTop: StatusBar.currentHeight,
-    paddingHorizontal: 24,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
-    overflow: 'hidden',
-  },
-  headerContent: {
-    paddingVertical: 8,
-  },
-  
-  // Loading Styles
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  loadingCard: {
-    width: '100%',
-    maxWidth: 300,
-    padding: 32,
-    borderRadius: 24,
-    backgroundColor:  Colors.dark.card + 'CC', // Add transparency
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  
-  // Error Styles
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
   },
-  errorCard: {
-    width: '100%',
-    maxWidth: 300,
-    padding: 32,
-    borderRadius: 24,
-    backgroundColor: Colors.dark.card + 'CC',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
-  },
-  errorIcon: {
-    marginBottom: 16,
-  },
-  errorTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
   errorText: {
-    fontSize: 15,
+    marginTop: 16,
+    fontSize: 16,
     textAlign: 'center',
     marginBottom: 24,
-    lineHeight: 22,
   },
   retryButton: {
-    paddingHorizontal: 32,
+    paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 12,
-    width: '100%',
-    alignItems: 'center',
+    borderRadius: 8,
   },
   retryText: {
     color: '#fff',
     fontWeight: '600',
-    fontSize: 16,
   },
-
 });

@@ -234,6 +234,7 @@ const handleSubmit = async () => {
       blurRadius={10}
     >
       <BlurView intensity={180} style={StyleSheet.absoluteFill}  tint={colorScheme} />
+      <BlurView intensity={180} style={StyleSheet.absoluteFill}  tint={colorScheme} />
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={styles.innerContainer}>
           <View style={styles.progressContainer}>

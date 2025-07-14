@@ -8,7 +8,8 @@ import { useFonts } from "expo-font";
 import { Stack, Tabs } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-// import "react-native-reanimated";
+import { BlurView } from 'expo-blur';
+import { Text, View } from 'react-native';
 import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 import AuthWrapper from "@/components/AuthWrapper";
@@ -100,7 +101,7 @@ function RootLayoutNav() {
         />
 
         <Stack.Screen
-          name="subjectSelect"
+          name="subjects"
           options={{
             title: "",
             headerBackTitle: "Schools",
@@ -109,7 +110,7 @@ function RootLayoutNav() {
         />
 
         <Stack.Screen
-          name="classSelect"
+          name="classes"
           options={{
             title: "",
             headerBackTitle: "subjects",
