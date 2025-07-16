@@ -47,7 +47,10 @@ export default function StudentMarksScreen() {
   const [markInput, setMarkInput] = useState("");
 
   const classId = params.class_id as string;
-
+  const schoolId = params.school_id as string;
+  const sequenceId = params.sequence_id as string;
+  console.log(`id : ${params.subject_id} classId: ${classId}, schoolId: ${schoolId}, sequenceId: ${sequenceId}`);
+  
   const fetchStudents = async () => {
     try {
       setLoading(true);

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { TeacherSchoolResponse } from './types'; // adjust the import path
-import getUserAndTeacherData from '@/utils/storage/getUserAndTeacher';
+import {getUserAndTeacherData} from '@/utils/storage/getUserAndTeacher';
 
 export const useSchools = (teacherId: number) => {
   const [schoolData, setSchoolData] = useState<TeacherSchoolResponse>();
@@ -12,7 +12,10 @@ export const useSchools = (teacherId: number) => {
   const fetchSchools = async () => {
     try {
       const { teacher } = await getUserAndTeacherData();
-
+      if(teacher == null){
+        return;
+      }
+      
       const response = await fetch(`${API_URL}/teacher-schools?teacher_id=${teacher.id}`, {
         headers: {
           'Accept': 'application/json',
@@ -21,7 +24,9 @@ export const useSchools = (teacherId: number) => {
       });
 
       if (!response.ok) {
+        console.log('API Response:', response);
         throw new Error(`HTTP error! status: ${response.status}`);
+        
       }
 
       const data = await response.json();
@@ -43,7 +48,7 @@ export const useSchools = (teacherId: number) => {
 
   useEffect(() => {
     fetchSchools();
-  }, [teacherId]);
+  }, []);
 
   const refetch = () => {
     setLoading(true);

@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const getUserAndTeacherData = async () => {
+export const getUserAndTeacherData = async () => {
   try {
     const userData = await AsyncStorage.getItem('user');
     const teacherData = await AsyncStorage.getItem('teacher');
@@ -15,4 +15,12 @@ const getUserAndTeacherData = async () => {
   }
 };
 
-export default getUserAndTeacherData;
+export const clearUserAndTeacherData = async () => {
+  try {
+    await AsyncStorage.multiRemove(['user', 'teacher']);
+    console.log('User and teacher data cleared.');
+  } catch (error) {
+    console.error('Failed to clear data:', error);
+  }
+};
+

@@ -21,6 +21,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { useRouter } from 'expo-router';
 import AuthWrapper from '@/components/AuthWrapper';
 import axios from 'axios';
@@ -46,17 +47,26 @@ export default function TeacherSetupScreen() {
   // getting the user informations
 
   const pickImage = async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
+  let result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    allowsEditing: true,
+    aspect: [1, 1],
+    quality: 1,
+  });
 
-    if (!result.canceled) {
-      setFormData({...formData, profilePhoto: result.assets[0].uri});
-    }
-  };
+  if (!result.canceled) {
+    let uri = result.assets[0].uri;
+
+    // 🧠 Convert to JPEG if needed
+    const manipulatedImage = await ImageManipulator.manipulateAsync(
+      uri,
+      [], // no resize or crop
+      { compress: 1, format: ImageManipulator.SaveFormat.JPEG }
+    );
+
+    setFormData({ ...formData, profilePhoto: manipulatedImage.uri });
+  }
+};
 
   const handleNext = () => {
     if (currentStep < SETUP_STEPS.length - 1) {
@@ -103,13 +113,15 @@ const handleSubmit = async () => {
     formDataToSubmit.append('bio', formData.bio);
 
     // Make the API call with the formData
-    await axios.post(`${API_URL}/teacher/setup`, formDataToSubmit, {
+    const response = await axios.post(`${API_URL}/teacher/setup`, formDataToSubmit, {
       headers: {
         'Accept': 'application/json',
         'Authorization': `Bearer ${await AsyncStorage.getItem('auth_token')}`,
       },
     });
-
+    console.log(response.data);
+    await AsyncStorage.setItem('teacher', JSON.stringify(response.data.teacher));
+    
     // Show success message or alert
     // Alert.alert('Success', 'Setup information saved successfully!');
     await new Promise(resolve => setTimeout(resolve, 1500));  // Simulate some delay

@@ -94,7 +94,7 @@ export default function ClassSelectionScreen() {
           },
         ]}
         activeOpacity={0.9}
-        onPress={() => router.push(`/students?class_id=${item.id}`)}
+        onPress={() => router.push(`/exams?class_id=${item.id}&school_id=${schoolId}&subject_id=${subjectId}`)}
       >
         <LinearGradient
           colors={[classConfig.color + '30', classConfig.color + '10']}

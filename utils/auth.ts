@@ -3,6 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { router } from 'expo-router';
 import { Alert } from 'react-native';
+import useUserStore from '@/utils/stores/userStore';
+
 
 // const API_URL = 'http://192.168.100.169:8000/api'; // Replace with your backend URL
 const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
@@ -17,6 +19,7 @@ export const handleLogout = async () => {
   try {
     // 1. Get current token
     const token = await AsyncStorage.getItem('auth_token');
+    // useUserStore.getState().clearUserData();
     
     if (token) {
       // 2. Call backend logout endpoint
@@ -32,6 +35,7 @@ export const handleLogout = async () => {
     }
 
     // 3. Clear local storage
+    await useUserStore.getState().clearUserData();
     await AsyncStorage.multiRemove(['auth_token', 'user_data', 'user_id', 'user', 'teacher']);
 
     // 4. Redirect to login

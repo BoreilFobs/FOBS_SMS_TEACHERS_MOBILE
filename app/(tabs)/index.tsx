@@ -35,7 +35,7 @@ export default function SchoolsScreen() {
     loadUserData();
   } 
   const { schoolData, loading, error, refetch } = useSchools(teacher?.id);
-  console.log(schoolData);
+  console.log(teacher);
 
  
 
@@ -81,24 +81,42 @@ export default function SchoolsScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
+       <ImageBackground
+        source={require("@/assets/images/auth-bg2.jpg")}
+        style={styles.container}
+        blurRadius={10}
+      >
+      <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
+      <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
+      
+        <View style={[styles.container, styles.loadingContainer]}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </ImageBackground>
     );
   }
 
   if (error) {
     return (
-      <View style={[styles.container, styles.errorContainer]}>
-        <MaterialIcons name="error-outline" size={48} color={colors.error} />
-        <Text style={[styles.errorText, { color: colors.text }]}>{error}</Text>
-        <TouchableOpacity 
-          style={[styles.retryButton, { backgroundColor: colors.primary }]}
-          onPress={refetch}
-        >
-          <Text style={styles.retryText}>Try Again</Text>
-        </TouchableOpacity>
-      </View>
+       <ImageBackground
+        source={require("@/assets/images/auth-bg2.jpg")}
+        style={styles.container}
+        blurRadius={10}
+      >
+      <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
+      <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
+      
+        <View style={[styles.container, styles.errorContainer]}>
+          <MaterialIcons name="error-outline" size={48} color={colors.error} />
+          <Text style={[styles.errorText, { color: colors.text }]}>{error}</Text>
+          <TouchableOpacity 
+            style={[styles.retryButton, { backgroundColor: colors.primary }]}
+            onPress={refetch}
+          >
+            <Text style={styles.retryText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      </ImageBackground>
     );
   }
 
@@ -108,7 +126,6 @@ export default function SchoolsScreen() {
       style={styles.container}
       blurRadius={10}
     >
-      <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
       <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
       <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
       

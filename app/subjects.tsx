@@ -33,7 +33,8 @@ export default function SubjectsScreen() {
   const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { user, teacher } = useUserStore();
+  const { user, teacher, loadUserData } = useUserStore();
+  
   
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,6 +44,7 @@ export default function SubjectsScreen() {
   const schoolId = params.schoolId as string;
   const teacherId = teacher?.id;
   const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+      console.log(teacher);
 
   console.log("Fetching subjects for schoolId:", schoolId, "and teacherId:", teacherId);
 
@@ -137,7 +139,7 @@ export default function SubjectsScreen() {
       <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
       
       <View style={styles.loadingContainer}>
-        <View style={styles.loadingCard}>
+        <View style={[styles.loadingCard, { backgroundColor: colors.card + 'CC' }, {borderColor: colors.border}]} >
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={[styles.loadingText, { color: colors.text }]}>
             Loading your subjects...
@@ -159,7 +161,7 @@ export default function SubjectsScreen() {
         <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
         
         <View style={styles.errorContainer}>
-          <View style={styles.errorCard}>
+          <View style={[styles.errorCard, {borderColor: colors.border}, { backgroundColor: colors.card + 'CC' }]}>
             <MaterialIcons 
               name="error-outline" 
               size={48} 
@@ -353,10 +355,10 @@ const styles = StyleSheet.create({
     maxWidth: 300,
     padding: 32,
     borderRadius: 24,
-    backgroundColor:  Colors.dark.card + 'CC', // Add transparency
+    // Add transparency
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.dark.border,
+    
   },
   loadingText: {
     marginTop: 16,
@@ -376,10 +378,9 @@ const styles = StyleSheet.create({
     maxWidth: 300,
     padding: 32,
     borderRadius: 24,
-    backgroundColor: Colors.dark.card + 'CC',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.dark.border,
+    
   },
   errorIcon: {
     marginBottom: 16,
