@@ -25,6 +25,7 @@ interface Student {
   id: number;
   name: string;
   currentMark?: number | null;
+  markId?: number | null; // Add this to track mark ID if it exists
 }
 
 interface ClassInfo {
@@ -49,27 +50,47 @@ export default function StudentMarksScreen() {
   const classId = params.class_id as string;
   const schoolId = params.school_id as string;
   const sequenceId = params.sequence_id as string;
-  console.log(`id : ${params.subject_id} classId: ${classId}, schoolId: ${schoolId}, sequenceId: ${sequenceId}`);
+  const subjectId = params.subject_id as string;
+  console.log(`id : ${params.subject_id} classId: ${classId}, schoolId: ${schoolId}, sequenceId: ${sequenceId}, subjectId: ${subjectId}`);
   
-  const fetchStudents = async () => {
+ const fetchStudentsWithMarks = async () => {
     try {
       setLoading(true);
-      const response = await fetch(
+      
+      // First fetch students in class
+      const studentsResponse = await fetch(
         `${API_URL}/class-students?class_id=${classId}`
       );
-      const data = await response.json();
+      const studentsData = await studentsResponse.json();
       
-      if (data.success) {
-        setClassInfo(data.class);
-        setStudents(data.students.map((student: any) => ({
-          ...student,
-          currentMark: null // Initialize marks as null
-        })));
-      } else {
-        setError(data.message || 'Failed to fetch students');
+      if (!studentsData.success) {
+        throw new Error(studentsData.message || 'Failed to fetch students');
       }
+
+      // Then fetch existing marks for this exam/subject/class
+      const marksResponse = await fetch(
+        `${API_URL}/marks?school_id=${schoolId}&exam_id=${sequenceId}&subject_id=${subjectId}&class_id=${classId}`
+      );
+      const marksData = await marksResponse.json();
+
+      // Combine the data
+      const studentsWithMarks = studentsData.students.map((student: any) => {
+        const existingMark = marksData.success 
+          ? marksData.data.find((mark: any) => mark.student_id === student.id)
+          : null;
+        
+        return {
+          ...student,
+          currentMark: existingMark ? existingMark.mark : null,
+          markId: existingMark ? existingMark.id : null
+        };
+      });
+
+      setClassInfo(studentsData.class);
+      setStudents(studentsWithMarks);
+      setError(null);
     } catch (err) {
-      setError('Network error occurred');
+      setError(err instanceof Error ? err.message : 'Network error occurred');
       console.error(err);
     } finally {
       setLoading(false);
@@ -79,28 +100,58 @@ export default function StudentMarksScreen() {
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchStudents();
+    fetchStudentsWithMarks();
   };
 
   useEffect(() => {
     if (classId) {
-      fetchStudents();
+      fetchStudentsWithMarks();
     }
   }, [classId]);
 
-  const handleMarkSubmit = () => {
-    if (!selectedStudent) return;
+  const handleMarkSubmit = async () => {
+    if (!selectedStudent || !markInput) return;
 
-    const updatedStudents = students.map((student) =>
-      student.id === selectedStudent.id
-        ? { ...student, currentMark: Number(markInput) }
-        : student
-    );
+    try {
+      const response = await fetch(`${API_URL}/marks`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          school_id: schoolId,
+          student_id: selectedStudent.id,
+          subject_id: subjectId,
+          class_id: classId,
+          exam_id: sequenceId,
+          mark: parseFloat(markInput)
+        })
+      });
 
-    setStudents(updatedStudents);
-    setSelectedStudent(null);
-    setMarkInput("");
-    // Here you would typically also make an API call to save the mark
+      const data = await response.json();
+
+      if (data.success) {
+        // Update local state
+        const updatedStudents = students.map((student) =>
+          student.id === selectedStudent.id
+            ? { 
+                ...student, 
+                currentMark: parseFloat(markInput),
+                markId: data.data.id
+              }
+            : student
+        );
+
+        setStudents(updatedStudents);
+        setSelectedStudent(null);
+        setMarkInput("");
+      } else {
+        throw new Error(data.message || 'Failed to save mark');
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to save mark');
+      console.error(err);
+    }
   };
 
   if (loading && !refreshing) {
@@ -130,7 +181,7 @@ export default function StudentMarksScreen() {
           <Text style={[styles.errorText, { color: colors.text }]}>{error}</Text>
           <TouchableOpacity 
             style={[styles.retryButton, { backgroundColor: colors.primary }]}
-            onPress={fetchStudents}
+            onPress={fetchStudentsWithMarks}
           >
             <Text style={styles.retryText}>Try Again</Text>
           </TouchableOpacity>
@@ -159,7 +210,7 @@ export default function StudentMarksScreen() {
           {classInfo?.name || 'Class'}
         </Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          {students.length} students • Tap to enter marks
+          {students.length} students • Tap to enter marks on 20
         </Text>
       </View>
 
@@ -196,8 +247,8 @@ export default function StudentMarksScreen() {
             
             <View style={styles.markContainer}>
               {item.currentMark ? (
-                <Text style={[styles.markText, { color: colors.primary }]}>
-                  {item.currentMark}%
+                <Text style={[styles.markText, { color: item.currentMark >= 10 ? colors.primary : "red" }]}>
+                  {item.currentMark}
                 </Text>
               ) : (
                 <Feather name="edit" size={18} color={colors.textSecondary} />
@@ -249,12 +300,18 @@ export default function StudentMarksScreen() {
                     backgroundColor: colors.background,
                   },
                 ]}
-                placeholder="Enter mark (0-100)"
+                placeholder="Enter mark (0-20)"
                 placeholderTextColor={colors.textSecondary}
                 keyboardType="numeric"
                 value={markInput}
-                onChangeText={setMarkInput}
-                maxLength={3}
+                onChangeText={(text) => {
+                  // Validate input is between 0 and 20
+                  const num = parseFloat(text);
+                  if (text === '' || (!isNaN(num) && num >= 0 && num <= 20)) {
+                    setMarkInput(text);
+                  }
+                }}
+                maxLength={5} // Allow for decimals like 18.5
               />
 
               <View style={styles.modalButtons}>
