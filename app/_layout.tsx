@@ -109,8 +109,25 @@ function RootLayoutNav() {
           }}
         />
 
+         <Stack.Screen
+          name="settings"
+          options={{
+            title: "Settings",
+            headerBackTitle: "Back",
+            headerTintColor: modifiedTheme.colors.primary,
+            headerStyle: {
+              backgroundColor: modifiedTheme.colors.card,
+            },
+            headerTitleStyle: {
+              fontWeight: "600",
+            },
+            presentation: "modal", // Optional: makes it slide up on iOS
+            headerShown: false,
+          }}
+        />
+
         <Stack.Screen
-          name="exams"
+          name="marks/exams"
           options={{
             title: "",
             headerBackTitle: "Classes",
@@ -119,16 +136,72 @@ function RootLayoutNav() {
         />
 
         <Stack.Screen
-          name="attendance/classes"
+          name="settings/edit-profile"
           options={{
-            title: "Attendance Classes",
-            headerBackTitle: "Schools",
+            title: "",
+            headerBackTitle: "Classes",
             headerTintColor: modifiedTheme.colors.primary,
+            headerShown: false,
+
+          }}
+        />
+
+         <Stack.Screen
+          name="settings/change-password"
+          options={{
+            title: "",
+            headerBackTitle: "",
+            headerTintColor: modifiedTheme.colors.primary,
+            headerShown: false,
+
+          }}
+        />
+
+         <Stack.Screen
+          name="support/help"
+          options={{
+            title: "",
+            headerBackTitle: "",
+            headerTintColor: modifiedTheme.colors.primary,
+            headerShown: false,
+
+          }}
+        />
+
+         <Stack.Screen
+          name="support/contact"
+          options={{
+            title: "",
+            headerBackTitle: "",
+            headerTintColor: modifiedTheme.colors.primary,
+            headerShown: false,
+
+          }}
+        />
+
+         <Stack.Screen
+          name="support/about"
+          options={{
+            title: "",
+            headerBackTitle: "",
+            headerTintColor: modifiedTheme.colors.primary,
+            headerShown: false,
+
           }}
         />
 
         <Stack.Screen
-          name="classes"
+          name="attendance/students"
+          options={{
+            title: "Attendance",
+            headerBackTitle: "Schools",
+            headerTintColor: modifiedTheme.colors.primary,
+          }}
+        />
+        
+
+        <Stack.Screen
+          name="marks/classes"
           options={{
             title: "",
             headerBackTitle: "subjects",
@@ -137,7 +210,7 @@ function RootLayoutNav() {
         />
 
         <Stack.Screen
-          name="students"
+          name="marks/students"
           options={{
             title: "",
             headerBackTitle: "classes",
@@ -159,6 +232,16 @@ function RootLayoutNav() {
           name="setup"
           options={{
             title: "setup",
+            headerBackTitle: "setup",
+            headerTintColor: modifiedTheme.colors.primary,
+            headerShown: false
+          }}
+        />
+
+        <Stack.Screen
+          name="index"
+          options={{
+            title: "index",
             headerBackTitle: "setup",
             headerTintColor: modifiedTheme.colors.primary,
             headerShown: false

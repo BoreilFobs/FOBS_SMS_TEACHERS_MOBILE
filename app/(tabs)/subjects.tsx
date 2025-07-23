@@ -9,6 +9,7 @@ import {
   ImageBackground,
   StatusBar,
   ActivityIndicator,
+  Platform,
   RefreshControl
 } from "react-native";
 import { Feather, MaterialIcons } from "@expo/vector-icons";
@@ -98,7 +99,7 @@ export default function SubjectsScreen() {
           },
         ]}
         activeOpacity={0.9}
-        onPress={() => router.push(`/classes?subjectId=${item.id}&schoolId=${schoolId}`)}
+        onPress={() => router.push(`/marks/classes?subjectId=${item.id}&schoolId=${schoolId}`)}
       >
         <LinearGradient
           colors={[subjectConfig.color + '30', subjectConfig.color + '10']}
@@ -202,7 +203,7 @@ export default function SubjectsScreen() {
 
       <View style={[styles.header, { marginTop: StatusBar.currentHeight }]}>
         <View>
-          <Text style={[styles.title, { color: colors.text }]}>Get a Subject </Text>
+          <Text style={styles.logo}>FobsSMS</Text><Text style={[styles.title, { color: colors.text }]}>Teacher Mark Filling</Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
             Select a subject to continue
           </Text>
@@ -259,6 +260,7 @@ function getSubjectConfig(subjectName: string) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 50
   },
   header: {
     paddingHorizontal: 24,
@@ -269,6 +271,7 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '800',
     marginBottom: 4,
+    marginTop: 20
   },
   subtitle: {
     fontSize: 16,
@@ -410,4 +413,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 
+  logo: {
+      fontSize: 28,
+      fontWeight: '800',
+      color: Colors.dark.primary,
+      fontFamily: Platform.OS === "ios" ? "Poppins-Bold" : "sans-serif-light",
+      letterSpacing: 0.5,
+    },
 });

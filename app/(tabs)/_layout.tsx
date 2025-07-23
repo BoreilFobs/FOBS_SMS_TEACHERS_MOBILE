@@ -4,14 +4,19 @@ import { Feather } from "@expo/vector-icons";
 import Colors from "@/constants/Colors";
 import { useColorScheme } from "@/components/useColorScheme";
 import AuthWrapper from "@/components/AuthWrapper";
+import { Link, useNavigationContainerRef, useLocalSearchParams } from "expo-router";
 import SetupWrapper from "@/components/SetupWrapper";
 import { BlurView } from "expo-blur";
 import { StyleSheet, View } from "react-native";
 
+
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const currentColors = Colors[colorScheme ?? "light"];
-
+  const params = useLocalSearchParams();
+  const schoolId = params.schoolId as string;
+  console.log(`schoolId in TabLayout: ${schoolId}`);
+  
   return (
     <AuthWrapper>
       {/* <SetupWrapper> */}
@@ -52,10 +57,11 @@ export default function TabLayout() {
                 <Feather name="check-square" size={24} color={color} />
               ),
             }}
+            initialParams={{ schoolId: schoolId ?? 'default_id' }} // 👈 This is key
           />
 
          <Tabs.Screen
-          name="index"
+          name="subjects"
           options={{
             title: "Marks",
             tabBarIcon: ({ color }) => (
@@ -64,7 +70,7 @@ export default function TabLayout() {
           }}
         />
          
-          <Tabs.Screen
+          {/* <Tabs.Screen
             name="settings"
             options={{
               title: "settings",
@@ -72,7 +78,7 @@ export default function TabLayout() {
                 <Feather name="settings" size={24} color={color} />
               ),
             }}
-         />
+         /> */}
       </Tabs>
       {/* </SetupWrapper> */}
 

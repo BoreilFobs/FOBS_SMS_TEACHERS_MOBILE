@@ -314,7 +314,7 @@ export default function ExamSequencesScreen() {
                                 style={[styles.cancelButton, { borderColor: colors.border }]}
                                 onPress={() => {
                                     setSelectedSequence(null);
-                                    router.push(`/students?sequence_id=${selectedSequence.id}&school_id=${schoolId}&class_id=${params.class_id}&subject_id=${subjectId}`)
+                                    router.push(`/marks/students?sequence_id=${selectedSequence.id}&school_id=${schoolId}&class_id=${params.class_id}&subject_id=${subjectId}`)
                                 }}
                                 >
                                 <Text style={[styles.buttonText, { color: colors.text, backgroundColor: colors.textSecondary, padding: 12, borderRadius: 8 }]}>

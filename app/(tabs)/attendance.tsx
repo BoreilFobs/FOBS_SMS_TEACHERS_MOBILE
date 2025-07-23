@@ -1,97 +1,127 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
+  Dimensions,
   ImageBackground,
   StatusBar,
-  Dimensions,
-  Platform,
   ActivityIndicator,
-  RefreshControl
+  RefreshControl,
+  Platform
 } from "react-native";
-import { Feather, FontAwesome, MaterialIcons, Ionicons } from "@expo/vector-icons";
+import { Feather, MaterialIcons } from "@expo/vector-icons";
 import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
-import { useRouter } from "expo-router";
+import { Link, useRouter, useLocalSearchParams } from "expo-router";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
-import { useSchools } from "@/hooks/useSchools";
-import useUserStore from '@/utils/stores/userStore';
 
 const { width } = Dimensions.get("window");
-const CARD_WIDTH = width - 40;
-const CARD_HEIGHT = 160;
+const CARD_HEIGHT = width * 0.4;
 
-export default function SchoolsScreen() {
+interface Class {
+  id: number;
+  name: string;
+  level: string;
+  academic_year: string;
+}
+
+export default function SchoolClassesScreen() {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "dark"];
+  const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
-  const { user, teacher, loadUserData } = useUserStore();
+  const params = useLocalSearchParams();
   
-  if (!teacher || !user) {
-    loadUserData();
-  }
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const { schoolData, loading, error, refetch } = useSchools(teacher?.id);
+  const schoolId = params.schoolId as string;
+  const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+  console.log(`Fetching classes for schoolId: ${schoolId}`);
+console.log(params);
 
-  const renderSchoolItem = ({ item }: { item: typeof schoolData[0] }) => (
-    <TouchableOpacity
-      style={[styles.schoolCard, { backgroundColor: colors.card }]}
-      activeOpacity={0.9}
-      onPress={() => router.push(`/attendance/classes?schoolId=${item.school.id}`)}
-    >
-      <View style={styles.schoolContent}>
-        <View style={styles.schoolLogoContainer}>
-          {item.school.logo_url ? (
-            <ImageBackground
-              source={{ uri: item.school.logo_url }}
-              style={styles.schoolLogo}
-              resizeMode="contain"
-            />
-          ) : (
-            <Ionicons name="school" size={40} color={colors.primary} />
-          )}
+  const fetchClasses = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `${API_URL}/school-classes?school_id=${schoolId}`
+      );
+      const data = await response.json();
+      
+      if (data.success) {
+        setClasses(data.classes);
+      } else {
+        setError(data.message || 'Failed to fetch classes');
+      }
+    } catch (err) {
+      setError('Network error occurred');
+      console.error(err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchClasses();
+  };
+
+  useEffect(() => {
+    if (schoolId) {
+      fetchClasses();
+    }
+  }, [schoolId]);
+
+  const renderClassCard = ({ item }: { item: Class }) => {
+    const classConfig = getClassConfig(item.name);
+    
+    return (
+      <TouchableOpacity
+        style={[
+          styles.classCard,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+          },
+        ]}
+        activeOpacity={0.9}
+        onPress={() => router.push(`/attendance/students?class_id=${item.id}&school_id=${schoolId}`)}
+      >
+        <LinearGradient
+          colors={[classConfig.color + '30', classConfig.color + '10']}
+          style={styles.iconContainer}
+        >
+          <Feather name={classConfig.icon} size={28} color={classConfig.color} />
+        </LinearGradient>
+        
+        <View style={styles.textContainer}>
+          <Text style={[styles.className, { color: colors.text }]}>
+            {item.name}
+          </Text>
+          <Text style={[styles.classDetails, { color: colors.textSecondary }]}>
+            {item.level} • {item.academic_year}
+          </Text>
         </View>
         
-        <View style={styles.schoolInfo}>
-          <Text style={[styles.schoolName, { color: colors.text }]} numberOfLines={1}>
-            {item.school.name}
-          </Text>
-          <Text style={[styles.schoolAcronym, { color: colors.textSecondary }]}>
-            {item.school.acronym}
-          </Text>
+        <View style={styles.arrowContainer}>
+          <Feather
+            name="chevron-right"
+            size={20}
+            color={colors.textSecondary}
+            style={{ opacity: 0.7 }}
+          />
         </View>
-        
-        <View style={styles.statusContainer}>
-          {!item.teacher_school.isActive ? (
-            <View style={[styles.statusBadge, { backgroundColor: '#FFF3E0' }]}>
-              <MaterialIcons name="pending" size={14} color="#E65100" />
-              <Text style={[styles.statusText, { color: '#E65100' }]}>Pending</Text>
-            </View>
-          ) : (
-            <View style={[styles.statusBadge, { backgroundColor: '#E8F5E9' }]}>
-              <Feather name="check-circle" size={14} color="#2E7D32" />
-              <Text style={[styles.statusText, { color: '#2E7D32' }]}>Active</Text>
-            </View>
-          )}
-        </View>
-      </View>
-      
-      <View style={styles.divider} />
-      
-      <View style={styles.footer}>
-        <Text style={[styles.footerText, { color: colors.textSecondary }]}>
-          {item.school.location || 'No location specified'}
-        </Text>
-        <Feather name="chevron-right" size={20} color={colors.textSecondary} />
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
-  if (loading) {
+  if (loading && !refreshing) {
     return (
       <ImageBackground
         source={require("@/assets/images/auth-bg2.jpg")}
@@ -99,9 +129,8 @@ export default function SchoolsScreen() {
         blurRadius={10}
       >
         <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
-        <View style={[styles.container, styles.loadingContainer]}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
+        <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
       </ImageBackground>
     );
   }
@@ -114,12 +143,12 @@ export default function SchoolsScreen() {
         blurRadius={10}
       >
         <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
-        <View style={[styles.container, styles.errorContainer]}>
+        <View style={styles.errorContainer}>
           <MaterialIcons name="error-outline" size={48} color={colors.error} />
           <Text style={[styles.errorText, { color: colors.text }]}>{error}</Text>
           <TouchableOpacity 
             style={[styles.retryButton, { backgroundColor: colors.primary }]}
-            onPress={refetch}
+            onPress={fetchClasses}
           >
             <Text style={styles.retryText}>Try Again</Text>
           </TouchableOpacity>
@@ -144,64 +173,33 @@ export default function SchoolsScreen() {
       />
 
       <View style={styles.header}>
-        <View>
-          <Text style={[styles.title, { color: colors.text }]}>My Schools</Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Manage your connected institutions
-          </Text>
-        </View>
-        {/* <View style={styles.headerActions}>
-          <TouchableOpacity 
-            style={[styles.iconButton, { backgroundColor: colors.card }]}
-            onPress={() => router.push("/schools/requests")}
-          >
-            <FontAwesome name="bell" size={20} color={colors.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.iconButton, { backgroundColor: colors.primary }]}
-            onPress={() => router.push("/schools/add")}
-          >
-            <Feather name="plus" size={20} color="white" />
-          </TouchableOpacity>
-        </View> */}
+        <Text style={styles.logo}>FobsSMS</Text><Text style={[styles.title, { color: colors.text }]}>Students Attendance</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          Select a class to start attendance
+        </Text>
       </View>
 
       <FlatList
-        data={schoolData}
-        renderItem={renderSchoolItem}
-        keyExtractor={(item) => item.school.id.toString()}
+        data={classes}
+        renderItem={renderClassCard}
+        keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        numColumns={2}
+        columnWrapperStyle={styles.columnWrapper}
         refreshControl={
           <RefreshControl
-            refreshing={loading}
-            onRefresh={refetch}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
             tintColor={colors.primary}
           />
         }
-        ListHeaderComponent={
-          <View style={styles.infoBanner}>
-            <Ionicons name="information-circle" size={20} color={colors.primary} />
-            <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-              Schools not appearing? They may need to upgrade to our Pro plan.
-            </Text>
-          </View>
-        }
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Ionicons name="school" size={48} color={colors.textSecondary} />
+            <Feather name="users" size={48} color={colors.textSecondary} />
             <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-              No schools connected to your account
+              No classes found for this school
             </Text>
-            <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
-              Add a school to get started
-            </Text>
-            <TouchableOpacity 
-              style={[styles.addButton, { backgroundColor: colors.primary }]}
-              onPress={() => router.push("/schools/add")}
-            >
-              <Text style={styles.addButtonText}>Connect School</Text>
-            </TouchableOpacity>
           </View>
         }
       />
@@ -209,25 +207,116 @@ export default function SchoolsScreen() {
   );
 }
 
+// Helper function to get icon and color based on class
+function getClassConfig(className: string) {
+  const lowerName = className.toLowerCase();
+  
+  if (lowerName.includes('form 1')) {
+    return { icon: 'users', color: '#6366F1' };
+  } else if (lowerName.includes('form 2')) {
+    return { icon: 'users', color: '#10B981' };
+  } else if (lowerName.includes('form 3')) {
+    return { icon: 'users', color: '#EF4444' };
+  } else if (lowerName.includes('form 4')) {
+    return { icon: 'users', color: '#F59E0B' };
+  } else {
+    return { icon: 'users', color: '#64748B' };
+  }
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'transparent',
+    paddingTop: 50
   },
-  loadingContainer: {
+  loader: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  header: {
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: '800',
+    marginBottom: 4,
+    marginTop: 20
+  },
+  subtitle: {
+    fontSize: 16,
+    opacity: 0.8,
+  },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 32,
+  },
+  columnWrapper: {
+    justifyContent: 'space-between',
+    gap: 16,
+    marginBottom: 16,
+  },
+  classCard: {
+    width: (width - 48) / 2,
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  iconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  textContainer: {
+    marginBottom: 16,
+  },
+  className: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  classDetails: {
+    fontSize: 14,
+    opacity: 0.8,
+    fontWeight: '500',
+  },
+  arrowContainer: {
+    position: 'absolute',
+    right: 16,
+    bottom: 16,
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 48,
+  },
+  emptyText: {
+    marginTop: 16,
+    fontSize: 16,
+    textAlign: 'center',
   },
   errorContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 24,
   },
   errorText: {
     marginTop: 16,
     fontSize: 16,
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   retryButton: {
     paddingHorizontal: 24,
@@ -238,145 +327,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingBottom: 20,
-  },
-  title: {
+  logo: {
     fontSize: 28,
-    fontWeight: '700',
-  },
-  subtitle: {
-    fontSize: 14,
-    opacity: 0.8,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  listContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
-  infoBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(100, 181, 246, 0.1)',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 20,
-    gap: 8,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 13,
-  },
-  schoolCard: {
-    width: CARD_WIDTH,
-    borderRadius: 12,
-    marginBottom: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  schoolContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  schoolLogoContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  schoolLogo: {
-    width: '100%',
-    height: '100%',
-  },
-  schoolInfo: {
-    flex: 1,
-  },
-  schoolName: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  schoolAcronym: {
-    fontSize: 14,
-    opacity: 0.8,
-  },
-  statusContainer: {
-    alignSelf: 'flex-start',
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
-    marginVertical: 8,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  footerText: {
-    fontSize: 13,
-  },
-  emptyState: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-    marginTop: 40,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginTop: 16,
-    textAlign: 'center',
-  },
-  emptySubtext: {
-    fontSize: 14,
-    marginTop: 4,
-    marginBottom: 24,
-    textAlign: 'center',
-    opacity: 0.8,
-  },
-  addButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  addButtonText: {
-    color: '#fff',
-    fontWeight: '600',
+    fontWeight: '800',
+    color: Colors.dark.primary,
+    fontFamily: Platform.OS === "ios" ? "Poppins-Bold" : "sans-serif-light",
+    letterSpacing: 0.5,
   },
 });
