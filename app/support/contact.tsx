@@ -19,7 +19,7 @@ const contactMethods = [
     title: "Email Support",
     icon: "email",
     description: "Get direct help from our support team",
-    action: () => Linking.openURL('mailto:support@your-school.edu')
+    action: () => Linking.openURL('mailto:fobsboreil@gmail.com')
   },
   {
     title: "Live Chat",
@@ -30,14 +30,14 @@ const contactMethods = [
   {
     title: "Phone Support",
     icon: "phone",
-    description: "Call us at +1 (555) 123-4567",
-    action: () => Linking.openURL('tel:+15551234567')
+    description: "Call us at +237-690-383-299",
+    action: () => Linking.openURL('tel:+237690383299')
   },
   {
     title: "Visit Office",
     icon: "office-building",
-    description: "123 School St, Education City",
-    action: () => Linking.openURL('https://maps.app.goo.gl/...')
+    description: "Yaounde, Cameroon",
+    action: () => Linking.openURL('https://maps.google.com')
   }
 ];
 
@@ -106,21 +106,21 @@ export default function ContactUsScreen() {
           <View style={styles.socialIcons}>
             <TouchableOpacity 
               style={[styles.socialIcon, { backgroundColor: colors.primary + '20' }]}
-              onPress={() => Linking.openURL('https://facebook.com/your-school')}
+              onPress={() => Linking.openURL('https://facebook.com/BoreilFobs')}
             >
               <Ionicons name="logo-facebook" size={24} color={colors.primary} />
             </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.socialIcon, { backgroundColor: colors.primary + '20' }]}
-              onPress={() => Linking.openURL('https://twitter.com/your-school')}
+              onPress={() => Linking.openURL('https://wa.me/237690383299')}
             >
-              <Ionicons name="logo-twitter" size={24} color={colors.primary} />
+              <Ionicons name="logo-whatsapp" size={24} color={colors.primary} />
             </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.socialIcon, { backgroundColor: colors.primary + '20' }]}
-              onPress={() => Linking.openURL('https://instagram.com/your-school')}
+              onPress={() => Linking.openURL('https://github.com/BoreilFobs')}
             >
-              <Ionicons name="logo-instagram" size={24} color={colors.primary} />
+              <Ionicons name="logo-github" size={24} color={colors.primary} />
             </TouchableOpacity>
           </View>
         </View>

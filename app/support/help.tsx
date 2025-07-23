@@ -34,15 +34,15 @@ const helpTopics = [
       "Viewing attendance reports"
     ]
   },
-  {
-    title: "Classes & Subjects",
-    icon: "book",
-    items: [
-      "Adding new classes",
-      "Managing your subjects",
-      "Student enrollment"
-    ]
-  },
+  // {
+  //   title: "Classes & Subjects",
+  //   icon: "book",
+  //   items: [
+  //     "Adding new classes",
+  //     "Managing your subjects",
+  //     "Student enrollment"
+  //   ]
+  // },
   {
     title: "Account Settings",
     icon: "settings",
