@@ -102,6 +102,7 @@ export default function ExamSequencesScreen() {
         blurRadius={10}
       >
         <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
+        <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
         <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
       </ImageBackground>
     );
@@ -114,6 +115,7 @@ export default function ExamSequencesScreen() {
         style={styles.container}
         blurRadius={10}
       >
+        <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
         <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
         <View style={styles.errorContainer}>
           <MaterialIcons name="error-outline" size={48} color={colors.error} />
@@ -135,6 +137,7 @@ export default function ExamSequencesScreen() {
       style={styles.container}
       blurRadius={10}
     >
+      <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
       <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
       
       <StatusBar

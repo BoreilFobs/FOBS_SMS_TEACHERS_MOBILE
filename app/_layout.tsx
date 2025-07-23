@@ -110,6 +110,24 @@ function RootLayoutNav() {
         />
 
         <Stack.Screen
+          name="exams"
+          options={{
+            title: "",
+            headerBackTitle: "Classes",
+            headerTintColor: modifiedTheme.colors.primary,
+          }}
+        />
+
+        <Stack.Screen
+          name="attendance/classes"
+          options={{
+            title: "Attendance Classes",
+            headerBackTitle: "Schools",
+            headerTintColor: modifiedTheme.colors.primary,
+          }}
+        />
+
+        <Stack.Screen
           name="classes"
           options={{
             title: "",

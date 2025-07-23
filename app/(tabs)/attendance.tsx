@@ -22,53 +22,72 @@ import { useSchools } from "@/hooks/useSchools";
 import useUserStore from '@/utils/stores/userStore';
 
 const { width } = Dimensions.get("window");
-const CARD_HEIGHT = Dimensions.get("window").height / 3.5;
+const CARD_WIDTH = width - 40;
+const CARD_HEIGHT = 160;
 
 export default function SchoolsScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
   const router = useRouter();
   const { user, teacher, loadUserData } = useUserStore();
+  
   if (!teacher || !user) {
     loadUserData();
-  } 
+  }
+
   const { schoolData, loading, error, refetch } = useSchools(teacher?.id);
 
   const renderSchoolItem = ({ item }: { item: typeof schoolData[0] }) => (
     <TouchableOpacity
-      style={styles.schoolCard}
+      style={[styles.schoolCard, { backgroundColor: colors.card }]}
       activeOpacity={0.9}
-      onPress={() => router.push(`/subjects?schoolId=${item.school.id}`)}
+      onPress={() => router.push(`/attendance/classes?schoolId=${item.school.id}`)}
     >
-      <ImageBackground
-        source={{ uri: item.school.logo_url }}
-        style={styles.schoolImage}
-        resizeMode="cover"
-      >
-        <LinearGradient
-          colors={["transparent", "rgba(0,0,0,0.8)"]}
-          style={styles.imageOverlay}
-        />
+      <View style={styles.schoolContent}>
+        <View style={styles.schoolLogoContainer}>
+          {item.school.logo_url ? (
+            <ImageBackground
+              source={{ uri: item.school.logo_url }}
+              style={styles.schoolLogo}
+              resizeMode="contain"
+            />
+          ) : (
+            <Ionicons name="school" size={40} color={colors.primary} />
+          )}
+        </View>
+        
         <View style={styles.schoolInfo}>
-          <Text style={styles.schoolName} numberOfLines={2}>
+          <Text style={[styles.schoolName, { color: colors.text }]} numberOfLines={1}>
             {item.school.name}
           </Text>
-          <View style={styles.bottomRow}>
-            <Text style={styles.schoolAcronym}>{item.school.acronym}</Text>
-            {!item.teacher_school.isActive ? (
-              <View style={styles.pendingBadge}>
-                <MaterialIcons name="pending" size={14} color="#92400E" />
-                <Text style={styles.pendingText}>Pending</Text>
-              </View>
-            ) : (
-              <View style={styles.activeBadge}>
-                <Feather name="check-circle" size={14} color="#fff" />
-                <Text style={styles.activeText}>Active</Text>
-              </View>
-            )}
-          </View>
+          <Text style={[styles.schoolAcronym, { color: colors.textSecondary }]}>
+            {item.school.acronym}
+          </Text>
         </View>
-      </ImageBackground>
+        
+        <View style={styles.statusContainer}>
+          {!item.teacher_school.isActive ? (
+            <View style={[styles.statusBadge, { backgroundColor: '#FFF3E0' }]}>
+              <MaterialIcons name="pending" size={14} color="#E65100" />
+              <Text style={[styles.statusText, { color: '#E65100' }]}>Pending</Text>
+            </View>
+          ) : (
+            <View style={[styles.statusBadge, { backgroundColor: '#E8F5E9' }]}>
+              <Feather name="check-circle" size={14} color="#2E7D32" />
+              <Text style={[styles.statusText, { color: '#2E7D32' }]}>Active</Text>
+            </View>
+          )}
+        </View>
+      </View>
+      
+      <View style={styles.divider} />
+      
+      <View style={styles.footer}>
+        <Text style={[styles.footerText, { color: colors.textSecondary }]}>
+          {item.school.location || 'No location specified'}
+        </Text>
+        <Feather name="chevron-right" size={20} color={colors.textSecondary} />
+      </View>
     </TouchableOpacity>
   );
 
@@ -79,7 +98,6 @@ export default function SchoolsScreen() {
         style={styles.container}
         blurRadius={10}
       >
-        <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
         <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
         <View style={[styles.container, styles.loadingContainer]}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -95,7 +113,6 @@ export default function SchoolsScreen() {
         style={styles.container}
         blurRadius={10}
       >
-        <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
         <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
         <View style={[styles.container, styles.errorContainer]}>
           <MaterialIcons name="error-outline" size={48} color={colors.error} />
@@ -126,32 +143,27 @@ export default function SchoolsScreen() {
         backgroundColor="transparent"
       />
 
-      <View style={[styles.header, { marginTop: StatusBar.currentHeight }]}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.title}>FobsSMS</Text>
+      <View style={styles.header}>
+        <View>
+          <Text style={[styles.title, { color: colors.text }]}>My Schools</Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Your connected institutions
+            Manage your connected institutions
           </Text>
         </View>
-        <View style={styles.headerActions}>
+        {/* <View style={styles.headerActions}>
           <TouchableOpacity 
-            style={styles.notificationButton}
+            style={[styles.iconButton, { backgroundColor: colors.card }]}
             onPress={() => router.push("/schools/requests")}
           >
-            <View style={styles.badgeContainer}>
-              <Ionicons name="notifications-outline" size={24} color={colors.primary} />
-              <View style={[styles.badge, { backgroundColor: colors.error }]}>
-                <Text style={styles.badgeText}>2</Text>
-              </View>
-            </View>
+            <FontAwesome name="bell" size={20} color={colors.primary} />
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[styles.addButton, { backgroundColor: colors.primary }]}
+            style={[styles.iconButton, { backgroundColor: colors.primary }]}
             onPress={() => router.push("/schools/add")}
           >
-            <Feather name="plus" size={18} color="white" />
+            <Feather name="plus" size={20} color="white" />
           </TouchableOpacity>
-        </View>
+        </View> */}
       </View>
 
       <FlatList
@@ -168,25 +180,28 @@ export default function SchoolsScreen() {
           />
         }
         ListHeaderComponent={
-          <View style={[styles.infoNote, { backgroundColor: colors.card }]}>
-            <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
-            <Text style={[styles.infoText, { color: colors.text }]}>
-              Don't see your school? Wait for approval from requested schools or send a new request.
+          <View style={styles.infoBanner}>
+            <Ionicons name="information-circle" size={20} color={colors.primary} />
+            <Text style={[styles.infoText, { color: colors.textSecondary }]}>
+              Schools not appearing? They may need to upgrade to our Pro plan.
             </Text>
           </View>
         }
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <MaterialIcons name="school" size={48} color={colors.textSecondary} />
+            <Ionicons name="school" size={48} color={colors.textSecondary} />
             <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-              No schools found
+              No schools connected to your account
             </Text>
-            {/* <TouchableOpacity 
+            <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
+              Add a school to get started
+            </Text>
+            <TouchableOpacity 
               style={[styles.addButton, { backgroundColor: colors.primary }]}
               onPress={() => router.push("/schools/add")}
             >
-              <Text style={styles.addButtonText}>Add School</Text>
-            </TouchableOpacity> */}
+              <Text style={styles.addButtonText}>Connect School</Text>
+            </TouchableOpacity>
           </View>
         }
       />
@@ -197,7 +212,6 @@ export default function SchoolsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: Platform.OS === "ios" ? 40 : 10,
     backgroundColor: 'transparent',
   },
   loadingContainer: {
@@ -222,158 +236,147 @@ const styles = StyleSheet.create({
   },
   retryText: {
     color: '#fff',
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  headerLeft: {
-    flex: 1,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingBottom: 20,
   },
   title: {
     fontSize: 28,
-    fontWeight: '800',
-    color: Colors.dark.primary,
-    fontFamily: Platform.OS === "ios" ? "Poppins-Bold" : "sans-serif-light",
-    letterSpacing: 0.5,
+    fontWeight: '700',
   },
   subtitle: {
     fontSize: 14,
     opacity: 0.8,
-    marginTop: 4,
   },
   headerActions: {
     flexDirection: 'row',
-    alignItems: 'center',
     gap: 12,
   },
-  notificationButton: {
-    position: 'relative',
-  },
-  addButton: {
+  iconButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  badgeContainer: {
-    position: 'relative',
+  listContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
   },
-  badge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  badgeText: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  infoNote: {
+  infoBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
-    marginHorizontal: 16,
-    gap: 12,
+    backgroundColor: 'rgba(100, 181, 246, 0.1)',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+    gap: 8,
   },
   infoText: {
     flex: 1,
     fontSize: 13,
   },
   schoolCard: {
-    height: CARD_HEIGHT,
+    width: CARD_WIDTH,
     borderRadius: 12,
-    overflow: 'hidden',
     marginBottom: 16,
-    marginHorizontal: 16,
-    elevation: 3,
+    padding: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  schoolImage: {
-    flex: 1,
-    justifyContent: 'flex-end',
+  schoolContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  imageOverlay: {
-    ...StyleSheet.absoluteFillObject,
+  schoolLogoContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  schoolLogo: {
+    width: '100%',
+    height: '100%',
   },
   schoolInfo: {
-    padding: 16,
+    flex: 1,
   },
   schoolName: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 8,
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 4,
   },
-  bottomRow: {
+  schoolAcronym: {
+    fontSize: 14,
+    opacity: 0.8,
+  },
+  statusContainer: {
+    alignSelf: 'flex-start',
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    marginVertical: 8,
+  },
+  footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  schoolAcronym: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  pendingBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  pendingText: {
-    color: '#92400E',
-    fontSize: 12,
-    marginLeft: 4,
-    fontWeight: '500',
-  },
-  activeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#065F46',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  activeText: {
-    color: 'white',
-    fontSize: 12,
-    marginLeft: 4,
-    fontWeight: '500',
-  },
-  listContent: {
-    paddingBottom: 32,
+  footerText: {
+    fontSize: 13,
   },
   emptyState: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    padding: 40,
+    marginTop: 40,
   },
   emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
     marginTop: 16,
-    fontSize: 16,
     textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: 14,
+    marginTop: 4,
+    marginBottom: 24,
+    textAlign: 'center',
+    opacity: 0.8,
+  },
+  addButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
   },
   addButtonText: {
     color: '#fff',
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
 });

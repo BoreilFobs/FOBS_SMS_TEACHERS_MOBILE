@@ -4,6 +4,7 @@ import { Feather } from "@expo/vector-icons";
 import Colors from "@/constants/Colors";
 import { useColorScheme } from "@/components/useColorScheme";
 import AuthWrapper from "@/components/AuthWrapper";
+import SetupWrapper from "@/components/SetupWrapper";
 import { BlurView } from "expo-blur";
 import { StyleSheet, View } from "react-native";
 
@@ -13,6 +14,7 @@ export default function TabLayout() {
 
   return (
     <AuthWrapper>
+      {/* <SetupWrapper> */}
       <Tabs
         screenOptions={{
           tabBarActiveTintColor: currentColors.tint,
@@ -43,23 +45,25 @@ export default function TabLayout() {
         }}
       >
           <Tabs.Screen
-            name="index"
+            name="attendance"
             options={{
-              title: "home",
+              title: "Attendance",
               tabBarIcon: ({ color }) => (
-                <Feather name="home" size={24} color={color} />
+                <Feather name="check-square" size={24} color={color} />
               ),
             }}
           />
+
          <Tabs.Screen
-            name="submit"
-            options={{
-              title: "Submit",
-              tabBarIcon: ({ color }) => (
-                <Feather name="upload" size={24} color={color} />
-              ),
-            }}
-          />
+          name="index"
+          options={{
+            title: "Marks",
+            tabBarIcon: ({ color }) => (
+              <Feather name="edit" size={24} color={color} />
+            ),
+          }}
+        />
+         
           <Tabs.Screen
             name="settings"
             options={{
@@ -70,6 +74,8 @@ export default function TabLayout() {
             }}
          />
       </Tabs>
+      {/* </SetupWrapper> */}
+
     </AuthWrapper>
   );
 }

@@ -12,8 +12,9 @@ import {
   Platform,
   Dimensions,
   Animated,
-  Image
+  Image,
 } from 'react-native'; 
+import Slider from '@react-native-community/slider';
 import { TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,7 +29,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
-const SETUP_STEPS = ['qualifications', 'specialization', 'bio', 'profile'];
+const SETUP_STEPS = ['qualifications', 'specialization', 'bio', 'contact', 'experience', 'profile'];
 
 export default function TeacherSetupScreen() {
   const router = useRouter();
@@ -39,37 +40,46 @@ export default function TeacherSetupScreen() {
     qualifications: '',
     specialization: '',
     bio: '',
+    phone: '',
+    address: '',
+    experience: 1,
     profilePhoto: null as string | null
   });
   const [isLoading, setIsLoading] = useState(false);
-  const scrollX = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
   const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
-  // getting the user informations
+
+  const animateSlide = (direction: 'left' | 'right') => {
+    slideAnim.setValue(direction === 'left' ? -50 : 50);
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  };
 
   const pickImage = async () => {
-  let result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    allowsEditing: true,
-    aspect: [1, 1],
-    quality: 1,
-  });
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+    });
 
-  if (!result.canceled) {
-    let uri = result.assets[0].uri;
-
-    // 🧠 Convert to JPEG if needed
-    const manipulatedImage = await ImageManipulator.manipulateAsync(
-      uri,
-      [], // no resize or crop
-      { compress: 1, format: ImageManipulator.SaveFormat.JPEG }
-    );
-
-    setFormData({ ...formData, profilePhoto: manipulatedImage.uri });
-  }
-};
+    if (!result.canceled) {
+      let uri = result.assets[0].uri;
+      const manipulatedImage = await ImageManipulator.manipulateAsync(
+        uri,
+        [],
+        { compress: 1, format: ImageManipulator.SaveFormat.JPEG }
+      );
+      setFormData({ ...formData, profilePhoto: manipulatedImage.uri });
+    }
+  };
 
   const handleNext = () => {
     if (currentStep < SETUP_STEPS.length - 1) {
+      animateSlide('left');
       setCurrentStep(currentStep + 1);
     } else {
       handleSubmit();
@@ -78,247 +88,317 @@ export default function TeacherSetupScreen() {
 
   const handleBack = () => {
     if (currentStep > 0) {
+      animateSlide('right');
       setCurrentStep(currentStep - 1);
     }
   };
 
+  const handleSubmit = async () => {
+    setIsLoading(true);
+    try {
+      const userId = await AsyncStorage.getItem('user_id');
+      if (!userId) throw new Error('User ID not found. Please log in again.');
 
-const handleSubmit = async () => {
-  setIsLoading(true);
-  
-  try {
-    const userId = await AsyncStorage.getItem('user_id');
-    console.log('User ID:', userId);
+      const formDataToSubmit = new FormData();
+      if (formData.profilePhoto) {
+        formDataToSubmit.append('profile_photo', {
+          uri: formData.profilePhoto,
+          name: `profile_${userId}.jpg`,
+          type: 'image/jpeg',
+        });
+      }
 
-    if (!userId) {
-      throw new Error('User ID not found. Please log in again.');
+      formDataToSubmit.append('user_id', userId);
+      formDataToSubmit.append('qualifications', formData.qualifications);
+      formDataToSubmit.append('specialization', formData.specialization);
+      formDataToSubmit.append('bio', formData.bio);
+      formDataToSubmit.append('phone', formData.phone);
+      formDataToSubmit.append('address', formData.address);
+      formDataToSubmit.append('experience', formData.experience.toString());
+      console.log(formDataToSubmit);
+      
+
+      const response = await axios.post(`${API_URL}/teacher/setup`, formDataToSubmit, {
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${await AsyncStorage.getItem('auth_token')}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      
+      await AsyncStorage.setItem('teacher', JSON.stringify(response.data.teacher));
+      router.push('/(tabs)');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save setup information');
+      console.error(error);
+    } finally {
+      setIsLoading(false);
     }
-
-    const formDataToSubmit = new FormData();
-
-    // Append profile photo if exists
-    if (formData.profilePhoto) {
-      const photoData = {
-        uri: formData.profilePhoto,
-        name: `profile_${userId}.jpg`,
-        type: 'image/jpeg',
-      };
-      formDataToSubmit.append('profile_photo', photoData);
-    }
-
-    // Append other text data
-    formDataToSubmit.append('user_id', userId);
-    formDataToSubmit.append('qualifications', formData.qualifications);
-    formDataToSubmit.append('specialization', formData.specialization);
-    formDataToSubmit.append('bio', formData.bio);
-
-    // Make the API call with the formData
-    const response = await axios.post(`${API_URL}/teacher/setup`, formDataToSubmit, {
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${await AsyncStorage.getItem('auth_token')}`,
-      },
-    });
-    console.log(response.data);
-    await AsyncStorage.setItem('teacher', JSON.stringify(response.data.teacher));
-    
-    // Show success message or alert
-    // Alert.alert('Success', 'Setup information saved successfully!');
-    await new Promise(resolve => setTimeout(resolve, 1500));  // Simulate some delay
-    router.push('/(tabs)');
-  } catch (error) {
-    Alert.alert('Error', 'Failed to save setup information');
-    console.error(error);  // Add this to debug if something goes wrong
-  } finally {
-    setIsLoading(false);
-  }
-};
-
+  };
 
   const renderStep = () => {
-    switch(SETUP_STEPS[currentStep]) {
-      case 'qualifications':
-        return (
-          <View style={styles.stepContainer}>
-            <Ionicons name="school-outline" size={48} color={colors.primary} />
-            <Text style={[styles.stepTitle, { color: colors.text }]}>
-              Your Qualifications
-            </Text>
-            <Text style={[styles.stepSubtitle, { color: colors.textSecondary }]}>
-              List your degrees, certifications, and credentials
-            </Text>
-            <TextInput
-              style={[styles.input, { color: colors.text, borderColor: colors.border }]}
-              placeholder="PhD in Mathematics, Teaching Certificate..."
-              placeholderTextColor={colors.textSecondary}
-              multiline
-              numberOfLines={4}
-              value={formData.qualifications}
-              onChangeText={(text) => setFormData({...formData, qualifications: text})}
-            />
-          </View>
-        );
-      case 'specialization':
-        return (
-          <View style={styles.stepContainer}>
-            <Ionicons name="ribbon-outline" size={48} color={colors.primary} />
-            <Text style={[styles.stepTitle, { color: colors.text }]}>
-              Your Specialization
-            </Text>
-            <Text style={[styles.stepSubtitle, { color: colors.textSecondary }]}>
-              What subjects or areas do you specialize in?
-            </Text>
-            <TextInput
-              style={[styles.input, { color: colors.text, borderColor: colors.border }]}
-              placeholder="Mathematics, Physics, Elementary Education..."
-              placeholderTextColor={colors.textSecondary}
-              value={formData.specialization}
-              onChangeText={(text) => setFormData({...formData, specialization: text})}
-            />
-          </View>
-        );
-      case 'bio':
-        return (
-          <View style={styles.stepContainer}>
-            <Ionicons name="document-text-outline" size={48} color={colors.primary} />
-            <Text style={[styles.stepTitle, { color: colors.text }]}>
-              Your Bio
-            </Text>
-            <Text style={[styles.stepSubtitle, { color: colors.textSecondary }]}>
-              Tell students about your teaching approach and experience
-            </Text>
-            <TextInput
-              style={[styles.input, { 
-                color: colors.text, 
-                borderColor: colors.border,
-                height: 120,
-                textAlignVertical: 'top'
-              }]}
-              placeholder="I have 10 years experience teaching..."
-              placeholderTextColor={colors.textSecondary}
-              multiline
-              numberOfLines={5}
-              value={formData.bio}
-              onChangeText={(text) => setFormData({...formData, bio: text})}
-            />
-          </View>
-        );
-      case 'profile':
-        return (
-          <View style={styles.stepContainer}>
-            <Ionicons name="camera-outline" size={48} color={colors.primary} />
-            <Text style={[styles.stepTitle, { color: colors.text }]}>
-              Profile Photo
-            </Text>
-            <Text style={[styles.stepSubtitle, { color: colors.textSecondary }]}>
-              Add a professional photo for your profile
-            </Text>
-            <TouchableOpacity 
-              style={styles.photoContainer}
-              onPress={pickImage}
-            >
-              {formData.profilePhoto ? (
-                <Image 
-                  source={{ uri: formData.profilePhoto }} 
-                  style={styles.profileImage}
+    const stepContent = () => {
+      switch(SETUP_STEPS[currentStep]) {
+        case 'qualifications':
+          return (
+            <>
+              <Ionicons name="school-outline" size={48} color={colors.primary} />
+              <Text style={[styles.stepTitle, { color: colors.text }]}>
+                Your Qualifications
+              </Text>
+              <Text style={[styles.stepSubtitle, { color: colors.textSecondary }]}>
+                List your degrees, certifications, and credentials (separate with commas)
+              </Text>
+              <TextInput
+                style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+                placeholder="PhD in Mathematics, Teaching Certificate..."
+                placeholderTextColor={colors.textSecondary}
+                multiline
+                numberOfLines={4}
+                value={formData.qualifications}
+                onChangeText={(text) => setFormData({...formData, qualifications: text})}
+              />
+            </>
+          );
+        case 'specialization':
+          return (
+            <>
+              <Ionicons name="ribbon-outline" size={48} color={colors.primary} />
+              <Text style={[styles.stepTitle, { color: colors.text }]}>
+                Your Specialization
+              </Text>
+              <Text style={[styles.stepSubtitle, { color: colors.textSecondary }]}>
+                What subjects or areas do you specialize in? (separate with commas)
+              </Text>
+              <TextInput
+                style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+                placeholder="Mathematics, Physics, Elementary Education..."
+                placeholderTextColor={colors.textSecondary}
+                value={formData.specialization}
+                onChangeText={(text) => setFormData({...formData, specialization: text})}
+              />
+            </>
+          );
+        case 'bio':
+          return (
+            <>
+              <Ionicons name="document-text-outline" size={48} color={colors.primary} />
+              <Text style={[styles.stepTitle, { color: colors.text }]}>
+                Your Teaching Bio
+              </Text>
+              <Text style={[styles.stepSubtitle, { color: colors.textSecondary }]}>
+                Describe your teaching philosophy, methods, and what makes you unique
+              </Text>
+              <TextInput
+                style={[styles.input, { 
+                  color: colors.text, 
+                  borderColor: colors.border,
+                  height: 120,
+                  textAlignVertical: 'top'
+                }]}
+                placeholder="I have 10 years experience teaching with a focus on..."
+                placeholderTextColor={colors.textSecondary}
+                multiline
+                numberOfLines={5}
+                value={formData.bio}
+                onChangeText={(text) => setFormData({...formData, bio: text})}
+              />
+            </>
+          );
+        case 'contact':
+          return (
+            <>
+              <Ionicons name="call-outline" size={48} color={colors.primary} />
+              <Text style={[styles.stepTitle, { color: colors.text }]}>
+                Contact Information
+              </Text>
+              <Text style={[styles.stepSubtitle, { color: colors.textSecondary }]}>
+                Where students can reach you (will be visible to enrolled students only)
+              </Text>
+              <TextInput
+                style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+                placeholder="Phone number"
+                placeholderTextColor={colors.textSecondary}
+                keyboardType="phone-pad"
+                value={formData.phone}
+                onChangeText={(text) => setFormData({...formData, phone: text})}
+              />
+              <TextInput
+                style={[styles.input, { 
+                  color: colors.text, 
+                  borderColor: colors.border,
+                  marginTop: 16
+                }]}
+                placeholder="Address (City, Country)"
+                placeholderTextColor={colors.textSecondary}
+                value={formData.address}
+                onChangeText={(text) => setFormData({...formData, address: text})}
+              />
+            </>
+          );
+        case 'experience':
+          return (
+            <>
+              <Ionicons name="briefcase-outline" size={48} color={colors.primary} />
+              <Text style={[styles.stepTitle, { color: colors.text }]}>
+                Teaching Experience
+              </Text>
+              <Text style={[styles.stepSubtitle, { color: colors.textSecondary }]}>
+                How many years of teaching experience do you have?
+              </Text>
+              <View style={styles.sliderContainer}>
+                <Text style={[styles.sliderValue, { color: colors.primary }]}>
+                  {formData.experience} {formData.experience === 1 ? 'year' : 'years'}
+                </Text>
+                <Slider
+                  style={styles.slider}
+                  minimumValue={0}
+                  maximumValue={30}
+                  step={1}
+                  minimumTrackTintColor={colors.primary}
+                  maximumTrackTintColor={colors.border}
+                  thumbTintColor={colors.primary}
+                  value={formData.experience}
+                  onValueChange={(value) => setFormData({...formData, experience: value})}
                 />
-              ) : (
-                <View style={[styles.profilePlaceholder, { backgroundColor: colors.border }]}>
-                  <Ionicons name="person" size={48} color={colors.textSecondary} />
+                <View style={styles.sliderLabels}>
+                  <Text style={[styles.sliderLabel, { color: colors.textSecondary }]}>0</Text>
+                  <Text style={[styles.sliderLabel, { color: colors.textSecondary }]}>5</Text>
+                  <Text style={[styles.sliderLabel, { color: colors.textSecondary }]}>10</Text>
+                  <Text style={[styles.sliderLabel, { color: colors.textSecondary }]}>15</Text>
+                  <Text style={[styles.sliderLabel, { color: colors.textSecondary }]}>20+</Text>
                 </View>
-              )}
-              <View style={styles.photoButton}>
-                <Ionicons name="camera" size={20} color="white" />
               </View>
-            </TouchableOpacity>
-          </View>
-        );
-      default:
-        return null;
-    }
+            </>
+          );
+        case 'profile':
+          return (
+            <>
+              <Ionicons name="camera-outline" size={48} color={colors.primary} />
+              <Text style={[styles.stepTitle, { color: colors.text }]}>
+                Profile Photo
+              </Text>
+              <Text style={[styles.stepSubtitle, { color: colors.textSecondary }]}>
+                Add a professional photo that represents you (recommended: face clearly visible)
+              </Text>
+              <TouchableOpacity 
+                style={styles.photoContainer}
+                onPress={pickImage}
+              >
+                {formData.profilePhoto ? (
+                  <Image 
+                    source={{ uri: formData.profilePhoto }} 
+                    style={styles.profileImage}
+                  />
+                ) : (
+                  <View style={[styles.profilePlaceholder, { backgroundColor: colors.border }]}>
+                    <Ionicons name="person" size={48} color={colors.textSecondary} />
+                  </View>
+                )}
+                <View style={styles.photoButton}>
+                  <Ionicons name="camera" size={20} color="white" />
+                </View>
+              </TouchableOpacity>
+            </>
+          );
+        default:
+          return null;
+      }
+    };
+
+    return (
+      <Animated.View
+        style={{
+          transform: [{ translateX: slideAnim }],
+          opacity: slideAnim.interpolate({
+            inputRange: [-50, 0, 50],
+            outputRange: [0.5, 1, 0.5],
+          }),
+        }}
+      >
+        <View style={styles.stepContainer}>
+          {stepContent()}
+        </View>
+      </Animated.View>
+    );
   };
 
   return (
     <AuthWrapper>
-    <ImageBackground 
-      source={require('@/assets/images/auth-bg2.jpg')} 
-      style={styles.container}
-      blurRadius={10}
-    >
-      <BlurView intensity={180} style={StyleSheet.absoluteFill}  tint={colorScheme} />
-      <BlurView intensity={180} style={StyleSheet.absoluteFill}  tint={colorScheme} />
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View style={styles.innerContainer}>
-          <View style={styles.progressContainer}>
-            {SETUP_STEPS.map((_, i) => {
-              const opacity = scrollX.interpolate({
-                inputRange: [(i - 1) * width, i * width, (i + 1) * width],
-                outputRange: [0.3, 1, 0.3],
-                extrapolate: 'clamp',
-              });
-              
-              return (
-                <Animated.View
+      <ImageBackground 
+        source={require('@/assets/images/auth-bg2.jpg')} 
+        style={styles.container}
+        blurRadius={10}
+      >
+        <BlurView intensity={180} style={StyleSheet.absoluteFill} tint={colorScheme} />
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.innerContainer}>
+            <View style={styles.progressContainer}>
+              {SETUP_STEPS.map((_, i) => (
+                <View
                   key={i}
                   style={[
                     styles.progressDot,
                     { 
-                      backgroundColor: colors.primary,
-                      opacity,
-                      width: i === currentStep ? 16 : 8,
+                      backgroundColor: i === currentStep ? colors.primary : colors.border,
+                      width: i === currentStep ? 24 : 8,
                     }
                   ]}
                 />
-              );
-            })}
-          </View>
+              ))}
+            </View>
 
-          <View style={styles.contentContainer}>
-            {renderStep()}
-          </View>
-
-          <View style={styles.buttonContainer}>
-            {currentStep > 0 && (
-              <TouchableOpacity 
-                style={[styles.secondaryButton, { borderColor: colors.border }]}
-                onPress={handleBack}
+            <View style={styles.contentContainer}>
+              <ScrollView 
+                contentContainerStyle={styles.scrollContent}
+                keyboardShouldPersistTaps="handled"
               >
-                <Ionicons name="arrow-back" size={20} color={colors.text} />
-                <Text style={[styles.secondaryButtonText, { color: colors.text }]}>
-                  Back
-                </Text>
-              </TouchableOpacity>
-            )}
-            
-            <TouchableOpacity 
-              style={[
-                styles.primaryButton, 
-                { 
-                  backgroundColor: colors.primary,
-                  opacity: isLoading ? 0.8 : 1,
-                  flex: currentStep === 0 ? 1 : undefined,
-                }
-              ]}
-              onPress={handleNext}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <View style={styles.buttonContent}>
-                  <Text style={styles.buttonText}>
-                    {currentStep === SETUP_STEPS.length - 1 ? 'Finish Setup' : 'Continue'}
+                {renderStep()}
+              </ScrollView>
+            </View>
+
+            <View style={styles.buttonContainer}>
+              {currentStep > 0 && (
+                <TouchableOpacity 
+                  style={[styles.secondaryButton, { borderColor: colors.border }]}
+                  onPress={handleBack}
+                >
+                  <Ionicons name="arrow-back" size={20} color={colors.text} />
+                  <Text style={[styles.secondaryButtonText, { color: colors.text }]}>
+                    Back
                   </Text>
-                  {currentStep < SETUP_STEPS.length - 1 && (
-                    <Ionicons name="arrow-forward" size={20} color="white" />
-                  )}
-                </View>
+                </TouchableOpacity>
               )}
-            </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[
+                  styles.primaryButton, 
+                  { 
+                    backgroundColor: colors.primary,
+                    opacity: isLoading ? 0.8 : 1,
+                    flex: currentStep === 0 ? 1 : undefined,
+                  }
+                ]}
+                onPress={handleNext}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <View style={styles.buttonContent}>
+                    <Text style={styles.buttonText}>
+                      {currentStep === SETUP_STEPS.length - 1 ? 'Complete Profile' : 'Continue'}
+                    </Text>
+                    {currentStep < SETUP_STEPS.length - 1 && (
+                      <Ionicons name="arrow-forward" size={20} color="white" />
+                    )}
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </TouchableWithoutFeedback>
-    </ImageBackground>
+        </TouchableWithoutFeedback>
+      </ImageBackground>
     </AuthWrapper>
   );
 }
@@ -341,15 +421,21 @@ const styles = StyleSheet.create({
   progressDot: {
     height: 8,
     borderRadius: 4,
+    transitionProperty: 'width',
+    transitionDuration: '300ms',
   },
   contentContainer: {
     flex: 1,
-    justifyContent: 'center',
     paddingHorizontal: 24,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
   },
   stepContainer: {
     alignItems: 'center',
     padding: 20,
+    width: '100%',
   },
   stepTitle: {
     fontSize: 24,
@@ -363,6 +449,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 32,
     opacity: 0.8,
+    paddingHorizontal: 20,
   },
   input: {
     width: '100%',
@@ -443,5 +530,29 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  sliderContainer: {
+    width: '100%',
+    marginTop: 16,
+  },
+  slider: {
+    width: '100%',
+    height: 40,
+  },
+  sliderValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  sliderLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: 10,
+    marginTop: 4,
+  },
+  sliderLabel: {
+    fontSize: 12,
   },
 });
