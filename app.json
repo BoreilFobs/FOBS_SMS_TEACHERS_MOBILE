@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "FOBS_SMS_TEACHER_MOBILE",
-    "slug": "FOBS_SMS_TEACHER_MOBILE",
+    "name": "FobsSMS Teacher ",
+    "slug": "fobssms-teacher",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
