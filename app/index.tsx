@@ -20,6 +20,7 @@ import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSchools } from "@/hooks/useSchools";
 import useUserStore from '@/utils/stores/userStore';
+import AuthWrapper from "@/components/AuthWrapper";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width - 40;
@@ -129,6 +130,7 @@ export default function SchoolsScreen() {
   }
 
   return (
+    <AuthWrapper>
     <ImageBackground
       source={require("@/assets/images/auth-bg2.jpg")}
       style={styles.container}
@@ -206,6 +208,7 @@ export default function SchoolsScreen() {
         }
       />
     </ImageBackground>
+    </AuthWrapper>
   );
 }
 
