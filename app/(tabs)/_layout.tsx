@@ -19,7 +19,7 @@ export default function TabLayout() {
   
   return (
     <AuthWrapper>
-      {/* <SetupWrapper> */}
+      <SetupWrapper>
       <Tabs
         screenOptions={{
           tabBarActiveTintColor: currentColors.tint,
@@ -80,7 +80,7 @@ export default function TabLayout() {
             }}
          /> */}
       </Tabs>
-      {/* </SetupWrapper> */}
+      </SetupWrapper>
 
     </AuthWrapper>
   );

@@ -14,7 +14,6 @@ import {
   Animated,
   Image,
 } from 'react-native'; 
-import Slider from '@react-native-community/slider';
 import { TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,8 +27,100 @@ import AuthWrapper from '@/components/AuthWrapper';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Platform-specific slider import
+let SliderComponent;
+if (Platform.OS === 'web') {
+  SliderComponent = require('rc-slider').default;
+  require('rc-slider/assets/index.css');
+} else {
+  SliderComponent = require('@react-native-community/slider').default;
+}
+
 const { width } = Dimensions.get('window');
 const SETUP_STEPS = ['qualifications', 'specialization', 'bio', 'contact', 'experience', 'profile'];
+
+// Enhanced PlatformTextInput with proper web style handling
+const PlatformTextInput = ({ 
+  style = {}, 
+  multiline = false, 
+  numberOfLines = 1, 
+  placeholderTextColor, 
+  onChangeText,
+  value,
+  placeholder,
+  inputMode,
+  ...props 
+}) => {
+  if (Platform.OS === 'web') {
+    const webStyles = {
+      width: '100%',
+      borderWidth: style.borderWidth || 1,
+      borderRadius: style.borderRadius || 12,
+      padding: style.padding || 16,
+      fontSize: style.fontSize || 16,
+      marginBottom: style.marginBottom || 16,
+      borderStyle: 'solid',
+      color: style.color || 'inherit',
+      borderColor: style.borderColor || '#ccc',
+      backgroundColor: style.backgroundColor || 'transparent',
+      outline: 'none',
+      ...(multiline ? {
+        height: numberOfLines ? `${numberOfLines * 24}px` : '120px',
+        minHeight: '120px',
+        resize: 'vertical'
+      } : {}),
+      '::placeholder': {
+        color: placeholderTextColor || '#999'
+      }
+    };
+
+    const handleChange = (e) => {
+      if (onChangeText) {
+        onChangeText(e.target.value);
+      }
+    };
+
+    if (multiline) {
+      return (
+        <textarea
+          style={webStyles}
+          placeholder={placeholder}
+          value={value}
+          onChange={handleChange}
+          rows={numberOfLines}
+        />
+      );
+    }
+    
+    return (
+      <input
+        type={inputMode === 'tel' ? 'tel' : 'text'}
+        style={webStyles}
+        placeholder={placeholder}
+        value={value}
+        onChange={handleChange}
+      />
+    );
+  }
+  
+  return (
+    <TextInput 
+      style={[
+        styles.input, 
+        style,
+        multiline && { height: 120, textAlignVertical: 'top' }
+      ]}
+      multiline={multiline}
+      numberOfLines={numberOfLines}
+      placeholderTextColor={placeholderTextColor}
+      onChangeText={onChangeText}
+      value={value}
+      placeholder={placeholder}
+      inputMode={inputMode}
+      {...props}
+    />
+  );
+};
 
 export default function TeacherSetupScreen() {
   const router = useRouter();
@@ -43,7 +134,7 @@ export default function TeacherSetupScreen() {
     phone: '',
     address: '',
     experience: 1,
-    profilePhoto: null as string | null
+    profilePhoto: null
   });
   const [isLoading, setIsLoading] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -115,9 +206,7 @@ export default function TeacherSetupScreen() {
       formDataToSubmit.append('phone', formData.phone);
       formDataToSubmit.append('address', formData.address);
       formDataToSubmit.append('experience', formData.experience.toString());
-      console.log(formDataToSubmit);
       
-
       const response = await axios.post(`${API_URL}/teacher/setup`, formDataToSubmit, {
         headers: {
           'Accept': 'application/json',
@@ -127,7 +216,7 @@ export default function TeacherSetupScreen() {
       });
       
       await AsyncStorage.setItem('teacher', JSON.stringify(response.data.teacher));
-      router.push('/(tabs)');
+      router.push('/');
     } catch (error) {
       Alert.alert('Error', 'Failed to save setup information');
       console.error(error);
@@ -149,12 +238,10 @@ export default function TeacherSetupScreen() {
               <Text style={[styles.stepSubtitle, { color: colors.textSecondary }]}>
                 List your degrees, certifications, and credentials (separate with commas)
               </Text>
-              <TextInput
+              <PlatformTextInput
                 style={[styles.input, { color: colors.text, borderColor: colors.border }]}
                 placeholder="PhD in Mathematics, Teaching Certificate..."
                 placeholderTextColor={colors.textSecondary}
-                multiline
-                numberOfLines={4}
                 value={formData.qualifications}
                 onChangeText={(text) => setFormData({...formData, qualifications: text})}
               />
@@ -170,7 +257,7 @@ export default function TeacherSetupScreen() {
               <Text style={[styles.stepSubtitle, { color: colors.textSecondary }]}>
                 What subjects or areas do you specialize in? (separate with commas)
               </Text>
-              <TextInput
+              <PlatformTextInput
                 style={[styles.input, { color: colors.text, borderColor: colors.border }]}
                 placeholder="Mathematics, Physics, Elementary Education..."
                 placeholderTextColor={colors.textSecondary}
@@ -189,12 +276,10 @@ export default function TeacherSetupScreen() {
               <Text style={[styles.stepSubtitle, { color: colors.textSecondary }]}>
                 Describe your teaching philosophy, methods, and what makes you unique
               </Text>
-              <TextInput
+              <PlatformTextInput
                 style={[styles.input, { 
                   color: colors.text, 
                   borderColor: colors.border,
-                  height: 120,
-                  textAlignVertical: 'top'
                 }]}
                 placeholder="I have 10 years experience teaching with a focus on..."
                 placeholderTextColor={colors.textSecondary}
@@ -215,15 +300,15 @@ export default function TeacherSetupScreen() {
               <Text style={[styles.stepSubtitle, { color: colors.textSecondary }]}>
                 Where students can reach you (will be visible to enrolled students only)
               </Text>
-              <TextInput
+              <PlatformTextInput
                 style={[styles.input, { color: colors.text, borderColor: colors.border }]}
                 placeholder="Phone number"
                 placeholderTextColor={colors.textSecondary}
-                keyboardType="phone-pad"
+                inputMode="tel"
                 value={formData.phone}
                 onChangeText={(text) => setFormData({...formData, phone: text})}
               />
-              <TextInput
+              <PlatformTextInput
                 style={[styles.input, { 
                   color: colors.text, 
                   borderColor: colors.border,
@@ -250,17 +335,33 @@ export default function TeacherSetupScreen() {
                 <Text style={[styles.sliderValue, { color: colors.primary }]}>
                   {formData.experience} {formData.experience === 1 ? 'year' : 'years'}
                 </Text>
-                <Slider
-                  style={styles.slider}
-                  minimumValue={0}
-                  maximumValue={30}
-                  step={1}
-                  minimumTrackTintColor={colors.primary}
-                  maximumTrackTintColor={colors.border}
-                  thumbTintColor={colors.primary}
-                  value={formData.experience}
-                  onValueChange={(value) => setFormData({...formData, experience: value})}
-                />
+                {Platform.OS === 'web' ? (
+                  <SliderComponent
+                    min={0}
+                    max={30}
+                    step={1}
+                    value={formData.experience}
+                    onChange={(value) => setFormData({...formData, experience: value})}
+                    trackStyle={{ backgroundColor: colors.primary }}
+                    railStyle={{ backgroundColor: colors.border }}
+                    handleStyle={{ 
+                      backgroundColor: colors.primary,
+                      borderColor: colors.primary 
+                    }}
+                  />
+                ) : (
+                  <SliderComponent
+                    style={styles.slider}
+                    minimumValue={0}
+                    maximumValue={30}
+                    step={1}
+                    minimumTrackTintColor={colors.primary}
+                    maximumTrackTintColor={colors.border}
+                    thumbTintColor={colors.primary}
+                    value={formData.experience}
+                    onValueChange={(value) => setFormData({...formData, experience: value})}
+                  />
+                )}
                 <View style={styles.sliderLabels}>
                   <Text style={[styles.sliderLabel, { color: colors.textSecondary }]}>0</Text>
                   <Text style={[styles.sliderLabel, { color: colors.textSecondary }]}>5</Text>

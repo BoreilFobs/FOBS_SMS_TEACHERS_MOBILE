@@ -162,7 +162,7 @@ export default function AuthScreen() {
 
             if (isLogin) {
                 await AsyncStorage.setItem('teacher', JSON.stringify(response.data.teacher));
-                router.push('/(tabs)');
+                router.push('/index');
             } else {
                 router.push('/setup');
             }

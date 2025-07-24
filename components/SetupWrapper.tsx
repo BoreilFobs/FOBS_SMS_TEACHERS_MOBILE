@@ -3,7 +3,7 @@ import { Redirect } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export default function AuthWrapper({ children }: { children: React.ReactNode }) {
+export default function SetupWrapper({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
   useEffect(() => {
