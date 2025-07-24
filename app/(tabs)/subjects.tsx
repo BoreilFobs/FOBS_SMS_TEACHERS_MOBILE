@@ -43,6 +43,12 @@ export default function SubjectsScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const schoolId = params.schoolId as string;
+   useEffect(() => {
+    // Check if schoolId does NOT contain at least one digit
+    if (!/\d/.test(schoolId)) {
+      router.replace('/');
+    }
+  }, [schoolId]);
   const teacherId = teacher?.id;
   const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
       console.log(teacher);

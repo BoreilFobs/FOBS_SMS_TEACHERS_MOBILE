@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -39,6 +39,17 @@ if (Platform.OS === 'web') {
 const { width } = Dimensions.get('window');
 const SETUP_STEPS = ['qualifications', 'specialization', 'bio', 'contact', 'experience', 'profile'];
 
+// Field validation requirements
+const FIELD_REQUIREMENTS = {
+  qualifications: { required: true, message: 'Please enter your qualifications' },
+  specialization: { required: true, message: 'Please enter your specialization' },
+  bio: { required: true, message: 'Please enter your bio' },
+  phone: { required: true, message: 'Please enter your phone number' },
+  address: { required: true, message: 'Please enter your address' },
+  experience: { required: true, message: 'Please select your experience level' },
+  profilePhoto: { required: true, message: 'Please upload a profile photo' }
+};
+
 // Enhanced PlatformTextInput with proper web style handling
 const PlatformTextInput = ({ 
   style = {}, 
@@ -49,6 +60,8 @@ const PlatformTextInput = ({
   value,
   placeholder,
   inputMode,
+  error,
+  required,
   ...props 
 }) => {
   if (Platform.OS === 'web') {
@@ -61,7 +74,7 @@ const PlatformTextInput = ({
       marginBottom: style.marginBottom || 16,
       borderStyle: 'solid',
       color: style.color || 'inherit',
-      borderColor: style.borderColor || '#ccc',
+      borderColor: error ? '#ff4444' : style.borderColor || '#ccc',
       backgroundColor: style.backgroundColor || 'transparent',
       outline: 'none',
       ...(multiline ? {
@@ -82,43 +95,58 @@ const PlatformTextInput = ({
 
     if (multiline) {
       return (
-        <textarea
-          style={webStyles}
-          placeholder={placeholder}
-          value={value}
-          onChange={handleChange}
-          rows={numberOfLines}
-        />
+        <div style={{ width: '100%' }}>
+          <textarea
+            style={webStyles}
+            placeholder={placeholder}
+            value={value}
+            onChange={handleChange}
+            rows={numberOfLines}
+          />
+          {error && <div style={styles.errorText}>{error}</div>}
+        </div>
       );
     }
     
     return (
-      <input
-        type={inputMode === 'tel' ? 'tel' : 'text'}
-        style={webStyles}
-        placeholder={placeholder}
-        value={value}
-        onChange={handleChange}
-      />
+      <div style={{ width: '100%' }}>
+        <input
+          type={inputMode === 'tel' ? 'tel' : 'text'}
+          style={webStyles}
+          placeholder={placeholder}
+          value={value}
+          onChange={handleChange}
+        />
+        {error && <div style={styles.errorText}>{error}</div>}
+      </div>
     );
   }
   
   return (
-    <TextInput 
-      style={[
-        styles.input, 
-        style,
-        multiline && { height: 120, textAlignVertical: 'top' }
-      ]}
-      multiline={multiline}
-      numberOfLines={numberOfLines}
-      placeholderTextColor={placeholderTextColor}
-      onChangeText={onChangeText}
-      value={value}
-      placeholder={placeholder}
-      inputMode={inputMode}
-      {...props}
-    />
+    <View style={{ width: '100%' }}>
+      <TextInput 
+        style={[
+          styles.input, 
+          style,
+          multiline && { height: 120, textAlignVertical: 'top' },
+          error && { borderColor: '#ff4444' }
+        ]}
+        multiline={multiline}
+        numberOfLines={numberOfLines}
+        placeholderTextColor={placeholderTextColor}
+        onChangeText={onChangeText}
+        value={value}
+        placeholder={placeholder}
+        inputMode={inputMode}
+        {...props}
+      />
+      {error && <Text style={styles.errorText}>{error}</Text>}
+      {required && !error && (
+        <Text style={[styles.requiredText, { color: Colors[useColorScheme()?.textSecondary || 'light'].textSecondary }]}>
+          * Required
+        </Text>
+      )}
+    </View>
   );
 };
 
@@ -136,9 +164,13 @@ export default function TeacherSetupScreen() {
     experience: 1,
     profilePhoto: null
   });
+  const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
   const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+
+  // Web file input ref
+  const fileInputRef = useRef(null);
 
   const animateSlide = (direction: 'left' | 'right') => {
     slideAnim.setValue(direction === 'left' ? -50 : 50);
@@ -149,7 +181,65 @@ export default function TeacherSetupScreen() {
     }).start();
   };
 
+const validateCurrentStep = () => {
+  const currentStepKey = SETUP_STEPS[currentStep];
+  const fieldRequirements = FIELD_REQUIREMENTS[currentStepKey];
+  
+  if (!fieldRequirements?.required) return true;
+
+  let isValid = true;
+  const newErrors = { ...errors };
+
+  if (currentStepKey === 'profilePhoto') {
+    if (!formData.profilePhoto) {
+      newErrors.profilePhoto = fieldRequirements.message;
+      isValid = false;
+    } else {
+      delete newErrors.profilePhoto;
+    }
+  } else if (currentStepKey === 'experience') {
+    // Special handling for numeric experience field
+    if (formData.experience === null || formData.experience === undefined) {
+      newErrors.experience = 'Please select your experience level';
+      isValid = false;
+    } else {
+      delete newErrors.experience;
+    }
+  } else {
+    // Handle string fields
+    if (!formData[currentStepKey]?.toString().trim()) {
+      newErrors[currentStepKey] = fieldRequirements.message;
+      isValid = false;
+    } else {
+      delete newErrors[currentStepKey];
+    }
+  }
+
+  setErrors(newErrors);
+  return isValid;
+};
+
   const pickImage = async () => {
+    if (Platform.OS === 'web') {
+      // Create a hidden file input for web
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            setFormData({ ...formData, profilePhoto: event.target.result });
+          };
+          reader.readAsDataURL(file);
+        }
+      };
+      input.click();
+      return;
+    }
+
+    // Native implementation
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -169,6 +259,8 @@ export default function TeacherSetupScreen() {
   };
 
   const handleNext = () => {
+    if (!validateCurrentStep()) return;
+
     if (currentStep < SETUP_STEPS.length - 1) {
       animateSlide('left');
       setCurrentStep(currentStep + 1);
@@ -184,28 +276,77 @@ export default function TeacherSetupScreen() {
     }
   };
 
-  const handleSubmit = async () => {
-    setIsLoading(true);
-    try {
-      const userId = await AsyncStorage.getItem('user_id');
-      if (!userId) throw new Error('User ID not found. Please log in again.');
+  const prepareFormData = () => {
+    const formDataToSubmit = new FormData();
+    const userId = AsyncStorage.getItem('user_id');
 
-      const formDataToSubmit = new FormData();
-      if (formData.profilePhoto) {
+    // Handle profile photo differently for web and native
+    if (formData.profilePhoto) {
+      if (Platform.OS === 'web') {
+        // Convert data URL to blob for web
+        fetch(formData.profilePhoto)
+          .then(res => res.blob())
+          .then(blob => {
+            formDataToSubmit.append('profile_photo', blob, `profile_${userId}.jpg`);
+          });
+      } else {
         formDataToSubmit.append('profile_photo', {
           uri: formData.profilePhoto,
           name: `profile_${userId}.jpg`,
           type: 'image/jpeg',
         });
       }
-
-      formDataToSubmit.append('user_id', userId);
+    }
+    userId.then(resolvedId => {
+      const userIdInt = parseInt(resolvedId);
+      formDataToSubmit.append('user_id', userIdInt);
       formDataToSubmit.append('qualifications', formData.qualifications);
       formDataToSubmit.append('specialization', formData.specialization);
       formDataToSubmit.append('bio', formData.bio);
       formDataToSubmit.append('phone', formData.phone);
       formDataToSubmit.append('address', formData.address);
       formDataToSubmit.append('experience', formData.experience.toString());
+
+      console.log("user", userIdInt);
+    });
+    
+    return formDataToSubmit;
+  };
+
+  const handleSubmit = async () => {
+    setIsLoading(true);
+    try {
+      const userId = await AsyncStorage.getItem('user_id');
+      if (!userId) throw new Error('User ID not found. Please log in again.');
+
+      // Validate all required fields
+      const validationErrors = {};
+      let hasErrors = false;
+
+      Object.keys(FIELD_REQUIREMENTS).forEach(key => {
+        if (FIELD_REQUIREMENTS[key].required) {
+          if (!formData[key] || (typeof formData[key] === 'string' && !formData[key].trim())) {
+            validationErrors[key] = FIELD_REQUIREMENTS[key].message;
+            hasErrors = true;
+          }
+        }
+      });
+
+      if (hasErrors) {
+        setErrors(validationErrors);
+        setIsLoading(false);
+        
+        // Find the first step with error and go to it
+        const errorStep = SETUP_STEPS.findIndex(step => validationErrors[step]);
+        if (errorStep >= 0) {
+          setCurrentStep(errorStep);
+        }
+        
+        return;
+      }
+
+      const formDataToSubmit = prepareFormData();
+      console.log(formDataToSubmit);
       
       const response = await axios.post(`${API_URL}/teacher/setup`, formDataToSubmit, {
         headers: {
@@ -218,8 +359,11 @@ export default function TeacherSetupScreen() {
       await AsyncStorage.setItem('teacher', JSON.stringify(response.data.teacher));
       router.push('/');
     } catch (error) {
-      Alert.alert('Error', 'Failed to save setup information');
-      console.error(error);
+      console.error('Submission error:', error);
+      Alert.alert(
+        'Error', 
+        error.response?.data?.message || 'Failed to save setup information. Please try again.'
+      );
     } finally {
       setIsLoading(false);
     }
@@ -227,7 +371,10 @@ export default function TeacherSetupScreen() {
 
   const renderStep = () => {
     const stepContent = () => {
-      switch(SETUP_STEPS[currentStep]) {
+      const currentStepKey = SETUP_STEPS[currentStep];
+      const isRequired = FIELD_REQUIREMENTS[currentStepKey]?.required;
+
+      switch(currentStepKey) {
         case 'qualifications':
           return (
             <>
@@ -244,6 +391,8 @@ export default function TeacherSetupScreen() {
                 placeholderTextColor={colors.textSecondary}
                 value={formData.qualifications}
                 onChangeText={(text) => setFormData({...formData, qualifications: text})}
+                error={errors.qualifications}
+                required={isRequired}
               />
             </>
           );
@@ -263,6 +412,8 @@ export default function TeacherSetupScreen() {
                 placeholderTextColor={colors.textSecondary}
                 value={formData.specialization}
                 onChangeText={(text) => setFormData({...formData, specialization: text})}
+                error={errors.specialization}
+                required={isRequired}
               />
             </>
           );
@@ -287,6 +438,8 @@ export default function TeacherSetupScreen() {
                 numberOfLines={5}
                 value={formData.bio}
                 onChangeText={(text) => setFormData({...formData, bio: text})}
+                error={errors.bio}
+                required={isRequired}
               />
             </>
           );
@@ -307,6 +460,8 @@ export default function TeacherSetupScreen() {
                 inputMode="tel"
                 value={formData.phone}
                 onChangeText={(text) => setFormData({...formData, phone: text})}
+                error={errors.phone}
+                required={isRequired}
               />
               <PlatformTextInput
                 style={[styles.input, { 
@@ -318,10 +473,12 @@ export default function TeacherSetupScreen() {
                 placeholderTextColor={colors.textSecondary}
                 value={formData.address}
                 onChangeText={(text) => setFormData({...formData, address: text})}
+                error={errors.address}
+                required={isRequired}
               />
             </>
           );
-        case 'experience':
+       case 'experience':
           return (
             <>
               <Ionicons name="briefcase-outline" size={48} color={colors.primary} />
@@ -370,6 +527,19 @@ export default function TeacherSetupScreen() {
                   <Text style={[styles.sliderLabel, { color: colors.textSecondary }]}>20+</Text>
                 </View>
               </View>
+              {errors.experience && (
+                <Text style={[styles.errorText, { textAlign: 'center' }]}>
+                  {errors.experience}
+                </Text>
+              )}
+              {isRequired && !errors.experience && (
+                <Text style={[styles.requiredText, { 
+                  color: colors.textSecondary,
+                  textAlign: 'center'
+                }]}>
+                  * Required
+                </Text>
+              )}
             </>
           );
         case 'profile':
@@ -400,6 +570,20 @@ export default function TeacherSetupScreen() {
                   <Ionicons name="camera" size={20} color="white" />
                 </View>
               </TouchableOpacity>
+              {errors.profilePhoto && (
+                <Text style={[styles.errorText, { textAlign: 'center', marginTop: 8 }]}>
+                  {errors.profilePhoto}
+                </Text>
+              )}
+              {isRequired && !errors.profilePhoto && (
+                <Text style={[styles.requiredText, { 
+                  color: colors.textSecondary,
+                  textAlign: 'center',
+                  marginTop: 8
+                }]}>
+                  * Required
+                </Text>
+              )}
             </>
           );
         default:
@@ -655,5 +839,16 @@ const styles = StyleSheet.create({
   },
   sliderLabel: {
     fontSize: 12,
+  },
+  errorText: {
+    color: '#ff4444',
+    fontSize: 14,
+    marginTop: -12,
+    marginBottom: 16,
+  },
+  requiredText: {
+    fontSize: 12,
+    marginTop: -12,
+    marginBottom: 16,
   },
 });
