@@ -266,7 +266,7 @@ function getSubjectConfig(subjectName: string) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 50
+    paddingTop: Platform.OS === 'ios' ? 50 : 0,
   },
   header: {
     paddingHorizontal: 24,

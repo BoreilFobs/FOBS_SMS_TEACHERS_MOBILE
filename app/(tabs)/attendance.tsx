@@ -233,7 +233,7 @@ function getClassConfig(className: string) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 50
+    paddingTop: Platform.OS === 'ios' ? 50 : 0,
   },
   loader: {
     flex: 1,
