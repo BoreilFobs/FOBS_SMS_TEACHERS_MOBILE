@@ -137,21 +137,14 @@ export default function SubjectsScreen() {
 
   if (loading && !refreshing) {
   return (
-    <ImageBackground
+   <ImageBackground
       source={require("@/assets/images/auth-bg2.jpg")}
       style={styles.container}
       blurRadius={10}
     >
       <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
-      <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
-      
-      <View style={styles.loadingContainer}>
-        <View style={[styles.loadingCard, { backgroundColor: colors.card + 'CC' }, {borderColor: colors.border}]} >
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.text }]}>
-            Loading your subjects...
-          </Text>
-        </View>
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     </ImageBackground>
   );

@@ -121,7 +121,7 @@ export default function AddSchoolScreen() {
           text1: 'Request Sent',
           text2: `Your request to join ${schoolInfo.name} has been submitted`,
           visibilityTime: 3000,
-          onHide: () => router.push('/schools/requests'),
+          onHide: () => router.push('/'),
         });
       } else {
         throw new Error(response.data.message || "Request failed");
