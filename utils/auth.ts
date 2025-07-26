@@ -16,37 +16,36 @@ const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
  * 3. Redirecting to login screen
  */
 export const handleLogout = async () => {
-  try {
-    // 1. Get current token
-    const token = await AsyncStorage.getItem('auth_token');
-    // useUserStore.getState().clearUserData();
-    
-    if (token) {
-      // 2. Call backend logout endpoint
-      await axios.post(
-        `${API_URL}/logout`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-    }
+  Alert.alert(
+    'Confirm Logout',
+    'Are you sure you want to log out?',
+    [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+      {
+        text: 'Yes, Logout',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const token = await AsyncStorage.getItem('auth_token');
+            await useUserStore.getState().clearUserData();
+            await AsyncStorage.multiRemove(['user_data', 'user_id', 'user', 'teacher']);
+            await AsyncStorage.removeItem('auth_token');
+            router.push('/auth/');
+          } catch (error) {
+            console.error('Logout failed:', error);
+            Alert.alert(
+              'Logout Error',
+              'There was a problem logging out. Please try again.',
+              [{ text: 'OK' }]
+            );
+          }
+        },
+      },
+    ],
+    { cancelable: true }
+  );
 
-    // 3. Clear local storage
-    await useUserStore.getState().clearUserData();
-    await AsyncStorage.multiRemove(['auth_token', 'user_data', 'user_id', 'user', 'teacher']);
-
-    // 4. Redirect to login
-    router.push('/auth/');
-
-  } catch (error) {
-    console.error('Logout failed:', error);
-    Alert.alert(
-      'Logout Error',
-      'There was a problem logging out. Please try again.',
-      [{ text: 'OK', onPress: () => {} }]
-    );
-  }
 };

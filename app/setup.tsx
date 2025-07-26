@@ -317,7 +317,11 @@ const validateCurrentStep = () => {
     setIsLoading(true);
     try {
       const userId = await AsyncStorage.getItem('user_id');
-      if (!userId) throw new Error('User ID not found. Please log in again.');
+      if (!userId){
+        router.push('/auth/');
+        throw new Error('User ID not found. Please log in again.');
+        return;
+      } 
 
       // Validate all required fields
       const validationErrors = {};

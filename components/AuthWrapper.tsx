@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function AuthWrapper({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-
+  
   useEffect(() => {
     const checkToken = async () => {
       const token = await AsyncStorage.getItem('auth_token');
@@ -22,7 +22,6 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
       </View>
     );
   }
-
   if (!isAuthenticated) {
     return <Redirect href="/auth/" />;
   }

@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { TeacherSchoolResponse } from './types'; // adjust the import path
+import { Redirect, router } from 'expo-router';
 import {getUserAndTeacherData} from '@/utils/storage/getUserAndTeacher';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 
 export const useSchools = (teacherId: number) => {
   const [schoolData, setSchoolData] = useState<TeacherSchoolResponse>();
@@ -11,6 +14,7 @@ export const useSchools = (teacherId: number) => {
   const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
   const fetchSchools = async () => {
     try {
+
       const { teacher } = await getUserAndTeacherData();
       if(teacher == null){
         return;
