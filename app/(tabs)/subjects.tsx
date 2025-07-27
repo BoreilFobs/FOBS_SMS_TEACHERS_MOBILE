@@ -10,10 +10,11 @@ import {
   StatusBar,
   ActivityIndicator,
   Platform,
-  RefreshControl
+  RefreshControl,
+  useColorScheme
 } from "react-native";
 import { Feather, MaterialIcons } from "@expo/vector-icons";
-import { useColorScheme } from "@/components/useColorScheme";
+// import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 import { Link, useRouter, useLocalSearchParams } from "expo-router";
 import { BlurView } from "expo-blur";
@@ -158,7 +159,6 @@ export default function SubjectsScreen() {
         blurRadius={10}
       >
         <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
-        <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
         
         <View style={styles.errorContainer}>
           <View style={[styles.errorCard, {borderColor: colors.border}, { backgroundColor: colors.card + 'CC' }]}>
@@ -192,7 +192,7 @@ export default function SubjectsScreen() {
       blurRadius={10}
     >
       <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
-      <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
+      <BlurView intensity={Platform.OS == 'ios' ? 330 : 0} style={StyleSheet.absoluteFill} tint={colorScheme} />
       
       <StatusBar
         barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}

@@ -10,10 +10,11 @@ import {
   StatusBar,
   ActivityIndicator,
   RefreshControl,
-  Platform
+  Platform,
+  useColorScheme
 } from "react-native";
 import { Feather, MaterialIcons } from "@expo/vector-icons";
-import { useColorScheme } from "@/components/useColorScheme";
+// import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 import { Link, useRouter, useLocalSearchParams } from "expo-router";
 import { BlurView } from "expo-blur";
@@ -135,7 +136,6 @@ console.log(params);
         blurRadius={10}
       >
         <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
-        <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
         <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
       </ImageBackground>
     );
@@ -170,7 +170,7 @@ console.log(params);
       blurRadius={10}
     >
       <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
-      <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
+      <BlurView intensity={Platform.OS == 'ios' ? 330 : 0} style={StyleSheet.absoluteFill} tint={colorScheme} />
       
       <StatusBar
         barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}

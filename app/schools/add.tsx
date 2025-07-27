@@ -8,9 +8,10 @@ import {
   Image,
   ActivityIndicator,
   ImageBackground,
+  useColorScheme
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { useColorScheme } from "@/components/useColorScheme";
+// import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 import { BlurView } from "expo-blur";
 import axios from "axios";

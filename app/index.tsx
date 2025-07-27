@@ -10,10 +10,11 @@ import {
   Dimensions,
   Platform,
   ActivityIndicator,
-  RefreshControl
+  RefreshControl,
+  useColorScheme
 } from "react-native";
 import { Feather, FontAwesome, MaterialIcons, Ionicons } from "@expo/vector-icons";
-import { useColorScheme } from "@/components/useColorScheme";
+// import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 import { useRouter } from "expo-router";
 import { BlurView } from "expo-blur";

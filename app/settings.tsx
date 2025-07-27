@@ -8,9 +8,10 @@ import {
   ImageBackground,
   StatusBar,
   Platform,
+  useColorScheme
 } from "react-native";
 import { Feather, FontAwesome } from "@expo/vector-icons";
-import { useColorScheme } from "@/components/useColorScheme";
+// import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 import { BlurView } from "expo-blur";
 import { handleLogout } from '@/utils/auth';

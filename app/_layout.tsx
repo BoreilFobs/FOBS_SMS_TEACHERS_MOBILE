@@ -9,8 +9,8 @@ import { Stack, Tabs } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { BlurView } from 'expo-blur';
-import { Platform, Text, View, StyleSheet } from 'react-native';
-import { useColorScheme } from "@/components/useColorScheme";
+import { Platform, Text, View, StyleSheet, useColorScheme } from 'react-native';
+// import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 import AuthWrapper from "@/components/AuthWrapper";
 

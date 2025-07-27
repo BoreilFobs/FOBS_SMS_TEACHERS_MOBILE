@@ -13,10 +13,11 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
-  Platform
+  Platform,
+  useColorScheme
 } from "react-native";
 import { Feather, MaterialIcons, Ionicons } from "@expo/vector-icons";
-import { useColorScheme } from "@/components/useColorScheme";
+// import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 import { useLocalSearchParams } from "expo-router";
 import { BlurView } from "expo-blur";

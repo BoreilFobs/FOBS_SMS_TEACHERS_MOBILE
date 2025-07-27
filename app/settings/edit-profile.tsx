@@ -10,10 +10,11 @@ import {
   ActivityIndicator,
   Alert,
   ImageBackground,
-  Platform
+  Platform,
+  useColorScheme
 } from "react-native";
 import { Feather, Ionicons } from "@expo/vector-icons";
-import { useColorScheme } from "@/components/useColorScheme";
+// import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 import { BlurView } from "expo-blur";
 import * as ImagePicker from "expo-image-picker";

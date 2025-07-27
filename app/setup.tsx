@@ -13,11 +13,12 @@ import {
   Dimensions,
   Animated,
   Image,
+  useColorScheme,
 } from 'react-native'; 
 import { TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-import { useColorScheme } from '@/components/useColorScheme';
+// import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';

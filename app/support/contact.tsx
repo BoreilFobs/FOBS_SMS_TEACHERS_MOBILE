@@ -6,10 +6,12 @@ import {
   TouchableOpacity,
   ScrollView,
   ImageBackground,
-  Linking
+  Linking,
+  Platform,
+  useColorScheme
 } from "react-native";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useColorScheme } from "@/components/useColorScheme";
+// import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 import { BlurView } from "expo-blur";
 import { StatusBar } from "expo-status-bar";
@@ -52,7 +54,7 @@ export default function ContactUsScreen() {
       blurRadius={10}
     >
       <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
-      <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
+      <BlurView intensity={Platform.OS == 'ios' ? 330 : 0} style={StyleSheet.absoluteFill} tint={colorScheme} />
       
       <StatusBar
         barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}

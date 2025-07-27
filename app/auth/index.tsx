@@ -12,11 +12,12 @@ import {
   ScrollView,
   ActivityIndicator,
   Platform,
-  Dimensions
+  Dimensions,
+  useColorScheme
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-import { useColorScheme } from '@/components/useColorScheme';
+// import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';

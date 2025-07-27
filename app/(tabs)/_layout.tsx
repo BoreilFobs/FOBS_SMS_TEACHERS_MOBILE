@@ -2,12 +2,12 @@ import React from "react";
 import { Tabs } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import Colors from "@/constants/Colors";
-import { useColorScheme } from "@/components/useColorScheme";
+// import { useColorScheme } from "@/components/useColorScheme";
 import AuthWrapper from "@/components/AuthWrapper";
 import { Link, useNavigationContainerRef, useLocalSearchParams } from "expo-router";
 import SetupWrapper from "@/components/SetupWrapper";
 import { BlurView } from "expo-blur";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, useColorScheme } from "react-native";
 
 
 export default function TabLayout() {

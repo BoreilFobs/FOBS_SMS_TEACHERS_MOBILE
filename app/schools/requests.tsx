@@ -6,9 +6,10 @@ import {
   FlatList,
   TouchableOpacity,
   Image,
+  useColorScheme
 } from "react-native";
 import { Feather, FontAwesome } from "@expo/vector-icons";
-import { useColorScheme } from "@/components/useColorScheme";
+// import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 import { Link, router } from "expo-router";
 
