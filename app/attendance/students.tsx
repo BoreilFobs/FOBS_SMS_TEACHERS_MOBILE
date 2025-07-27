@@ -12,7 +12,8 @@ import {
   StatusBar,
   ActivityIndicator,
   RefreshControl,
-  Alert
+  Alert,
+  Platform
 } from "react-native";
 import { Feather, MaterialIcons, Ionicons } from "@expo/vector-icons";
 import { useColorScheme } from "@/components/useColorScheme";
@@ -197,7 +198,6 @@ export default function ClassAttendanceScreen() {
         blurRadius={10}
       >
         <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
-        <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
         <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
       </ImageBackground>
     );
@@ -232,7 +232,7 @@ export default function ClassAttendanceScreen() {
       blurRadius={10}
     >
       <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
-      <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
+      <BlurView intensity={Platform.OS == 'ios' ? 330 : 0} style={StyleSheet.absoluteFill} tint={colorScheme} />
       
       <StatusBar
         barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}

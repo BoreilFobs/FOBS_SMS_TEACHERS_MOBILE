@@ -139,7 +139,7 @@ export default function SchoolsScreen() {
       blurRadius={10}
     >
       <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
-      <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
+      <BlurView intensity={Platform.OS == 'ios' ? 300 : 0} style={StyleSheet.absoluteFill} tint={colorScheme} />
       
       <StatusBar
         barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}

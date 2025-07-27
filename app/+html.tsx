@@ -35,4 +35,11 @@ body {
   body {
     background-color: #000;
   }
+}
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* Prevent both vertical and horizontal scrolling */
+  height: 100%;
+  width: 100%;
 }`;

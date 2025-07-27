@@ -8,7 +8,8 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
-  ImageBackground
+  ImageBackground,
+  Platform
 } from "react-native";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useColorScheme } from "@/components/useColorScheme";
@@ -95,7 +96,7 @@ export default function ChangePasswordScreen() {
       blurRadius={10}
     >
       <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
-      <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
+      <BlurView intensity={Platform.OS == 'ios' ? 330 : 0} style={StyleSheet.absoluteFill} tint={colorScheme} />
       
       <StatusBar
         barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}

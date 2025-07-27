@@ -11,7 +11,8 @@ import {
   ImageBackground,
   StatusBar,
   ActivityIndicator,
-  RefreshControl
+  RefreshControl,
+  Platform
 } from "react-native";
 import { Feather, MaterialIcons } from "@expo/vector-icons";
 import { useColorScheme } from "@/components/useColorScheme";
@@ -102,7 +103,6 @@ export default function ExamSequencesScreen() {
         blurRadius={10}
       >
         <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
-        <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
         <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
       </ImageBackground>
     );
@@ -115,7 +115,6 @@ export default function ExamSequencesScreen() {
         style={styles.container}
         blurRadius={10}
       >
-        <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
         <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
         <View style={styles.errorContainer}>
           <MaterialIcons name="error-outline" size={48} color={colors.error} />
@@ -138,7 +137,7 @@ export default function ExamSequencesScreen() {
       blurRadius={10}
     >
       <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
-      <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
+      <BlurView intensity={Platform.OS == 'ios' ? 330 : 0} style={StyleSheet.absoluteFill} tint={colorScheme} />
       
       <StatusBar
         barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}

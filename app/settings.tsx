@@ -7,6 +7,7 @@ import {
   ScrollView,
   ImageBackground,
   StatusBar,
+  Platform,
 } from "react-native";
 import { Feather, FontAwesome } from "@expo/vector-icons";
 import { useColorScheme } from "@/components/useColorScheme";
@@ -77,7 +78,7 @@ export default function SettingsScreen() {
       blurRadius={10}
     >
       <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
-      <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
+      <BlurView intensity={Platform.OS == 'ios' ? 300 : 0} style={StyleSheet.absoluteFill} tint={colorScheme} />
       
       <StatusBar
         barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}

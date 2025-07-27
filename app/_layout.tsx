@@ -9,7 +9,7 @@ import { Stack, Tabs } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { BlurView } from 'expo-blur';
-import { Text, View } from 'react-native';
+import { Platform, Text, View, StyleSheet } from 'react-native';
 import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 import AuthWrapper from "@/components/AuthWrapper";
@@ -63,199 +63,216 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider value={modifiedTheme}>
-      <Stack>
-        {/* Main tabs (will appear in tab bar) */}
-        <Stack.Screen
-          name="(tabs)"
-          options={{
-            headerShown: false,
-          }}
-        />
+      <View style={styles.root}>
+        <Stack>
+          {/* Main tabs (will appear in tab bar) */}
+          <Stack.Screen
+            name="(tabs)"
+            options={{
+              headerShown: false,
+            }}
+          />
 
-        {/* Add School screen (won't appear in tab bar) */}
-        <Stack.Screen
-          name="schools/add"
-          options={{
-            title: "Add School",
-            headerBackTitle: "Back",
-            headerTintColor: modifiedTheme.colors.primary,
-            headerStyle: {
-              backgroundColor: modifiedTheme.colors.card,
-            },
-            headerTitleStyle: {
-              fontWeight: "600",
-            },
-            presentation: "modal", // Optional: makes it slide up on iOS
-            headerShown: false,
-          }}
-        />
+          {/* Add School screen (won't appear in tab bar) */}
+          <Stack.Screen
+            name="schools/add"
+            options={{
+              title: "Add School",
+              headerBackTitle: "Back",
+              headerTintColor: modifiedTheme.colors.primary,
+              headerStyle: {
+                backgroundColor: modifiedTheme.colors.card,
+              },
+              headerTitleStyle: {
+                fontWeight: "600",
+              },
+              presentation: "modal", // Optional: makes it slide up on iOS
+              headerShown: Platform.OS === "ios" ? false : true,
+            }}
+          />
 
-        {/* Pending Requests screen (won't appear in tab bar) */}
-        <Stack.Screen
-          name="schools/requests"
-          options={{
-            title: "Pending Requests",
-            headerBackTitle: "Back",
-            headerTintColor: modifiedTheme.colors.primary,
-          }}
-        />
+          {/* Pending Requests screen (won't appear in tab bar) */}
+          <Stack.Screen
+            name="schools/requests"
+            options={{
+              title: "Pending Requests",
+              headerBackTitle: "Back",
+              headerTintColor: modifiedTheme.colors.primary,
+            }}
+          />
 
-        <Stack.Screen
-          name="subjects"
-          options={{
-            title: "",
-            headerBackTitle: "Schools",
-            headerTintColor: modifiedTheme.colors.primary,
-          }}
-        />
+          <Stack.Screen
+            name="subjects"
+            options={{
+              title: Platform.OS === "ios" ? "" : "Subjects",
+              headerBackTitle: "Schools",
+              headerTintColor: modifiedTheme.colors.primary,
+            }}
+          />
 
-         <Stack.Screen
-          name="settings"
-          options={{
-            title: "Settings",
-            headerBackTitle: "Back",
-            headerTintColor: modifiedTheme.colors.primary,
-            headerStyle: {
-              backgroundColor: modifiedTheme.colors.card,
-            },
-            headerTitleStyle: {
-              fontWeight: "600",
-            },
-            presentation: "modal", // Optional: makes it slide up on iOS
-            headerShown: false,
-          }}
-        />
+          <Stack.Screen
+            name="settings"
+            options={{
+              title: Platform.OS === "ios" ? "" : "Settings",
+              headerBackTitle: "Back",
+              headerTintColor: modifiedTheme.colors.primary,
+              headerStyle: {
+                backgroundColor: modifiedTheme.colors.card,
+              },
+              headerTitleStyle: {
+                fontWeight: "600",
+              },
+              presentation: "modal", // Optional: makes it slide up on iOS
+              headerShown: Platform.OS === "ios" ? false : true,
+            }}
+          />
 
-        <Stack.Screen
-          name="marks/exams"
-          options={{
-            title: "",
-            headerBackTitle: "Classes",
-            headerTintColor: modifiedTheme.colors.primary,
-          }}
-        />
+          <Stack.Screen
+            name="marks/exams"
+            options={{
+              title: Platform.OS === "ios" ? "" : "Exams",
+              headerBackTitle: "Classes",
+              headerTintColor: modifiedTheme.colors.primary,
+            }}
+          />
 
-        <Stack.Screen
-          name="settings/edit-profile"
-          options={{
-            title: "",
-            headerBackTitle: "Classes",
-            headerTintColor: modifiedTheme.colors.primary,
-            headerShown: false,
+          <Stack.Screen
+            name="settings/edit-profile"
+            options={{
+              title: "",
+              headerBackTitle: "Classes",
+              headerTintColor: modifiedTheme.colors.primary,
+              headerShown: false,
 
-          }}
-        />
+            }}
+          />
 
-         <Stack.Screen
-          name="settings/change-password"
-          options={{
-            title: "",
-            headerBackTitle: "",
-            headerTintColor: modifiedTheme.colors.primary,
-            headerShown: false,
+          <Stack.Screen
+            name="settings/change-password"
+            options={{
+              title: "",
+              headerBackTitle: "",
+              headerTintColor: modifiedTheme.colors.primary,
+              headerShown: false,
 
-          }}
-        />
+            }}
+          />
 
-         <Stack.Screen
-          name="support/help"
-          options={{
-            title: "",
-            headerBackTitle: "",
-            headerTintColor: modifiedTheme.colors.primary,
-            headerShown: false,
+          <Stack.Screen
+            name="support/help"
+            options={{
+              title: Platform.OS === "ios" ? "" : "Help",
+              headerBackTitle: "",
+              headerTintColor: modifiedTheme.colors.primary,
+              headerShown: Platform.OS === "ios" ? false : true,
 
-          }}
-        />
+            }}
+          />
 
-         <Stack.Screen
-          name="support/contact"
-          options={{
-            title: "",
-            headerBackTitle: "",
-            headerTintColor: modifiedTheme.colors.primary,
-            headerShown: false,
+          <Stack.Screen
+            name="support/contact"
+            options={{
+              title: "",
+              headerBackTitle: "",
+              headerTintColor: modifiedTheme.colors.primary,
+              headerShown: false,
 
-          }}
-        />
+            }}
+          />
 
-         <Stack.Screen
-          name="support/about"
-          options={{
-            title: "",
-            headerBackTitle: "",
-            headerTintColor: modifiedTheme.colors.primary,
-            headerShown: false,
+          <Stack.Screen
+            name="support/about"
+            options={{
+              title: "",
+              headerBackTitle: "",
+              headerTintColor: modifiedTheme.colors.primary,
+              headerShown: false,
 
-          }}
-        />
+            }}
+          />
 
-        <Stack.Screen
-          name="attendance/students"
-          options={{
-            title: "Attendance",
-            headerBackTitle: "Schools",
-            headerTintColor: modifiedTheme.colors.primary,
-          }}
-        />
-        
+          <Stack.Screen
+            name="attendance/students"
+            options={{
+              title: "Attendance",
+              headerBackTitle: "Schools",
+              headerTintColor: modifiedTheme.colors.primary,
+            }}
+          />
+          
 
-        <Stack.Screen
-          name="marks/classes"
-          options={{
-            title: "",
-            headerBackTitle: "subjects",
-            headerTintColor: modifiedTheme.colors.primary,
-          }}
-        />
+          <Stack.Screen
+            name="marks/classes"
+            options={{
+              title: Platform.OS === "ios" ? "" : "Classes",
+              headerBackTitle: "subjects",
+              headerTintColor: modifiedTheme.colors.primary,
+            }}
+          />
 
-        <Stack.Screen
-          name="marks/students"
-          options={{
-            title: "",
-            headerBackTitle: "classes",
-            headerTintColor: modifiedTheme.colors.primary,
-          }}
-        />
+          <Stack.Screen
+            name="marks/students"
+            options={{
+              title: Platform.OS === "ios" ? "" : "Students",
+              headerBackTitle: "classes",
+              headerTintColor: modifiedTheme.colors.primary,
+            }}
+          />
 
-        <Stack.Screen
-          name="auth/index"
-          options={{
-            title: "login",
-            headerBackTitle: "login",
-            headerTintColor: modifiedTheme.colors.primary,
-            headerShown: false
-          }}
-        />
+          <Stack.Screen
+            name="auth/index"
+            options={{
+              title: "login",
+              headerBackTitle: "login",
+              headerTintColor: modifiedTheme.colors.primary,
+              headerShown: false
+            }}
+          />
 
-        <Stack.Screen
-          name="setup"
-          options={{
-            title: "setup",
-            headerBackTitle: "setup",
-            headerTintColor: modifiedTheme.colors.primary,
-            headerShown: false
-          }}
-        />
+          <Stack.Screen
+            name="setup"
+            options={{
+              title: "setup",
+              headerBackTitle: "setup",
+              headerTintColor: modifiedTheme.colors.primary,
+              headerShown: false
+            }}
+          />
 
-        <Stack.Screen
-          name="index"
-          options={{
-            title: "index",
-            headerBackTitle: "setup",
-            headerTintColor: modifiedTheme.colors.primary,
-            headerShown: false
-          }}
-        />
+          <Stack.Screen
+            name="index"
+            options={{
+              title: "index",
+              headerBackTitle: "setup",
+              headerTintColor: modifiedTheme.colors.primary,
+              headerShown: false
+            }}
+          />
 
-        {/* Other modal screens */}
-        <Stack.Screen
-          name="modal"
-          options={{
-            presentation: "modal",
-          }}
-        />
-      </Stack>
+          {/* Other modal screens */}
+          <Stack.Screen
+            name="modal"
+            options={{
+              presentation: "modal",
+            }}
+          />
+        </Stack>
+      </View>
     </ThemeProvider>
   );
 }
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    overflow: 'hidden',
+    ...(Platform.OS === 'web' && {
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      width: '100vw',
+      height: '100vh',
+    }),
+  },
+});
