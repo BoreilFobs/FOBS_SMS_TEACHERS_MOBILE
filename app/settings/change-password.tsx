@@ -45,14 +45,22 @@ export default function ChangePasswordScreen() {
     }));
   };
 
+  const showAlert = (title, message) => {
+    if (Platform.OS === 'web') {
+      window.alert(`${title}\n${message}`);
+    } else {
+      Alert.alert(title, message);
+    }
+  };
+
   const handleChangePassword = async () => {
     if (newPassword !== confirmPassword) {
-      Alert.alert("Error", "New passwords don't match");
+     showAlert("Error", "New passwords don't match");
       return;
     }
 
     if (newPassword.length < 8) {
-      Alert.alert("Error", "Password must be at least 8 characters");
+     showAlert("Error", "Password must be at least 8 characters");
       return;
     }
 
@@ -77,13 +85,13 @@ export default function ChangePasswordScreen() {
       const data = await response.json();
 
       if (data.success) {
-        Alert.alert("Success", "Password changed successfully!");
+       showAlert("Success", "Password changed successfully!");
         router.back();
       } else {
-        Alert.alert("Error", data.message || "Failed to change password");
+       showAlert("Error", data.message || "Failed to change password");
       }
     } catch (error) {
-      Alert.alert("Error", "An error occurred while changing password");
+     showAlert("Error", "An error occurred while changing password");
       console.error(error);
     } finally {
       setIsLoading(false);

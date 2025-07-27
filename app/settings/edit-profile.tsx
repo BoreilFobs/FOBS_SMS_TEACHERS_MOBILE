@@ -53,6 +53,14 @@ export default function EditProfileScreen() {
     }
   };
 
+  const showAlert = (title, message) => {
+      if (Platform.OS === 'web') {
+        window.alert(`${title}\n${message}`);
+      } else {
+        Alert.alert(title, message);
+      }
+    };
+
   const handleUpdateProfile = async () => {
     setIsLoading(true);
     try {
@@ -85,13 +93,13 @@ export default function EditProfileScreen() {
 
       if (data.success) {
         updateTeacher(data.teacher);
-        Alert.alert("Success", "Profile updated successfully!");
+        showAlert("Success", "Profile updated successfully!");
         router.back();
       } else {
-        Alert.alert("Error", data.message || "Failed to update profile");
+        showAlert("Error", data.message || "Failed to update profile");
       }
     } catch (error) {
-      Alert.alert("Error", "An error occurred while updating your profile");
+      showAlert("Error", "An error occurred while updating your profile");
       console.error(error);
     } finally {
       setIsLoading(false);

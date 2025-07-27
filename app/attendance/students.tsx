@@ -60,12 +60,18 @@ export default function ClassAttendanceScreen() {
 
   const classId = params.class_id as string;
   const schoolId = params.school_id as string;
-  
+  const showAlert = (title, message) => {
+      if (Platform.OS === 'web') {
+        window.alert(`${title}\n${message}`);
+      } else {
+        Alert.alert(title, message);
+      }
+    };
   const getCurrentTerm = () => {
     const now = new Date();
     const month = now.getMonth() + 1;
     
-    if (month >= 9 && month <= 12) return 1;
+    if (month >= 7 && month <= 12) return 1;
     if (month >= 1 && month <= 3) return 2;
     return 3;
   };
@@ -129,12 +135,12 @@ export default function ClassAttendanceScreen() {
 
   const handleAttendanceSubmit = () => {
     if (!attendanceData.subject.trim()) {
-      Alert.alert("Error", "Please enter a subject name");
+      showAlert("Error", "Please enter a subject name");
       return;
     }
 
     if (attendanceData.periods !== 1 && attendanceData.periods !== 2) {
-      Alert.alert("Error", "Periods must be either 1 or 2 hours");
+      showAlert("Error", "Periods must be either 1 or 2 hours");
       return;
     }
 
@@ -183,7 +189,7 @@ export default function ClassAttendanceScreen() {
         throw new Error(data.message || 'Failed to update attendance');
       }
     } catch (err) {
-      Alert.alert(
+      showAlert(
         "Error",
         err instanceof Error ? err.message : 'Failed to update attendance'
       );

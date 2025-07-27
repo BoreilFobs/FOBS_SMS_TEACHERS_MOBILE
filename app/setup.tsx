@@ -37,6 +37,14 @@ if (Platform.OS === 'web') {
   SliderComponent = require('@react-native-community/slider').default;
 }
 
+const showAlert = (title, message) => {
+    if (Platform.OS === 'web') {
+      window.alert(`${title}\n${message}`);
+    } else {
+      Alert.alert(title, message);
+    }
+  };
+
 const { width } = Dimensions.get('window');
 const SETUP_STEPS = ['qualifications', 'specialization', 'bio', 'contact', 'experience', 'profile'];
 
@@ -365,7 +373,7 @@ const validateCurrentStep = () => {
       router.push('/');
     } catch (error) {
       console.error('Submission error:', error);
-      Alert.alert(
+      showAlert(
         'Error', 
         error.response?.data?.message || 'Failed to save setup information. Please try again.'
       );
