@@ -4,7 +4,6 @@ buildscript {
   ext {
     kotlinVersion = "2.1.20"
   }
-  ext.kotlinVersion = project.hasProperty('kotlinVersion') ? project.kotlinVersion : '2.1.20'
   repositories {
     google()
     mavenCentral()
@@ -41,12 +40,10 @@ apply plugin: "expo-root-project"
 apply plugin: "com.facebook.react.rootproject"
 
 // Force Kotlin version for all plugins
-buildscript {
-    configurations.all {
-        resolutionStrategy.eachDependency { DependencyResolveDetails details ->
-            if (details.requested.group == 'org.jetbrains.kotlin') {
-                details.useVersion '1.9.0'
-            }
+configurations.all {
+    resolutionStrategy.eachDependency { details ->
+        if (details.requested.group == 'org.jetbrains.kotlin') {
+            details.useVersion "2.1.20"
         }
     }
 }
