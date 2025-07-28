@@ -70,6 +70,7 @@ function RootLayoutNav() {
             name="(tabs)"
             options={{
               headerShown: false,
+              presentation: 'card'
             }}
           />
 
@@ -107,6 +108,7 @@ function RootLayoutNav() {
               title: Platform.OS === "ios" ? "" : "Subjects",
               headerBackTitle: "Schools",
               headerTintColor: modifiedTheme.colors.primary,
+              presentation: 'card'
             }}
           />
 
@@ -133,6 +135,7 @@ function RootLayoutNav() {
               title: Platform.OS === "ios" ? "" : "Exams",
               headerBackTitle: "Classes",
               headerTintColor: modifiedTheme.colors.primary,
+              presentation: 'card'
             }}
           />
 
@@ -197,6 +200,7 @@ function RootLayoutNav() {
               title: "Attendance",
               headerBackTitle: "Schools",
               headerTintColor: modifiedTheme.colors.primary,
+              presentation: 'card'
             }}
           />
           
@@ -207,6 +211,7 @@ function RootLayoutNav() {
               title: Platform.OS === "ios" ? "" : "Classes",
               headerBackTitle: "subjects",
               headerTintColor: modifiedTheme.colors.primary,
+              presentation: 'card'
             }}
           />
 
@@ -216,6 +221,7 @@ function RootLayoutNav() {
               title: Platform.OS === "ios" ? "" : "Students",
               headerBackTitle: "classes",
               headerTintColor: modifiedTheme.colors.primary,
+              presentation: 'card'
             }}
           />
 
@@ -225,7 +231,8 @@ function RootLayoutNav() {
               title: "login",
               headerBackTitle: "login",
               headerTintColor: modifiedTheme.colors.primary,
-              headerShown: false
+              headerShown: false,
+              presentation: 'card'
             }}
           />
 
@@ -235,17 +242,19 @@ function RootLayoutNav() {
               title: "setup",
               headerBackTitle: "setup",
               headerTintColor: modifiedTheme.colors.primary,
-              headerShown: false
+              headerShown: false,
+              presentation: 'card'
             }}
           />
 
           <Stack.Screen
             name="index"
             options={{
-              title: "index",
-              headerBackTitle: "setup",
+              title: "",
+              headerBackTitle: "",
               headerTintColor: modifiedTheme.colors.primary,
-              headerShown: false
+              headerShown: false,
+              presentation: 'card'
             }}
           />
 
