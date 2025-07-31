@@ -44,6 +44,7 @@ export default function StudentMarksScreen() {
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMark, setLoadingMark] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
@@ -113,7 +114,7 @@ export default function StudentMarksScreen() {
 
   const handleMarkSubmit = async () => {
     if (!selectedStudent || !markInput) return;
-
+    setLoadingMark(true);
     try {
       const response = await fetch(`${API_URL}/marks`, {
         method: 'POST',
@@ -143,8 +144,10 @@ export default function StudentMarksScreen() {
               }
             : student
         );
+        setLoadingMark(false);
 
         setStudents(updatedStudents);
+
         setSelectedStudent(null);
         setMarkInput("");
       } else {
@@ -331,10 +334,15 @@ export default function StudentMarksScreen() {
                     { backgroundColor: colors.primary },
                   ]}
                   onPress={handleMarkSubmit}
-                  disabled={!markInput}
+                  disabled={!markInput || loadingMark}
                 >
-                  <Text style={styles.buttonText}>Submit</Text>
+                  {loadingMark ? (
+                    <ActivityIndicator color={colors.primary} style={styles.loader} />
+                  ) : (
+                    <Text style={styles.buttonText}>Submit</Text>
+                  )}
                 </Pressable>
+
               </View>
             </View>
           </View>
