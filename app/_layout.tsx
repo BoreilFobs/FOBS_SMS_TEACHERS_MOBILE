@@ -13,7 +13,9 @@ import { Platform, Text, View, StyleSheet, useColorScheme } from 'react-native';
 // import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 import AuthWrapper from "@/components/AuthWrapper";
-
+if (Platform.OS === 'web') {
+  
+}
 export { ErrorBoundary } from "expo-router";
 
 export const unstable_settings = {
@@ -274,6 +276,7 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     overflow: 'hidden',
+    fontFamily: 'SpaceMono',
     ...(Platform.OS === 'web' && {
       position: 'fixed',
       top: 0,
