@@ -44,7 +44,11 @@ const performLogout = async () => {
     await useUserStore.getState().clearUserData();
     await AsyncStorage.multiRemove(['user_data', 'user_id', 'user', 'teacher']);
     await AsyncStorage.removeItem('auth_token');
-    router.push('/auth/');
+    if (Platform.OS === 'web') {
+      window.location.href = '/auth/';
+    } else {
+      router.push('/auth/');
+    }
   } catch (error) {
     console.error('Logout failed:', error);
 
