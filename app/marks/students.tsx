@@ -44,7 +44,7 @@ export default function StudentMarksScreen() {
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingMark, setLoadingMark] = useState(true);
+  const [loadingMark, setLoadingMark] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
@@ -337,7 +337,7 @@ export default function StudentMarksScreen() {
                   disabled={!markInput || loadingMark}
                 >
                   {loadingMark ? (
-                    <ActivityIndicator color={colors.primary} style={styles.loader} />
+                    <ActivityIndicator color={colors.card} style={styles.loader} />
                   ) : (
                     <Text style={styles.buttonText}>Submit</Text>
                   )}
