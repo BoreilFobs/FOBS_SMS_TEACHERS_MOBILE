@@ -151,10 +151,10 @@ export default function StudentMarksScreen() {
         setSelectedStudent(null);
         setMarkInput("");
       } else {
-        throw new Error(data.message || 'Failed to save mark');
+        throw new Error(`${data.message} Check Network` || 'Failed to save mark');
       }
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to save mark');
+      alert(err instanceof Error ? `${err.message} Check Network` : 'Failed to save mark');
       console.error(err);
     }
   };
