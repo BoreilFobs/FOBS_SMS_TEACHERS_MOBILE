@@ -321,7 +321,7 @@ export default function StudentMarksScreen() {
               <View style={styles.modalButtons}>
                 <Pressable
                   style={[styles.cancelButton, { borderColor: colors.border }]}
-                  onPress={() => setSelectedStudent(null)}
+                  onPress={() => {setSelectedStudent(null);setLoadingMark(false);}}
                 >
                   <Text style={[styles.buttonText, { color: colors.text }]}>
                     Cancel
