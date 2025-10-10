@@ -25,6 +25,8 @@ export default function TabLayout() {
           tabBarActiveTintColor: currentColors.tint,
           tabBarInactiveTintColor: currentColors.tabIconDefault,
           tabBarStyle: { 
+            // paddingBottom: '30px',
+            marginBottom: '25px',
             backgroundColor: 'transparent',
             borderTopWidth: 0,
             position: 'absolute',
