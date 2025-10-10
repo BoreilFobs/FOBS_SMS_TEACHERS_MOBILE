@@ -21,8 +21,6 @@ import { Ionicons } from '@expo/vector-icons';
 // import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as ImagePicker from 'expo-image-picker';
-import * as ImageManipulator from 'expo-image-manipulator';
 import { useRouter } from 'expo-router';
 import AuthWrapper from '@/components/AuthWrapper';
 import axios from 'axios';
@@ -46,7 +44,7 @@ const showAlert = (title, message) => {
   };
 
 const { width } = Dimensions.get('window');
-const SETUP_STEPS = ['qualifications', 'specialization', 'bio', 'contact', 'experience', 'profile'];
+const SETUP_STEPS = ['qualifications', 'specialization', 'bio', 'contact', 'experience'];
 
 // Field validation requirements
 const FIELD_REQUIREMENTS = {
@@ -55,8 +53,7 @@ const FIELD_REQUIREMENTS = {
   bio: { required: true, message: 'Please enter your bio' },
   phone: { required: true, message: 'Please enter your phone number' },
   address: { required: true, message: 'Please enter your address' },
-  experience: { required: true, message: 'Please select your experience level' },
-  profilePhoto: { required: true, message: 'Please upload a profile photo' }
+  experience: { required: true, message: 'Please select your experience level' }
 };
 
 // Enhanced PlatformTextInput with proper web style handling
@@ -170,8 +167,7 @@ export default function TeacherSetupScreen() {
     bio: '',
     phone: '',
     address: '',
-    experience: 1,
-    profilePhoto: null
+    experience: 1
   });
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
@@ -228,44 +224,7 @@ const validateCurrentStep = () => {
   return isValid;
 };
 
-  const pickImage = async () => {
-    if (Platform.OS === 'web') {
-      // Create a hidden file input for web
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.onchange = async (e) => {
-        const file = e.target.files[0];
-        if (file) {
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            setFormData({ ...formData, profilePhoto: event.target.result });
-          };
-          reader.readAsDataURL(file);
-        }
-      };
-      input.click();
-      return;
-    }
 
-    // Native implementation
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
-
-    if (!result.canceled) {
-      let uri = result.assets[0].uri;
-      const manipulatedImage = await ImageManipulator.manipulateAsync(
-        uri,
-        [],
-        { compress: 1, format: ImageManipulator.SaveFormat.JPEG }
-      );
-      setFormData({ ...formData, profilePhoto: manipulatedImage.uri });
-    }
-  };
 
   const handleNext = () => {
     if (!validateCurrentStep()) return;
@@ -288,24 +247,7 @@ const validateCurrentStep = () => {
   const prepareFormData = () => {
     const formDataToSubmit = new FormData();
     const userId = AsyncStorage.getItem('user_id');
-
-    // Handle profile photo differently for web and native
-    if (formData.profilePhoto) {
-      if (Platform.OS === 'web') {
-        // Convert data URL to blob for web
-        fetch(formData.profilePhoto)
-          .then(res => res.blob())
-          .then(blob => {
-            formDataToSubmit.append('profile_photo', blob, `profile_${userId}.jpg`);
-          });
-      } else {
-        formDataToSubmit.append('profile_photo', {
-          uri: formData.profilePhoto,
-          name: `profile_${userId}.jpg`,
-          type: 'image/jpeg',
-        });
-      }
-    }
+    
     userId.then(resolvedId => {
       const userIdInt = parseInt(resolvedId);
       formDataToSubmit.append('user_id', userIdInt);
@@ -315,8 +257,6 @@ const validateCurrentStep = () => {
       formDataToSubmit.append('phone', formData.phone);
       formDataToSubmit.append('address', formData.address);
       formDataToSubmit.append('experience', formData.experience.toString());
-
-      console.log("user", userIdInt);
     });
     
     return formDataToSubmit;
@@ -555,50 +495,7 @@ const validateCurrentStep = () => {
               )}
             </>
           );
-        case 'profile':
-          return (
-            <>
-              <Ionicons name="camera-outline" size={48} color={colors.primary} />
-              <Text style={[styles.stepTitle, { color: colors.text }]}>
-                Profile Photo
-              </Text>
-              <Text style={[styles.stepSubtitle, { color: colors.textSecondary }]}>
-                Add a professional photo that represents you (recommended: face clearly visible)
-              </Text>
-              <TouchableOpacity 
-                style={styles.photoContainer}
-                onPress={pickImage}
-              >
-                {formData.profilePhoto ? (
-                  <Image 
-                    source={{ uri: formData.profilePhoto }} 
-                    style={styles.profileImage}
-                  />
-                ) : (
-                  <View style={[styles.profilePlaceholder, { backgroundColor: colors.border }]}>
-                    <Ionicons name="person" size={48} color={colors.textSecondary} />
-                  </View>
-                )}
-                <View style={styles.photoButton}>
-                  <Ionicons name="camera" size={20} color="white" />
-                </View>
-              </TouchableOpacity>
-              {errors.profilePhoto && (
-                <Text style={[styles.errorText, { textAlign: 'center', marginTop: 8 }]}>
-                  {errors.profilePhoto}
-                </Text>
-              )}
-              {isRequired && !errors.profilePhoto && (
-                <Text style={[styles.requiredText, { 
-                  color: colors.textSecondary,
-                  textAlign: 'center',
-                  marginTop: 8
-                }]}>
-                  * Required
-                </Text>
-              )}
-            </>
-          );
+
         default:
           return null;
       }
@@ -719,8 +616,6 @@ const styles = StyleSheet.create({
   progressDot: {
     height: 8,
     borderRadius: 4,
-    transitionProperty: 'width',
-    transitionDuration: '300ms',
   },
   contentContainer: {
     flex: 1,
@@ -757,39 +652,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 16,
   },
-  photoContainer: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    marginBottom: 24,
-    alignSelf: 'center',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  profileImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 75,
-  },
-  profilePlaceholder: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 75,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  photoButton: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: '#6366F1',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+
   buttonContainer: {
     flexDirection: 'row',
     padding: 24,
