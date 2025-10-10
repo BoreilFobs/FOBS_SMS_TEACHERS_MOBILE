@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 16,
-    paddingBottom: 32,
+    paddingBottom: 100,
     gap: 12,
   },
   sequenceCard: {

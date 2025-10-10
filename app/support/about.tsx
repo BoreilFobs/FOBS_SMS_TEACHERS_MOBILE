@@ -52,7 +52,7 @@ const features = [
 
 const teamMembers = [
   {
-    name: "Boreil Fobs",
+    name: "Boreil Fobasso",
     role: "Web & Mobile dev AI engineer",
     bio: "Boreil is a full-stack developer with a passion for AI and education technology. He leads the development of our mobile applications.",
   },
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingBottom: 32,
+    paddingBottom: 100,
   },
   card: {
     borderRadius: 20,
