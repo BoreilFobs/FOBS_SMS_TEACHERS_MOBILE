@@ -656,7 +656,7 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: 'row',
     padding: 24,
-    marginBottom: 25,
+    marginBottom: 55,
     gap: 16,
   },
   primaryButton: {
