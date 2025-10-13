@@ -22,6 +22,7 @@ import { Link, useRouter, useLocalSearchParams } from "expo-router";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Config from '@/constants/Config';
 
 interface ExamSequence {
   school_id: number;
@@ -38,7 +39,6 @@ export default function ExamSequencesScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
   const params = useLocalSearchParams();
-  const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
   const subjectId = params.subject_id as string;
   const schoolId = params.school_id as string;
   const router = useRouter();
@@ -56,7 +56,7 @@ export default function ExamSequencesScreen() {
       }
 
       const response = await fetch(
-        `${API_URL}/exam-sequences?school_id=${schoolId}`
+        `${Config.apiBaseUrl}/exam-sequences?school_id=${schoolId}`
       );
       const data = await response.json();
       

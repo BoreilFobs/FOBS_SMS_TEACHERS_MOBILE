@@ -22,6 +22,7 @@ import Colors from "@/constants/Colors";
 import { useLocalSearchParams } from "expo-router";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
+import Config from '@/constants/Config';
 
 interface Student {
   id: number;
@@ -39,7 +40,6 @@ export default function StudentMarksScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
   const params = useLocalSearchParams();
-  const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
   
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
@@ -62,7 +62,7 @@ export default function StudentMarksScreen() {
       
       // First fetch students in class
       const studentsResponse = await fetch(
-        `${API_URL}/class-students?class_id=${classId}`
+        `${Config.apiBaseUrl}/class-students?class_id=${classId}`
       );
       const studentsData = await studentsResponse.json();
       
@@ -72,7 +72,7 @@ export default function StudentMarksScreen() {
 
       // Then fetch existing marks for this exam/subject/class
       const marksResponse = await fetch(
-        `${API_URL}/marks?school_id=${schoolId}&exam_id=${sequenceId}&subject_id=${subjectId}&class_id=${classId}`
+        `${Config.apiBaseUrl}/marks?school_id=${schoolId}&exam_id=${sequenceId}&subject_id=${subjectId}&class_id=${classId}`
       );
       const marksData = await marksResponse.json();
 
@@ -116,7 +116,7 @@ export default function StudentMarksScreen() {
     if (!selectedStudent || !markInput) return;
     setLoadingMark(true);
     try {
-      const response = await fetch(`${API_URL}/marks`, {
+      const response = await fetch(`${Config.apiBaseUrl}/marks`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

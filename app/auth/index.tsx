@@ -19,6 +19,7 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 // import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
+import Config from '@/constants/Config';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -48,7 +49,7 @@ export default function AuthScreen() {
   const [slideAnim] = useState(new Animated.Value(30));
   const [isLoading, setIsLoading] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+  const API_URL = Config.apiBaseUrl;
   React.useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {

@@ -21,6 +21,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import useUserStore from '@/utils/stores/userStore';
 import { StatusBar } from "expo-status-bar";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Config from '@/constants/Config';
 
 export default function ChangePasswordScreen() {
   const colorScheme = useColorScheme();
@@ -68,7 +69,7 @@ export default function ChangePasswordScreen() {
     try {
         console.log(newPassword);
         
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/user/change-password`, {
+      const response = await fetch(`${Config.apiBaseUrl}/user/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

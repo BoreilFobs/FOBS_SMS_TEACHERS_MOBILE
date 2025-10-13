@@ -19,6 +19,7 @@ import Colors from "@/constants/Colors";
 import { Link, useRouter, useLocalSearchParams } from "expo-router";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
+import Config from '@/constants/Config';
 
 const { width } = Dimensions.get("window");
 const CARD_HEIGHT = width * 0.4;
@@ -48,7 +49,6 @@ export default function SchoolClassesScreen() {
       router.replace('/');
     }
   }, [schoolId]);
-  const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
   console.log(`Fetching classes for schoolId: ${schoolId}`);
 console.log(params);
 
@@ -56,7 +56,7 @@ console.log(params);
     try {
       setLoading(true);
       const response = await fetch(
-        `${API_URL}/school-classes?school_id=${schoolId}`
+        `${Config.apiBaseUrl}/school-classes?school_id=${schoolId}`
       );
       const data = await response.json();
       

@@ -22,6 +22,7 @@ import { useRouter } from "expo-router";
 import useUserStore from '@/utils/stores/userStore';
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from 'expo-linear-gradient';
+import Config from '@/constants/Config';
 
 export default function EditProfileScreen() {
   const colorScheme = useColorScheme();
@@ -81,7 +82,7 @@ export default function EditProfileScreen() {
         } as any);
       }
 
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/teacher/update-profile`, {
+      const response = await fetch(`${Config.apiBaseUrl}/teacher/update-profile`, {
         method: 'POST',
         body: formDataToSend,
         headers: {
@@ -142,7 +143,7 @@ export default function EditProfileScreen() {
           <TouchableOpacity onPress={pickImage} style={styles.photoContainer}>
             {profilePhoto ? (
               <Image 
-                source={{ uri: `${process.env.EXPO_PUBLIC_WEB_BASE_URL}/storage/${profilePhoto}` }} 
+                source={{ uri: `${Config.webBaseUrl}/storage/${profilePhoto}` }} 
                 style={styles.profilePhoto} 
               />
             ) : (

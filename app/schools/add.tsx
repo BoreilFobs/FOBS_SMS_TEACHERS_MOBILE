@@ -19,6 +19,7 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from "expo-linear-gradient";
 import Toast from 'react-native-toast-message';
+import Config from '@/constants/Config';
 
 export default function AddSchoolScreen() {
   const colorScheme = useColorScheme();
@@ -28,8 +29,6 @@ export default function AddSchoolScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
-  const WEB_URL = process.env.EXPO_PUBLIC_WEB_BASE_URL;
 
   const [schoolInfo, setSchoolInfo] = useState<{
     id: number;
@@ -53,7 +52,7 @@ export default function AddSchoolScreen() {
         throw new Error("Please login again");
       }
 
-      const response = await axios.post(`${API_URL}/teacher-request`, {
+      const response = await axios.post(`${Config.apiBaseUrl}/teacher-request`, {
         code: schoolCode,
       }, {
         headers: {
@@ -103,7 +102,7 @@ export default function AddSchoolScreen() {
       }
 
       const response = await axios.post(
-        `${API_URL}/teacher-create-request`,
+        `${Config.apiBaseUrl}/teacher-create-request`,
         {
           school_id: schoolInfo.id,
           teacher_id: teacher.id,

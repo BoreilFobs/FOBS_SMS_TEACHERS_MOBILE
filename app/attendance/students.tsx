@@ -22,6 +22,7 @@ import Colors from "@/constants/Colors";
 import { useLocalSearchParams } from "expo-router";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
+import Config from '@/constants/Config';
 
 interface Student {
   id: number;
@@ -44,7 +45,6 @@ export default function ClassAttendanceScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
   const params = useLocalSearchParams();
-  const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
   
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
@@ -82,7 +82,7 @@ export default function ClassAttendanceScreen() {
       
       // Fetch students
       const studentsResponse = await fetch(
-        `${API_URL}/class-students?class_id=${classId}`
+        `${Config.apiBaseUrl}/class-students?class_id=${classId}`
       );
       const studentsData = await studentsResponse.json();
       
@@ -94,7 +94,7 @@ export default function ClassAttendanceScreen() {
       const today = new Date().toISOString().split('T')[0];
       const term = getCurrentTerm();
       const attendanceResponse = await fetch(
-        `${API_URL}/attendances?school_id=${schoolId}&class_id=${classId}&date=${today}&term=${term}`
+        `${Config.apiBaseUrl}/attendances?school_id=${schoolId}&class_id=${classId}&date=${today}&term=${term}`
       );
       const attendanceData = await attendanceResponse.json();
 
@@ -153,7 +153,7 @@ export default function ClassAttendanceScreen() {
       const term = getCurrentTerm();
       const today = new Date().toISOString().split('T')[0];
       
-      const response = await fetch(`${API_URL}/attendances`, {
+      const response = await fetch(`${Config.apiBaseUrl}/attendances`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

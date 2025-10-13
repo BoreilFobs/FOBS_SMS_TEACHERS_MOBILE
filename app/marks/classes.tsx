@@ -20,6 +20,7 @@ import { Link, useRouter, useLocalSearchParams } from "expo-router";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import useUserStore from '@/utils/stores/userStore';
+import Config from '@/constants/Config';
 
 const { width } = Dimensions.get("window");
 const CARD_HEIGHT = width * 0.4;
@@ -46,7 +47,6 @@ export default function ClassSelectionScreen() {
   const schoolId = params.schoolId as string;
   const teacherId = teacher?.id;
   const subjectId = params.subjectId as string;
-  const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
   console.log(`Fetching classes for schoolId: ${schoolId}, teacherId: ${teacherId}, subjectId: ${subjectId}`);
 
   const fetchClasses = async () => {
@@ -54,7 +54,7 @@ export default function ClassSelectionScreen() {
     try {
       setLoading(true);
       const response = await fetch(
-        `${API_URL}/teacher-classes?school_id=${schoolId}&teacher_id=${teacherId}&subject_id=${subjectId}`
+        `${Config.apiBaseUrl}/teacher-classes?school_id=${schoolId}&teacher_id=${teacherId}&subject_id=${subjectId}`
       );
       const data = await response.json();
       

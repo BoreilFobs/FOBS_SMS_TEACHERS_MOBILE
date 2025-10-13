@@ -25,6 +25,7 @@ import { useRouter } from 'expo-router';
 import AuthWrapper from '@/components/AuthWrapper';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Config from '@/constants/Config';
 
 // Platform-specific slider import
 let SliderComponent;
@@ -172,7 +173,6 @@ export default function TeacherSetupScreen() {
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
-  const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
   // Web file input ref
   const fileInputRef = useRef(null);
@@ -301,7 +301,7 @@ const validateCurrentStep = () => {
       const formDataToSubmit = prepareFormData();
       console.log(formDataToSubmit);
       
-      const response = await axios.post(`${API_URL}/teacher/setup`, formDataToSubmit, {
+      const response = await axios.post(`${Config.apiBaseUrl}/teacher/setup`, formDataToSubmit, {
         headers: {
           'Accept': 'application/json',
           'Authorization': `Bearer ${await AsyncStorage.getItem('auth_token')}`,

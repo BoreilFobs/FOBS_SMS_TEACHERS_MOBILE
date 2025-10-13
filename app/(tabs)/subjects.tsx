@@ -20,6 +20,7 @@ import { Link, useRouter, useLocalSearchParams } from "expo-router";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import useUserStore from '@/utils/stores/userStore';
+import Config from '@/constants/Config';
 
 const { width } = Dimensions.get("window");
 const CARD_HEIGHT = width * 0.4;
@@ -51,7 +52,6 @@ export default function SubjectsScreen() {
     }
   }, [schoolId]);
   const teacherId = teacher?.id;
-  const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
       console.log(teacher);
 
   console.log("Fetching subjects for schoolId:", schoolId, "and teacherId:", teacherId);
@@ -61,7 +61,7 @@ export default function SubjectsScreen() {
       setLoading(true);
       
       const response = await fetch(
-        `${API_URL}/teacher-subjects?school_id=${schoolId}&teacher_id=${teacherId}`, // Replace with actual schoolId and teacherId
+        `${Config.apiBaseUrl}/teacher-subjects?school_id=${schoolId}&teacher_id=${teacherId}`, // Replace with actual schoolId and teacherId
       );
       const data = await response.json();
       console.log('API Response:', data.success);

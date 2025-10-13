@@ -6,12 +6,13 @@ import { Redirect, router } from 'expo-router';
 import {getUserAndTeacherData} from '@/utils/storage/getUserAndTeacher';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import Config from '@/constants/Config';
 
 export const useSchools = (teacherId: number) => {
   const [schoolData, setSchoolData] = useState<TeacherSchoolResponse>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+  
   const fetchSchools = async () => {
     try {
 
@@ -20,7 +21,7 @@ export const useSchools = (teacherId: number) => {
         return;
       }
       
-      const response = await fetch(`${API_URL}/teacher-schools?teacher_id=${teacher.id}`, {
+      const response = await fetch(`${Config.apiBaseUrl}/teacher-schools?teacher_id=${teacher.id}`, {
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
