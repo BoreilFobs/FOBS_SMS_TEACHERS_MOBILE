@@ -28,14 +28,20 @@ export default {
       adaptiveIcon: {
         foregroundImage: "./assets/images/adaptive-icon.png",
         backgroundColor: "#2f373f"
+      },
+      statusBar: {
+        translucent: true,
+        barStyle: "dark-content"
       }
     },
     web: {
       favicon: "./assets/images/favicon.png"
     },
     extra: {
-      apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL,
-      webBaseUrl: process.env.EXPO_PUBLIC_WEB_BASE_URL,
+      // Use EXPO_PUBLIC_ prefix for public environment variables
+      // These will be embedded at build time
+      apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL || 'https://fobssms.com/api',
+      webBaseUrl: process.env.EXPO_PUBLIC_WEB_BASE_URL || 'https://fobssms.com',
       eas: {
         projectId: "43fa6ebf-40dc-45ff-a417-749fe024cd11" // ✅ Project ID linked to EAS
       }

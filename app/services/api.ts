@@ -3,7 +3,12 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
-const API_URL = Constants.expoConfig?.extra?.apiBaseUrl || 'http://127.0.0.1:8000/api';
+// Get API URL from expo config with fallback
+const API_URL = Constants.expoConfig?.extra?.apiBaseUrl || 'https://fobssms.com/api';
+
+// Log the API URL for debugging (will help verify environment variables are working)
+console.log('API Base URL:', API_URL);
+console.log('Expo Config Extra:', Constants.expoConfig?.extra);
 
 const api = axios.create({
   baseURL: API_URL,
