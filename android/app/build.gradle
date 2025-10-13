@@ -96,15 +96,15 @@ android {
         versionName "1.0.0"
     }
     
-    // Add compileOptions for Java 8+ compatibility
+    // Add compileOptions for Java compatibility
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
     
     // Add kotlinOptions for Kotlin compatibility
     kotlinOptions {
-        jvmTarget = '1.8'
+        jvmTarget = '17'
     }
     
     signingConfigs {
