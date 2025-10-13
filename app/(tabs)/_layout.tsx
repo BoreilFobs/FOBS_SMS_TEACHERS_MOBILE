@@ -7,7 +7,7 @@ import AuthWrapper from "@/components/AuthWrapper";
 import { Link, useNavigationContainerRef, useLocalSearchParams } from "expo-router";
 import SetupWrapper from "@/components/SetupWrapper";
 import { BlurView } from "expo-blur";
-import { StyleSheet, View, useColorScheme } from "react-native";
+import { Platform, StyleSheet, View, useColorScheme } from "react-native";
 
 
 export default function TabLayout() {
@@ -26,7 +26,7 @@ export default function TabLayout() {
           tabBarInactiveTintColor: currentColors.tabIconDefault,
           tabBarStyle: { 
             // paddingBottom: '30px',
-            marginBottom: 50,
+            marginBottom: Platform.OS === 'web' ? 50 : 0,
             backgroundColor: 'transparent',
             borderTopWidth: 0,
             position: 'absolute',

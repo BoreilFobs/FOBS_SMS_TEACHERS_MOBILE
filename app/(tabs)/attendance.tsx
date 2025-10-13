@@ -178,7 +178,7 @@ console.log(params);
         backgroundColor="transparent"
       />
 
-      <View style={styles.header}>
+      <View style={[styles.header, { marginTop: StatusBar.currentHeight }]}>
         <Text style={styles.logo}>FobsSMS</Text><Text style={[styles.title, { color: colors.text }]}>Students Attendance</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           Select a class to start attendance
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 16,
-    paddingBottom: 32,
+    paddingBottom: 70,
   },
   columnWrapper: {
     justifyContent: 'space-between',
