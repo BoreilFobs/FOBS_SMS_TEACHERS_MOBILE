@@ -18,7 +18,8 @@ export default {
     },
     assetBundlePatterns: ["**/*"],
     ios: {
-      supportsTablet: true
+      supportsTablet: true,
+      bundleIdentifier: "com.fobssms.teachers"
     },
     android: {
       package: "com.fobssms.teachers", // ✅ Use a unique Android package ID
