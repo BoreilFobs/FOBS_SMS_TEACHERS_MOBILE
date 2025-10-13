@@ -113,7 +113,7 @@ export default function ChangePasswordScreen() {
         backgroundColor="transparent"
       />
 
-      <View style={[styles.header, { marginTop: StatusBar.currentHeight }]}>
+      <View style={[styles.header]}>
         <View style={styles.headerRow}>
           <TouchableOpacity 
             onPress={() => router.back()}
@@ -245,6 +245,7 @@ export default function ChangePasswordScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 35
   },
   header: {
     paddingHorizontal: 24,

@@ -7,11 +7,11 @@ export default {
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/icon.png",
-    userInterfaceStyle: "automatic",
+    userInterfaceStyle: "dark",
     splash: {
       image: "./assets/images/splash.png",
       resizeMode: "contain",
-      backgroundColor: "#ffffff"
+      backgroundColor: "#2f373f"
     },
     updates: {
       fallbackToCacheTimeout: 0
@@ -27,14 +27,15 @@ export default {
       permissions: [],
       adaptiveIcon: {
         foregroundImage: "./assets/images/adaptive-icon.png",
-        backgroundColor: "#FFFFFF"
+        backgroundColor: "#2f373f"
       }
     },
     web: {
       favicon: "./assets/images/favicon.png"
     },
     extra: {
-      apiUrl: process.env.EXPO_PUBLIC_API_URL,
+      apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL,
+      webBaseUrl: process.env.EXPO_PUBLIC_WEB_BASE_URL,
       eas: {
         projectId: "43fa6ebf-40dc-45ff-a417-749fe024cd11" // ✅ Project ID linked to EAS
       }

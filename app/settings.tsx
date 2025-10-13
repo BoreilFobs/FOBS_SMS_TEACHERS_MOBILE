@@ -87,7 +87,7 @@ export default function SettingsScreen() {
         backgroundColor="transparent"
       />
 
-      <View style={[styles.header, { marginTop: StatusBar.currentHeight }]}>
+      <View style={[styles.header]}>
         <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           Manage your account and preferences
