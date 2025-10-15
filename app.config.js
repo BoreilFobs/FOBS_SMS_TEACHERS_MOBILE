@@ -3,11 +3,11 @@ import 'dotenv/config';
 export default {
   expo: {
     name: "FobsSMS Teachers",
-    slug: "FOBS_SMS_TEACHER_MOBILE", // ✅ Slug must match EAS config
+    slug: "FOBS_SMS_TEACHER_MOBILE",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/icon.png",
-    userInterfaceStyle: "dark",
+    userInterfaceStyle: "automatic", // This follows the system theme
     splash: {
       image: "./assets/images/splash.png",
       resizeMode: "contain",
@@ -22,7 +22,7 @@ export default {
       bundleIdentifier: "com.fobssms.teachers"
     },
     android: {
-      package: "com.fobssms.teachers", // ✅ Use a unique Android package ID
+      package: "com.fobssms.teachers",
       versionCode: 1,
       permissions: [],
       adaptiveIcon: {
@@ -43,12 +43,10 @@ export default {
       favicon: "./assets/images/favicon.png"
     },
     extra: {
-      // Use EXPO_PUBLIC_ prefix for public environment variables
-      // These will be embedded at build time
       apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL || 'https://fobssms.com/api',
       webBaseUrl: process.env.EXPO_PUBLIC_WEB_BASE_URL || 'https://fobssms.com',
       eas: {
-        projectId: "43fa6ebf-40dc-45ff-a417-749fe024cd11" // ✅ Project ID linked to EAS
+        projectId: "43fa6ebf-40dc-45ff-a417-749fe024cd11"
       }
     }
   }

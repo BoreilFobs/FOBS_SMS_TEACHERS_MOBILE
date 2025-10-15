@@ -1,15 +1,12 @@
 // hooks/useSchools.ts
 
 import { useEffect, useState } from 'react';
-import { TeacherSchoolResponse } from './types'; // adjust the import path
-import { Redirect, router } from 'expo-router';
-import {getUserAndTeacherData} from '@/utils/storage/getUserAndTeacher';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
+import { SchoolResponse } from './types';
+import { getUserAndTeacherData } from '@/utils/storage/getUserAndTeacher';
 import Config from '@/constants/Config';
 
-export const useSchools = (teacherId: number) => {
-  const [schoolData, setSchoolData] = useState<TeacherSchoolResponse>();
+export const useSchools = (teacherId?: number) => {
+  const [schoolData, setSchoolData] = useState<SchoolResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -39,7 +36,7 @@ export const useSchools = (teacherId: number) => {
       
 
       if (data.success) {
-        setSchoolData(data.data);
+        setSchoolData(data.data as SchoolResponse[]);
       } else {
         setError(data.message || 'Failed to fetch schools');
       }
