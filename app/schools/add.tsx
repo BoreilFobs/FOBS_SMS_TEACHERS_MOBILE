@@ -168,7 +168,7 @@ export default function AddSchoolScreen() {
       });
 
       const response = await axios.post(
-        `${Config.webBaseUrl}/teacher-create-request`,
+        `${Config.apiBaseUrl}/teacher-create-request`,
         {
           school_id: schoolInfo.id,
           teacher_id: teacher.id,
