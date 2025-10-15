@@ -158,6 +158,7 @@ export default function SubjectsScreen() {
           accessibilityRole="button"
           accessibilityLabel={`Open ${item.name}`}
         >
+          <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={blurTint} />
           <BlurView
             intensity={Platform.OS === 'ios' ? 12 : 100}
             tint={colorScheme === 'dark' ? 'dark' : 'light'}
