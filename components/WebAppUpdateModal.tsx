@@ -95,7 +95,7 @@ export default function WebAppUpdateModal() {
   };
 
   const handleDownload = async () => {
-    const downloadUrl = 'https://fobssms.com/downloads/fobssms-teacher.apk'; // Update with actual URL
+    const downloadUrl = 'https://fobssms.com/app/FobsSMS Teachers.apk'; // Update with actual URL
     try {
       const supported = await Linking.canOpenURL(downloadUrl);
       if (supported) {
