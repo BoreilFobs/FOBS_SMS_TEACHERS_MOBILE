@@ -173,17 +173,69 @@ export default function TeacherSetupScreen() {
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  const iconAnim = useRef(new Animated.Value(0)).current;
 
   // Web file input ref
   const fileInputRef = useRef(null);
 
+  // Initial entrance animation
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  // Icon animation on step change
+  useEffect(() => {
+    iconAnim.setValue(0);
+    Animated.sequence([
+      Animated.spring(iconAnim, {
+        toValue: 1,
+        friction: 6,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+      Animated.spring(iconAnim, {
+        toValue: 0.95,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+      Animated.spring(iconAnim, {
+        toValue: 1,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [currentStep]);
+
   const animateSlide = (direction: 'left' | 'right') => {
     slideAnim.setValue(direction === 'left' ? -50 : 50);
-    Animated.timing(slideAnim, {
-      toValue: 0,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
+    fadeAnim.setValue(0);
+    
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+    ]).start();
   };
 
 const validateCurrentStep = () => {
@@ -327,170 +379,293 @@ const validateCurrentStep = () => {
       const currentStepKey = SETUP_STEPS[currentStep];
       const isRequired = FIELD_REQUIREMENTS[currentStepKey]?.required;
 
+      const withOpacity = (hex: string, alpha: number) => {
+        const clean = hex.replace('#', '');
+        const r = parseInt(clean.substring(0, 2), 16);
+        const g = parseInt(clean.substring(2, 4), 16);
+        const b = parseInt(clean.substring(4, 6), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      };
+
       switch(currentStepKey) {
         case 'qualifications':
           return (
             <>
-              <Ionicons name="school-outline" size={48} color={colors.primary} />
+              <Animated.View style={{ 
+                transform: [{ scale: iconAnim }],
+                marginBottom: 16,
+              }}>
+                <View style={[styles.iconCircle, { 
+                  backgroundColor: withOpacity(colors.primary, 0.15),
+                }]}>
+                  <Ionicons name="school-outline" size={56} color={colors.primary} />
+                </View>
+              </Animated.View>
               <Text style={[styles.stepTitle, { color: colors.text }]}>
                 Your Qualifications
               </Text>
               <Text style={[styles.stepSubtitle, { color: colors.textSecondary }]}>
-                List your degrees, certifications, and credentials (separate with commas)
+                List your degrees, certifications, and credentials
               </Text>
-              <PlatformTextInput
-                style={[styles.input, { color: colors.text, borderColor: colors.border }]}
-                placeholder="PhD in Mathematics, Teaching Certificate..."
-                placeholderTextColor={colors.textSecondary}
-                value={formData.qualifications}
-                onChangeText={(text) => setFormData({...formData, qualifications: text})}
-                error={errors.qualifications}
-                required={isRequired}
-              />
+              <BlurView
+                intensity={Platform.OS === 'ios' ? 12 : 6}
+                tint={colorScheme === 'dark' ? 'dark' : 'light'}
+                style={[styles.inputCard, {
+                  backgroundColor: colorScheme === 'dark'
+                    ? withOpacity(colors.card, 0.65)
+                    : withOpacity(colors.card, 0.85),
+                  borderColor: withOpacity(colors.border, 0.3),
+                }]}
+              >
+                <PlatformTextInput
+                  style={[styles.input, { 
+                    color: colors.text, 
+                    borderColor: 'transparent',
+                    backgroundColor: 'transparent',
+                  }]}
+                  placeholder="PhD in Mathematics, Teaching Certificate..."
+                  placeholderTextColor={withOpacity(colors.textSecondary, 0.6)}
+                  value={formData.qualifications}
+                  onChangeText={(text) => setFormData({...formData, qualifications: text})}
+                  error={errors.qualifications}
+                  required={isRequired}
+                />
+              </BlurView>
             </>
           );
         case 'specialization':
           return (
             <>
-              <Ionicons name="ribbon-outline" size={48} color={colors.primary} />
+              <Animated.View style={{ 
+                transform: [{ scale: iconAnim }],
+                marginBottom: 16,
+              }}>
+                <View style={[styles.iconCircle, { 
+                  backgroundColor: withOpacity(colors.primary, 0.15),
+                }]}>
+                  <Ionicons name="ribbon-outline" size={56} color={colors.primary} />
+                </View>
+              </Animated.View>
               <Text style={[styles.stepTitle, { color: colors.text }]}>
                 Your Specialization
               </Text>
               <Text style={[styles.stepSubtitle, { color: colors.textSecondary }]}>
-                What subjects or areas do you specialize in? (separate with commas)
+                What subjects or areas do you specialize in?
               </Text>
-              <PlatformTextInput
-                style={[styles.input, { color: colors.text, borderColor: colors.border }]}
-                placeholder="Mathematics, Physics, Elementary Education..."
-                placeholderTextColor={colors.textSecondary}
-                value={formData.specialization}
-                onChangeText={(text) => setFormData({...formData, specialization: text})}
-                error={errors.specialization}
-                required={isRequired}
-              />
+              <BlurView
+                intensity={Platform.OS === 'ios' ? 12 : 6}
+                tint={colorScheme === 'dark' ? 'dark' : 'light'}
+                style={[styles.inputCard, {
+                  backgroundColor: colorScheme === 'dark'
+                    ? withOpacity(colors.card, 0.65)
+                    : withOpacity(colors.card, 0.85),
+                  borderColor: withOpacity(colors.border, 0.3),
+                }]}
+              >
+                <PlatformTextInput
+                  style={[styles.input, { 
+                    color: colors.text, 
+                    borderColor: 'transparent',
+                    backgroundColor: 'transparent',
+                  }]}
+                  placeholder="Mathematics, Physics, Elementary Education..."
+                  placeholderTextColor={withOpacity(colors.textSecondary, 0.6)}
+                  value={formData.specialization}
+                  onChangeText={(text) => setFormData({...formData, specialization: text})}
+                  error={errors.specialization}
+                  required={isRequired}
+                />
+              </BlurView>
             </>
           );
         case 'bio':
           return (
             <>
-              <Ionicons name="document-text-outline" size={48} color={colors.primary} />
+              <Animated.View style={{ 
+                transform: [{ scale: iconAnim }],
+                marginBottom: 16,
+              }}>
+                <View style={[styles.iconCircle, { 
+                  backgroundColor: withOpacity(colors.primary, 0.15),
+                }]}>
+                  <Ionicons name="document-text-outline" size={56} color={colors.primary} />
+                </View>
+              </Animated.View>
               <Text style={[styles.stepTitle, { color: colors.text }]}>
                 Your Teaching Bio
               </Text>
               <Text style={[styles.stepSubtitle, { color: colors.textSecondary }]}>
-                Describe your teaching philosophy, methods, and what makes you unique
+                Describe your teaching philosophy and what makes you unique
               </Text>
-              <PlatformTextInput
-                style={[styles.input, { 
-                  color: colors.text, 
-                  borderColor: colors.border,
+              <BlurView
+                intensity={Platform.OS === 'ios' ? 12 : 6}
+                tint={colorScheme === 'dark' ? 'dark' : 'light'}
+                style={[styles.inputCard, {
+                  backgroundColor: colorScheme === 'dark'
+                    ? withOpacity(colors.card, 0.65)
+                    : withOpacity(colors.card, 0.85),
+                  borderColor: withOpacity(colors.border, 0.3),
                 }]}
-                placeholder="I have 10 years experience teaching with a focus on..."
-                placeholderTextColor={colors.textSecondary}
-                multiline
-                numberOfLines={5}
-                value={formData.bio}
-                onChangeText={(text) => setFormData({...formData, bio: text})}
-                error={errors.bio}
-                required={isRequired}
-              />
+              >
+                <PlatformTextInput
+                  style={[styles.input, { 
+                    color: colors.text, 
+                    borderColor: 'transparent',
+                    backgroundColor: 'transparent',
+                    minHeight: 120,
+                  }]}
+                  placeholder="I have 10 years experience teaching with a focus on..."
+                  placeholderTextColor={withOpacity(colors.textSecondary, 0.6)}
+                  multiline
+                  numberOfLines={5}
+                  value={formData.bio}
+                  onChangeText={(text) => setFormData({...formData, bio: text})}
+                  error={errors.bio}
+                  required={isRequired}
+                />
+              </BlurView>
             </>
           );
         case 'contact':
           return (
             <>
-              <Ionicons name="call-outline" size={48} color={colors.primary} />
+              <Animated.View style={{ 
+                transform: [{ scale: iconAnim }],
+                marginBottom: 16,
+              }}>
+                <View style={[styles.iconCircle, { 
+                  backgroundColor: withOpacity(colors.primary, 0.15),
+                }]}>
+                  <Ionicons name="call-outline" size={56} color={colors.primary} />
+                </View>
+              </Animated.View>
               <Text style={[styles.stepTitle, { color: colors.text }]}>
                 Contact Information
               </Text>
               <Text style={[styles.stepSubtitle, { color: colors.textSecondary }]}>
-                Where students can reach you (will be visible to enrolled students only)
+                How can students reach you?
               </Text>
-              <PlatformTextInput
-                style={[styles.input, { color: colors.text, borderColor: colors.border }]}
-                placeholder="Phone number"
-                placeholderTextColor={colors.textSecondary}
-                inputMode="tel"
-                value={formData.phone}
-                onChangeText={(text) => setFormData({...formData, phone: text})}
-                error={errors.phone}
-                required={isRequired}
-              />
-              <PlatformTextInput
-                style={[styles.input, { 
-                  color: colors.text, 
-                  borderColor: colors.border,
-                  marginTop: 16
+              <BlurView
+                intensity={Platform.OS === 'ios' ? 12 : 6}
+                tint={colorScheme === 'dark' ? 'dark' : 'light'}
+                style={[styles.inputCard, {
+                  backgroundColor: colorScheme === 'dark'
+                    ? withOpacity(colors.card, 0.65)
+                    : withOpacity(colors.card, 0.85),
+                  borderColor: withOpacity(colors.border, 0.3),
                 }]}
-                placeholder="Address (City, Country)"
-                placeholderTextColor={colors.textSecondary}
-                value={formData.address}
-                onChangeText={(text) => setFormData({...formData, address: text})}
-                error={errors.address}
-                required={isRequired}
-              />
+              >
+                <PlatformTextInput
+                  style={[styles.input, { 
+                    color: colors.text, 
+                    borderColor: 'transparent',
+                    backgroundColor: 'transparent',
+                  }]}
+                  placeholder="Phone number"
+                  placeholderTextColor={withOpacity(colors.textSecondary, 0.6)}
+                  inputMode="tel"
+                  value={formData.phone}
+                  onChangeText={(text) => setFormData({...formData, phone: text})}
+                  error={errors.phone}
+                  required={isRequired}
+                />
+                <PlatformTextInput
+                  style={[styles.input, { 
+                    color: colors.text, 
+                    borderColor: 'transparent',
+                    backgroundColor: 'transparent',
+                    marginTop: 12,
+                  }]}
+                  placeholder="Address (City, Country)"
+                  placeholderTextColor={withOpacity(colors.textSecondary, 0.6)}
+                  value={formData.address}
+                  onChangeText={(text) => setFormData({...formData, address: text})}
+                  error={errors.address}
+                  required={isRequired}
+                />
+              </BlurView>
             </>
           );
        case 'experience':
           return (
             <>
-              <Ionicons name="briefcase-outline" size={48} color={colors.primary} />
+              <Animated.View style={{ 
+                transform: [{ scale: iconAnim }],
+                marginBottom: 16,
+              }}>
+                <View style={[styles.iconCircle, { 
+                  backgroundColor: withOpacity(colors.primary, 0.15),
+                }]}>
+                  <Ionicons name="briefcase-outline" size={56} color={colors.primary} />
+                </View>
+              </Animated.View>
               <Text style={[styles.stepTitle, { color: colors.text }]}>
                 Teaching Experience
               </Text>
               <Text style={[styles.stepSubtitle, { color: colors.textSecondary }]}>
-                How many years of teaching experience do you have?
+                How many years have you been teaching?
               </Text>
-              <View style={styles.sliderContainer}>
-                <Text style={[styles.sliderValue, { color: colors.primary }]}>
-                  {formData.experience} {formData.experience === 1 ? 'year' : 'years'}
-                </Text>
-                {Platform.OS === 'web' ? (
-                  <SliderComponent
-                    min={0}
-                    max={30}
-                    step={1}
-                    value={formData.experience}
-                    onChange={(value) => setFormData({...formData, experience: value})}
-                    trackStyle={{ backgroundColor: colors.primary }}
-                    railStyle={{ backgroundColor: colors.border }}
-                    handleStyle={{ 
-                      backgroundColor: colors.primary,
-                      borderColor: colors.primary 
-                    }}
-                  />
-                ) : (
-                  <SliderComponent
-                    style={styles.slider}
-                    minimumValue={0}
-                    maximumValue={30}
-                    step={1}
-                    minimumTrackTintColor={colors.primary}
-                    maximumTrackTintColor={colors.border}
-                    thumbTintColor={colors.primary}
-                    value={formData.experience}
-                    onValueChange={(value) => setFormData({...formData, experience: value})}
-                  />
-                )}
-                <View style={styles.sliderLabels}>
-                  <Text style={[styles.sliderLabel, { color: colors.textSecondary }]}>0</Text>
-                  <Text style={[styles.sliderLabel, { color: colors.textSecondary }]}>5</Text>
-                  <Text style={[styles.sliderLabel, { color: colors.textSecondary }]}>10</Text>
-                  <Text style={[styles.sliderLabel, { color: colors.textSecondary }]}>15</Text>
-                  <Text style={[styles.sliderLabel, { color: colors.textSecondary }]}>20+</Text>
+              <BlurView
+                intensity={Platform.OS === 'ios' ? 12 : 6}
+                tint={colorScheme === 'dark' ? 'dark' : 'light'}
+                style={[styles.inputCard, {
+                  backgroundColor: colorScheme === 'dark'
+                    ? withOpacity(colors.card, 0.65)
+                    : withOpacity(colors.card, 0.85),
+                  borderColor: withOpacity(colors.border, 0.3),
+                  padding: 24,
+                }]}
+              >
+                <View style={styles.sliderContainer}>
+                  <View style={[styles.valueDisplay, {
+                    backgroundColor: withOpacity(colors.primary, 0.1),
+                  }]}>
+                    <Text style={[styles.sliderValue, { color: colors.primary }]}>
+                      {formData.experience}
+                    </Text>
+                    <Text style={[styles.sliderValueLabel, { color: colors.primary }]}>
+                      {formData.experience === 1 ? 'year' : 'years'}
+                    </Text>
+                  </View>
+                  {Platform.OS === 'web' ? (
+                    <SliderComponent
+                      min={0}
+                      max={30}
+                      step={1}
+                      value={formData.experience}
+                      onChange={(value) => setFormData({...formData, experience: value})}
+                      trackStyle={{ backgroundColor: colors.primary }}
+                      railStyle={{ backgroundColor: withOpacity(colors.border, 0.3) }}
+                      handleStyle={{ 
+                        backgroundColor: colors.primary,
+                        borderColor: colors.primary 
+                      }}
+                    />
+                  ) : (
+                    <SliderComponent
+                      style={styles.slider}
+                      minimumValue={0}
+                      maximumValue={30}
+                      step={1}
+                      minimumTrackTintColor={colors.primary}
+                      maximumTrackTintColor={withOpacity(colors.border, 0.3)}
+                      thumbTintColor={colors.primary}
+                      value={formData.experience}
+                      onValueChange={(value) => setFormData({...formData, experience: value})}
+                    />
+                  )}
+                  <View style={styles.sliderLabels}>
+                    <Text style={[styles.sliderLabel, { color: colors.textSecondary }]}>0</Text>
+                    <Text style={[styles.sliderLabel, { color: colors.textSecondary }]}>5</Text>
+                    <Text style={[styles.sliderLabel, { color: colors.textSecondary }]}>10</Text>
+                    <Text style={[styles.sliderLabel, { color: colors.textSecondary }]}>15</Text>
+                    <Text style={[styles.sliderLabel, { color: colors.textSecondary }]}>20+</Text>
+                  </View>
                 </View>
-              </View>
+              </BlurView>
               {errors.experience && (
                 <Text style={[styles.errorText, { textAlign: 'center' }]}>
                   {errors.experience}
-                </Text>
-              )}
-              {isRequired && !errors.experience && (
-                <Text style={[styles.requiredText, { 
-                  color: colors.textSecondary,
-                  textAlign: 'center'
-                }]}>
-                  * Required
                 </Text>
               )}
             </>
@@ -504,11 +679,11 @@ const validateCurrentStep = () => {
     return (
       <Animated.View
         style={{
-          transform: [{ translateX: slideAnim }],
-          opacity: slideAnim.interpolate({
-            inputRange: [-50, 0, 50],
-            outputRange: [0.5, 1, 0.5],
-          }),
+          transform: [
+            { translateX: slideAnim },
+            { scale: scaleAnim },
+          ],
+          opacity: fadeAnim,
         }}
       >
         <View style={styles.stepContainer}>
@@ -525,72 +700,121 @@ const validateCurrentStep = () => {
         style={styles.container}
         blurRadius={10}
       >
-        <BlurView intensity={300} style={StyleSheet.absoluteFill} tint={colorScheme} />
+        <BlurView 
+          intensity={Platform.OS === 'ios' ? 330 : 100} 
+          style={StyleSheet.absoluteFill} 
+          tint={colorScheme === 'dark' ? 'dark' : 'light'} 
+        />
+        
+        {/* Header gradient overlay */}
+        <LinearGradient
+          colors={
+            colorScheme === 'dark'
+              ? ['rgba(0,0,0,0.6)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0)']
+              : ['rgba(255,255,255,0.6)', 'rgba(255,255,255,0.3)', 'rgba(255,255,255,0)']
+          }
+          style={styles.headerGradient}
+        />
+        
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.innerContainer}>
-            <View style={styles.progressContainer}>
-              {SETUP_STEPS.map((_, i) => (
-                <View
-                  key={i}
-                  style={[
-                    styles.progressDot,
-                    { 
-                      backgroundColor: i === currentStep ? colors.primary : colors.border,
-                      width: i === currentStep ? 24 : 8,
-                    }
-                  ]}
-                />
-              ))}
-            </View>
+            {/* Progress Header */}
+            <BlurView
+              intensity={Platform.OS === 'ios' ? 20 : 10}
+              tint={colorScheme === 'dark' ? 'dark' : 'light'}
+              style={[styles.progressHeader, {
+                backgroundColor: colorScheme === 'dark'
+                  ? 'rgba(0,0,0,0.3)'
+                  : 'rgba(255,255,255,0.5)',
+              }]}
+            >
+              <Text style={[styles.progressText, { color: colors.textSecondary }]}>
+                Step {currentStep + 1} of {SETUP_STEPS.length}
+              </Text>
+              <View style={styles.progressContainer}>
+                {SETUP_STEPS.map((_, i) => (
+                  <Animated.View
+                    key={i}
+                    style={[
+                      styles.progressDot,
+                      { 
+                        backgroundColor: i === currentStep ? colors.primary : colors.border,
+                        width: i === currentStep ? 32 : 8,
+                        opacity: i <= currentStep ? 1 : 0.4,
+                      }
+                    ]}
+                  />
+                ))}
+              </View>
+            </BlurView>
 
             <View style={styles.contentContainer}>
               <ScrollView 
                 contentContainerStyle={styles.scrollContent}
                 keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
               >
                 {renderStep()}
               </ScrollView>
             </View>
 
-            <View style={styles.buttonContainer}>
-              {currentStep > 0 && (
-                <TouchableOpacity 
-                  style={[styles.secondaryButton, { borderColor: colors.border }]}
-                  onPress={handleBack}
-                >
-                  <Ionicons name="arrow-back" size={20} color={colors.text} />
-                  <Text style={[styles.secondaryButtonText, { color: colors.text }]}>
-                    Back
-                  </Text>
-                </TouchableOpacity>
-              )}
-              
-              <TouchableOpacity 
-                style={[
-                  styles.primaryButton, 
-                  { 
-                    backgroundColor: colors.primary,
-                    opacity: isLoading ? 0.8 : 1,
-                    flex: currentStep === 0 ? 1 : undefined,
-                  }
-                ]}
-                onPress={handleNext}
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <ActivityIndicator color="white" />
-                ) : (
-                  <View style={styles.buttonContent}>
-                    <Text style={styles.buttonText}>
-                      {currentStep === SETUP_STEPS.length - 1 ? 'Complete Profile' : 'Continue'}
+            {/* Button Container with gradient */}
+            <LinearGradient
+              colors={
+                colorScheme === 'dark'
+                  ? ['rgba(0,0,0,0)', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.7)']
+                  : ['rgba(255,255,255,0)', 'rgba(255,255,255,0.6)', 'rgba(255,255,255,0.9)']
+              }
+              style={styles.buttonGradient}
+            >
+              <View style={styles.buttonContainer}>
+                {currentStep > 0 && (
+                  <TouchableOpacity 
+                    style={[styles.secondaryButton, { 
+                      borderColor: colors.border,
+                      backgroundColor: colorScheme === 'dark'
+                        ? 'rgba(255,255,255,0.1)'
+                        : 'rgba(0,0,0,0.05)',
+                    }]}
+                    onPress={handleBack}
+                  >
+                    <Ionicons name="arrow-back" size={20} color={colors.text} />
+                    <Text style={[styles.secondaryButtonText, { color: colors.text }]}>
+                      Back
                     </Text>
-                    {currentStep < SETUP_STEPS.length - 1 && (
-                      <Ionicons name="arrow-forward" size={20} color="white" />
-                    )}
-                  </View>
+                  </TouchableOpacity>
                 )}
-              </TouchableOpacity>
-            </View>
+                
+                <TouchableOpacity 
+                  style={[
+                    styles.primaryButton, 
+                    { 
+                      backgroundColor: colors.primary,
+                      opacity: isLoading ? 0.8 : 1,
+                      flex: currentStep === 0 ? 1 : undefined,
+                    }
+                  ]}
+                  onPress={handleNext}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <View style={styles.buttonContent}>
+                      <Text style={styles.buttonText}>
+                        {currentStep === SETUP_STEPS.length - 1 ? 'Complete Profile' : 'Continue'}
+                      </Text>
+                      {currentStep < SETUP_STEPS.length - 1 && (
+                        <Ionicons name="arrow-forward" size={20} color="white" />
+                      )}
+                      {currentStep === SETUP_STEPS.length - 1 && (
+                        <Ionicons name="checkmark-circle" size={20} color="white" />
+                      )}
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
           </View>
         </TouchableWithoutFeedback>
       </ImageBackground>
@@ -605,17 +829,40 @@ const styles = StyleSheet.create({
   innerContainer: {
     flex: 1,
   },
+  headerGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 200,
+    zIndex: 1,
+  },
+  progressHeader: {
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingBottom: 20,
+    paddingHorizontal: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+    zIndex: 2,
+  },
+  progressText: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 12,
+    textAlign: 'center',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
   progressContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 40,
-    paddingBottom: 20,
     gap: 8,
   },
   progressDot: {
     height: 8,
     borderRadius: 4,
+    transition: 'all 0.3s ease',
   },
   contentContainer: {
     flex: 1,
@@ -624,109 +871,174 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
+    paddingVertical: 20,
   },
   stepContainer: {
     alignItems: 'center',
     padding: 20,
     width: '100%',
   },
+  iconCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8,
+  },
   stepTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginTop: 16,
+    fontSize: 28,
+    fontWeight: '800',
+    marginTop: 20,
     marginBottom: 8,
     textAlign: 'center',
+    letterSpacing: 0.3,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   stepSubtitle: {
     fontSize: 16,
     textAlign: 'center',
     marginBottom: 32,
-    opacity: 0.8,
+    opacity: 0.9,
     paddingHorizontal: 20,
+    lineHeight: 22,
+    fontWeight: '500',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  inputCard: {
+    width: '100%',
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 4,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 4,
   },
   input: {
     width: '100%',
-    borderWidth: 1,
+    borderWidth: 0,
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
-    marginBottom: 16,
+    marginBottom: 0,
+    fontWeight: '500',
   },
-
+  buttonGradient: {
+    paddingTop: 20,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+  },
   buttonContainer: {
     flexDirection: 'row',
-    padding: 24,
-    marginBottom: 55,
+    paddingHorizontal: 24,
     gap: 16,
   },
   primaryButton: {
     flex: 1,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowRadius: 12,
+    elevation: 8,
   },
   secondaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
+    borderRadius: 16,
+    padding: 18,
+    borderWidth: 1.5,
+    minWidth: 100,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   secondaryButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   buttonContent: {
     flexDirection: 'row',
     alignItems: 'center',
-
     gap: 8,
   },
   buttonText: {
     color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   sliderContainer: {
     width: '100%',
-    marginTop: 16,
+    marginTop: 8,
+  },
+  valueDisplay: {
+    alignSelf: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  sliderValue: {
+    fontSize: 32,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  sliderValueLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   slider: {
     width: '100%',
     height: 40,
-  },
-  sliderValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 8,
+    marginVertical: 8,
   },
   sliderLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
-    paddingHorizontal: 10,
-    marginTop: 4,
+    paddingHorizontal: 4,
+    marginTop: 8,
   },
   sliderLabel: {
-    fontSize: 12,
+    fontSize: 13,
+    fontWeight: '600',
   },
   errorText: {
     color: '#ff4444',
     fontSize: 14,
-    marginTop: -12,
-    marginBottom: 16,
+    marginTop: 8,
+    marginBottom: 8,
+    fontWeight: '600',
+    textShadowColor: 'rgba(255, 68, 68, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   requiredText: {
     fontSize: 12,
-    marginTop: -12,
-    marginBottom: 16,
+    marginTop: 8,
+    marginBottom: 8,
+    fontWeight: '500',
   },
 });

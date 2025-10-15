@@ -14,6 +14,7 @@ import { Platform, Text, View, StyleSheet, useColorScheme } from 'react-native';
 import Colors from "@/constants/Colors";
 import AuthWrapper from "@/components/AuthWrapper";
 import UpdateModal from "@/components/UpdateModal";
+import WebAppUpdateModal from "@/components/WebAppUpdateModal";
 if (Platform.OS === 'web') {
   
 }
@@ -70,6 +71,9 @@ function RootLayoutNav() {
       <View style={styles.root}>
         {/* Update Modal - will block navigation if update is required */}
         <UpdateModal onUpdateChecked={setUpdateRequired} />
+        
+        {/* Web App Update Modal - only shows on web platform */}
+        <WebAppUpdateModal />
         
         <Stack>
           {/* Main tabs (will appear in tab bar) */}
