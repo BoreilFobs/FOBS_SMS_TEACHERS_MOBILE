@@ -13,9 +13,13 @@
       "resizeMode": "contain",
       "backgroundColor": "#2f373f"
     },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.fobsdev.fobssms"
+      "bundleIdentifier": "com.fobsdev.fobssms",
+      "icon": "./assets/images/icon.png"
     },
     "android": {
       "kotlinVersion": "2.1.20",
@@ -24,6 +28,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#2f373f"
       },
+      "icon": "./assets/images/icon.png",
       "edgeToEdgeEnabled": true
     },
     "web": {
