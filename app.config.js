@@ -29,6 +29,11 @@ export default {
         foregroundImage: "./assets/images/adaptive-icon.png",
         backgroundColor: "#2f373f"
       },
+      splash: {
+        image: "./assets/images/splash.png",
+        resizeMode: "contain",
+        backgroundColor: "#2f373f"
+      },
       statusBar: {
         translucent: true,
         barStyle: "dark-content"
