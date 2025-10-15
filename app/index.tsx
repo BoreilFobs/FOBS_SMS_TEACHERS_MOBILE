@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useEffect } from "react";
+import React, { useMemo, useRef, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -25,6 +25,7 @@ import AuthWrapper from "@/components/AuthWrapper";
 import SetupWrapper from "@/components/SetupWrapper";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { SchoolResponse } from "@/hooks/types";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width - 40;
@@ -38,6 +39,25 @@ export default function SchoolsScreen() {
   const { user, teacher, loadUserData } = useUserStore();
   const scrollY = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
+
+  // Check if this is the user's first visit
+  useEffect(() => {
+    const checkFirstVisit = async () => {
+      try {
+        const hasVisited = await AsyncStorage.getItem('@hasVisitedBefore');
+        if (!hasVisited) {
+          // Mark as visited before redirecting
+          await AsyncStorage.setItem('@hasVisitedBefore', 'true');
+          // Redirect to about screen
+          router.replace('/support/about');
+        }
+      } catch (error) {
+        console.error('Error checking first visit:', error);
+      }
+    };
+
+    checkFirstVisit();
+  }, []);
 
   if (!teacher || !user) {
     loadUserData();

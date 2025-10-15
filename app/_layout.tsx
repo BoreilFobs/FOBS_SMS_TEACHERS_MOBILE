@@ -7,12 +7,13 @@ import {
 import { useFonts } from "expo-font";
 import { Stack, Tabs } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { BlurView } from 'expo-blur';
 import { Platform, Text, View, StyleSheet, useColorScheme } from 'react-native';
 // import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 import AuthWrapper from "@/components/AuthWrapper";
+import UpdateModal from "@/components/UpdateModal";
 if (Platform.OS === 'web') {
   
 }
@@ -50,6 +51,7 @@ export default function RootLayout() {
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === "dark" ? DarkTheme : DefaultTheme;
+  const [updateRequired, setUpdateRequired] = useState(false);
 
   const modifiedTheme = {
     ...theme,
@@ -66,6 +68,9 @@ function RootLayoutNav() {
   return (
     <ThemeProvider value={modifiedTheme}>
       <View style={styles.root}>
+        {/* Update Modal - will block navigation if update is required */}
+        <UpdateModal onUpdateChecked={setUpdateRequired} />
+        
         <Stack>
           {/* Main tabs (will appear in tab bar) */}
           <Stack.Screen
@@ -276,15 +281,14 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     overflow: 'hidden',
-    fontFamily: 'SpaceMono',
     ...(Platform.OS === 'web' && {
-      position: 'fixed',
+      position: 'fixed' as any,
       top: 0,
       left: 0,
       right: 0,
       bottom: 0,
-      width: '100vw',
-      height: '100vh',
+      width: '100vw' as any,
+      height: '100vh' as any,
     }),
   },
 });

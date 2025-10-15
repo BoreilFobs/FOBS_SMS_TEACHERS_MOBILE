@@ -18,6 +18,7 @@ const getConfig = () => {
   return {
     apiBaseUrl: extra.apiBaseUrl || 'https://fobssms.com/api',
     webBaseUrl: extra.webBaseUrl || 'https://fobssms.com',
+    appVersion: Constants.expoConfig?.version || '1.0.0',
   };
 };
 

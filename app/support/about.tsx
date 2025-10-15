@@ -181,7 +181,7 @@ export default function AboutScreen() {
             © {new Date().getFullYear()} FOBS SMS. All rights reserved.
           </Text>
           <Text style={[styles.footerText, { color: colors.textSecondary }]}>
-            Version 1.0.0 (Build 01)
+            Version 1.0.0 (Build 54)
           </Text>
         </View>
       </ScrollView>
@@ -192,6 +192,7 @@ export default function AboutScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 45,
   },
   header: {
     paddingHorizontal: 24,
