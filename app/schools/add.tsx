@@ -8,7 +8,9 @@ import {
   Image,
   ActivityIndicator,
   ImageBackground,
-  useColorScheme
+  useColorScheme,
+  Platform,
+  Alert,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 // import { useColorScheme } from "@/components/useColorScheme";
@@ -20,6 +22,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from "expo-linear-gradient";
 import Toast from 'react-native-toast-message';
 import Config from '@/constants/Config';
+
+const showAlert = (title: string, message: string) => {
+  if (Platform.OS === 'web') {
+    window.alert(`${title}\n${message}`);
+  } else {
+    Alert.alert(title, message);
+  }
+};
 
 export default function AddSchoolScreen() {
   const colorScheme = useColorScheme();
@@ -46,44 +56,78 @@ export default function AddSchoolScreen() {
 
     setIsLoading(true);
     setError(null);
+    setSchoolInfo(null); // Clear previous school info
+    
     try {
       const token = await AsyncStorage.getItem('auth_token');
       if (!token) {
-        throw new Error("Please login again");
+        setError("Please login again");
+        setIsLoading(false);
+        return;
       }
 
-      const response = await axios.post(`${Config.apiBaseUrl}/teacher-request`, {
-        code: schoolCode,
-      }, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
+      // Search for school by code
+      const response = await axios.post(
+        `${Config.apiBaseUrl}/teacher-request`,
+        {
+          code: schoolCode
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          }
         }
-      });
+      );
 
-      if (response.data.success) {
-        setSchoolInfo(response.data.school);
-        Toast.show({
-          type: 'success',
-          text1: 'School found',
-          text2: response.data.message || 'You can now send request',
-          visibilityTime: 3000,
-        });
+      console.log('School search response:', response.data);
+
+      // Handle response format from backend
+      if (response.data && response.data.success && response.data.school) {
+        const school = response.data.school;
+        setSchoolInfo(school);
+        
+        if (Platform.OS !== 'web') {
+          Toast.show({
+            type: 'success',
+            text1: 'School Found',
+            text2: `${school.name}`,
+            visibilityTime: 3000,
+          });
+        }
+      } else if (response.data && response.data.message) {
+        // Backend returned a message (school not found)
+        setError(response.data.message);
       } else {
-        setError(response.data.message || "School not found");
+        setError("School not found with this code");
       }
     } catch (error) {
       console.error("Verification error:", error);
+      
+      // Log detailed error information
+      if (axios.isAxiosError(error)) {
+        console.log('Error details:', {
+          status: error.response?.status,
+          data: error.response?.data,
+          url: error.config?.url,
+          method: error.config?.method,
+        });
+      }
+      
       const message = axios.isAxiosError(error) 
-        ? error.response?.data?.message || "Failed to verify school code"
+        ? error.response?.data?.message || error.response?.data?.error || `Request failed with status ${error.response?.status || 'unknown'}`
         : "Network error occurred";
       setError(message);
-      Toast.show({
-        type: 'error',
-        text1: 'Verification Failed',
-        text2: message,
-        visibilityTime: 4000,
-      });
+      
+      if (Platform.OS !== 'web') {
+        Toast.show({
+          type: 'error',
+          text1: 'Verification Failed',
+          text2: message,
+          visibilityTime: 4000,
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -95,14 +139,36 @@ export default function AddSchoolScreen() {
     setIsSubmitting(true);
     try {
       const token = await AsyncStorage.getItem('auth_token');
-      const teacher = JSON.parse(await AsyncStorage.getItem('teacher') || '{}');
+      const teacherStr = await AsyncStorage.getItem('teacher');
       
-      if (!token || !teacher?.id) {
-        throw new Error("Please login again");
+      if (!token) {
+        setError("Please login again");
+        setIsSubmitting(false);
+        return;
       }
 
+      if (!teacherStr) {
+        setError("Teacher information not found. Please complete your profile setup.");
+        setIsSubmitting(false);
+        router.push('/setup');
+        return;
+      }
+
+      const teacher = JSON.parse(teacherStr);
+      
+      if (!teacher?.id) {
+        setError("Invalid teacher data. Please login again.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      console.log('Submitting request with:', {
+        school_id: schoolInfo.id,
+        teacher_id: teacher.id,
+      });
+
       const response = await axios.post(
-        `${Config.apiBaseUrl}/teacher-create-request`,
+        `${Config.webBaseUrl}/teacher-create-request`,
         {
           school_id: schoolInfo.id,
           teacher_id: teacher.id,
@@ -111,32 +177,83 @@ export default function AddSchoolScreen() {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Accept': 'application/json',
+            'Content-Type': 'application/json',
           },
         }
       );
 
-      if (response.data.success) {
-        Toast.show({
-          type: 'success',
-          text1: 'Request Sent',
-          text2: `Your request to join ${schoolInfo.name} has been submitted`,
-          visibilityTime: 3000,
-          onHide: () => router.push('/'),
-        });
+      console.log('Request response:', response.data);
+
+      // Check for success in response (status 201 or success field)
+      if (response.status === 201 || response.data.success) {
+        const successMessage = `Your request to join ${schoolInfo.name} has been submitted successfully`;
+        
+        if (Platform.OS === 'web') {
+          showAlert('Request Sent', successMessage);
+          setTimeout(() => router.push('/'), 1000);
+        } else {
+          Toast.show({
+            type: 'success',
+            text1: 'Request Sent',
+            text2: successMessage,
+            visibilityTime: 3000,
+            onHide: () => router.push('/'),
+          });
+        }
+        
+        // Clear form
+        setSchoolCode('');
+        setSchoolInfo(null);
+        setError(null);
       } else {
-        throw new Error(response.data.message || "Request failed");
+        const errorMsg = response.data.message || "Failed to submit request";
+        setError(errorMsg);
+        
+        if (Platform.OS !== 'web') {
+          Toast.show({
+            type: 'error',
+            text1: 'Submission Failed',
+            text2: errorMsg,
+            visibilityTime: 4000,
+          });
+        }
       }
     } catch (error) {
-      // console.error("Submission error:", error);
-      const message = axios.isAxiosError(error)
-        ? error.response?.data?.message || "Failed to submit request"
-        : "Network error occurred";
-      Toast.show({
-        type: 'error',
-        text1: 'Submission Failed',
-        text2: message,
-        visibilityTime: 4000,
-      });
+      console.error("Submission error:", error);
+      
+      // Handle 409 (duplicate request) specifically
+      if (axios.isAxiosError(error) && error.response?.status === 409) {
+        const message = error.response?.data?.message || "You have already sent a request to this school";
+        setError(message);
+        
+        if (Platform.OS === 'web') {
+          showAlert('Duplicate Request', message);
+        } else {
+          Toast.show({
+            type: 'info',
+            text1: 'Already Requested',
+            text2: message,
+            visibilityTime: 4000,
+          });
+        }
+      } else {
+        const message = axios.isAxiosError(error)
+          ? error.response?.data?.message || error.response?.data?.error || "Failed to submit request"
+          : "Network error occurred";
+        
+        setError(message);
+        
+        if (Platform.OS === 'web') {
+          showAlert('Submission Failed', message);
+        } else {
+          Toast.show({
+            type: 'error',
+            text1: 'Submission Failed',
+            text2: message,
+            visibilityTime: 4000,
+          });
+        }
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -149,17 +266,29 @@ export default function AddSchoolScreen() {
         style={styles.container}
         blurRadius={10}
       >
-        <BlurView intensity={100} style={StyleSheet.absoluteFill} tint={colorScheme} />
+        <BlurView 
+          intensity={Platform.OS === 'ios' ? 330 : 100} 
+          style={StyleSheet.absoluteFill} 
+          tint={colorScheme === 'dark' ? 'dark' : 'light'} 
+        />
         <LinearGradient
-          colors={['rgba(46, 38, 38, 0.32)', 'rgba(97, 54, 54, 0.14)']}
+          colors={
+            colorScheme === 'dark'
+              ? ['rgba(0,0,0,0.4)', 'rgba(0,0,0,0.2)']
+              : ['rgba(255,255,255,0.4)', 'rgba(255,255,255,0.2)']
+          }
           style={styles.gradientContainer}
         >
           <BlurView 
-            intensity={160} 
-            tint={colorScheme} 
+            intensity={Platform.OS === 'ios' ? 20 : 10} 
+            tint={colorScheme === 'dark' ? 'dark' : 'light'} 
             style={styles.modalBlurContainer}
           >
-            <View style={[styles.modalContent, { backgroundColor: 'transparent'}]}>
+            <View style={[styles.modalContent, { 
+              backgroundColor: colorScheme === 'dark' 
+                ? 'rgba(0,0,0,0.3)' 
+                : 'rgba(255,255,255,0.5)'
+            }]}>
               <Text style={[styles.title, { color: colors.text }]}>Add School</Text>
               <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
                 Enter the school code to send a request
@@ -214,15 +343,27 @@ export default function AddSchoolScreen() {
 
               {schoolInfo && (
                 <BlurView 
-                  intensity={140} 
-                  tint={colorScheme} 
-                  style={[styles.schoolCard, { backgroundColor: "transparent" }]}
+                  intensity={Platform.OS === 'ios' ? 12 : 6} 
+                  tint={colorScheme === 'dark' ? 'dark' : 'light'} 
+                  style={[styles.schoolCard, { 
+                    backgroundColor: colorScheme === 'dark'
+                      ? 'rgba(255,255,255,0.05)'
+                      : 'rgba(0,0,0,0.05)',
+                    borderWidth: 1,
+                    borderColor: colorScheme === 'dark'
+                      ? 'rgba(255,255,255,0.1)'
+                      : 'rgba(0,0,0,0.1)',
+                  }]}
                 >
                   <Text style={[styles.cardTitle, { color: colors.text }]}>School Found</Text>
                   
                   <View style={styles.schoolInfo}>
                     <Image
-                      source={{ uri: schoolInfo.logo ? `${WEB_URL}/storage/${schoolInfo.logo}` : 'https://via.placeholder.com/150' }}
+                      source={{ 
+                        uri: schoolInfo.logo 
+                          ? `${Config.webBaseUrl}/storage/${schoolInfo.logo}` 
+                          : 'https://via.placeholder.com/150' 
+                      }}
                       style={styles.schoolImage}
                       resizeMode="cover"
                     />
