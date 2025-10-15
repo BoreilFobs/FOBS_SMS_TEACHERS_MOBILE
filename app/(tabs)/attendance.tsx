@@ -319,18 +319,32 @@ console.log(params);
         />
         
         <LinearGradient
-          colors={
-            colorScheme === 'dark'
-              ? ['rgba(0,0,0,0.6)', 'transparent']
-              : ['rgba(255,255,255,0.8)', 'transparent']
-          }
+          colors={[
+            withOpacity(colors.primary, 0.18),
+            withOpacity(colors.primary, 0.06),
+            'transparent',
+          ]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
           style={styles.headerGradient}
-          pointerEvents="none"
         />
         
-        <View style={[styles.header, { paddingTop: insets.top }]}>
-          <Text style={styles.logo}>FobsSMS</Text>
-          <Text style={[styles.title, { color: colors.text }]}>Students Attendance</Text>
+        <View 
+          style={[
+            styles.header,
+            {
+              backgroundColor: withOpacity(colors.card, colorScheme === 'dark' ? 0.06 : 0.12),
+              borderBottomColor: colors.border,
+              paddingTop: insets.top + 18,
+            }
+          ]}
+        >
+          <View>
+            <Text style={[styles.title, { color: colors.text }]}>Students Attendance</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              Loading classes...
+            </Text>
+          </View>
         </View>
         <View style={styles.loadingGrid}>
           {[...Array(6)].map((_, i) => (
@@ -396,23 +410,32 @@ console.log(params);
       />
 
       <LinearGradient
-        colors={
-          colorScheme === 'dark'
-            ? ['rgba(0,0,0,0.6)', 'transparent']
-            : ['rgba(255,255,255,0.8)', 'transparent']
-        }
+        colors={[
+          withOpacity(colors.primary, 0.18),
+          withOpacity(colors.primary, 0.06),
+          'transparent',
+        ]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
         style={styles.headerGradient}
-        pointerEvents="none"
       />
 
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <Text style={styles.logo}>FobsSMS</Text>
-        <Text style={[styles.title, { color: colors.text }]}>
-          Students Attendance
-        </Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          {classes.length} {classes.length === 1 ? 'class' : 'classes'} • Tap to start
-        </Text>
+      <View 
+        style={[
+          styles.header,
+          {
+            backgroundColor: withOpacity(colors.card, colorScheme === 'dark' ? 0.06 : 0.12),
+            borderBottomColor: colors.border,
+            paddingTop: insets.top + 18,
+          }
+        ]}
+      >
+        <View>
+          <Text style={[styles.title, { color: colors.text }]}>Students Attendance</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+            {classes.length} {classes.length === 1 ? 'class' : 'classes'} • Tap to start
+          </Text>
+        </View>
       </View>
 
       <AnimatedFlatList
@@ -492,37 +515,24 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   header: {
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    marginBottom: 10,
-    zIndex: 10,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderBottomWidth: Platform.OS === 'ios' ? StyleSheet.hairlineWidth : 0,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+  },
+  subtitle: {
+    fontSize: 14,
+    opacity: 0.8,
   },
   headerGradient: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: 180,
-    zIndex: 1,
-  },
-  logo: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: Colors.dark.primary,
-    fontFamily: Platform.OS === "ios" ? "Poppins-Bold" : "sans-serif-light",
-    letterSpacing: 0.5,
-    marginBottom: 8,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '800',
-    marginBottom: 4,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 16,
-    opacity: 0.8,
-    fontWeight: '500',
+    height: 140,
   },
   listContent: {
     paddingHorizontal: 16,
