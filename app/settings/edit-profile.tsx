@@ -24,6 +24,14 @@ import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from 'expo-linear-gradient';
 import Config from '@/constants/Config';
 
+const withOpacity = (hex: string, alpha: number) => {
+  const clean = hex.replace('#', '');
+  const r = parseInt(clean.substring(0, 2), 16);
+  const g = parseInt(clean.substring(2, 4), 16);
+  const b = parseInt(clean.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
 export default function EditProfileScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
@@ -54,7 +62,7 @@ export default function EditProfileScreen() {
     }
   };
 
-  const showAlert = (title, message) => {
+  const showAlert = (title: string, message: string) => {
       if (Platform.OS === 'web') {
         window.alert(`${title}\n${message}`);
       } else {
@@ -66,7 +74,9 @@ export default function EditProfileScreen() {
     setIsLoading(true);
     try {
       const formDataToSend = new FormData();
-      formDataToSend.append('user_id', user?.id.toString());
+      if (user?.id) {
+        formDataToSend.append('user_id', user.id.toString());
+      }
       formDataToSend.append('qualifications', formData.qualifications);
       formDataToSend.append('specialization', formData.specialization);
       formDataToSend.append('experience', formData.experience);
@@ -113,16 +123,11 @@ export default function EditProfileScreen() {
       style={styles.container}
       blurRadius={10}
     >
-      <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
-      <BlurView intensity={Platform.OS == 'ios' ? 330 : 0} style={StyleSheet.absoluteFill} tint={colorScheme} />
+      <BlurView intensity={Platform.OS === 'ios' ? 330 : 100} style={StyleSheet.absoluteFill} tint={colorScheme === 'dark' ? 'dark' : 'light'} />
       
-      <StatusBar
-        barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}
-        translucent
-        backgroundColor="transparent"
-      />
+      <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
 
-      <View style={[styles.header, { marginTop: StatusBar.currentHeight }]}>
+      <View style={styles.header}>
         <View style={styles.headerRow}>
           <TouchableOpacity 
             onPress={() => router.back()}
@@ -139,7 +144,21 @@ export default function EditProfileScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.profileSection, { backgroundColor: colors.card + 'CC', borderColor: colors.border }]}>
+        <BlurView
+          intensity={Platform.OS === 'ios' ? 12 : 100}
+          tint={colorScheme === 'dark' ? 'dark' : 'light'}
+          style={[
+            styles.profileSection,
+            {
+              backgroundColor: colorScheme === 'dark' 
+                ? withOpacity(colors.card, 0.6)
+                : withOpacity(colors.card, 0.85),
+              borderColor: colorScheme === 'dark'
+                ? withOpacity(colors.border, 0.3)
+                : withOpacity(colors.border, 0.5),
+            }
+          ]}
+        >
           <TouchableOpacity onPress={pickImage} style={styles.photoContainer}>
             {profilePhoto ? (
               <Image 
@@ -148,14 +167,14 @@ export default function EditProfileScreen() {
               />
             ) : (
               <LinearGradient
-                colors={[colors.primary + '40', colors.primary + '10']}
+                colors={[withOpacity(colors.primary, 0.3), withOpacity(colors.primary, 0.1)]}
                 style={styles.profilePhoto}
               >
                 <Feather name="user" size={40} color={colors.primary} />
               </LinearGradient>
             )}
             <LinearGradient
-              colors={[colors.primary, colors.primary + 'CC']}
+              colors={[colors.primary, withOpacity(colors.primary, 0.8)]}
               style={styles.editPhotoButton}
             >
               <Feather name="edit" size={16} color="#fff" />
@@ -168,16 +187,41 @@ export default function EditProfileScreen() {
           <Text style={[styles.email, { color: colors.textSecondary }]}>
             {user?.email}
           </Text>
-        </View>
+        </BlurView>
 
-        <View style={[styles.formSection, { backgroundColor: colors.card + 'CC', borderColor: colors.border }]}>
+        <BlurView
+          intensity={Platform.OS === 'ios' ? 12 : 100}
+          tint={colorScheme === 'dark' ? 'dark' : 'light'}
+          style={[
+            styles.formSection,
+            {
+              backgroundColor: colorScheme === 'dark' 
+                ? withOpacity(colors.card, 0.6)
+                : withOpacity(colors.card, 0.85),
+              borderColor: colorScheme === 'dark'
+                ? withOpacity(colors.border, 0.3)
+                : withOpacity(colors.border, 0.5),
+            }
+          ]}
+        >
           {/* Modern Input Fields */}
           <View style={styles.inputContainer}>
             <View style={styles.labelContainer}>
               <Ionicons name="school-outline" size={18} color={colors.primary} />
               <Text style={[styles.label, { color: colors.text }]}>Qualifications</Text>
             </View>
-            <View style={[styles.inputWrapper, { backgroundColor: colors.inputBackground }]}>
+            <View style={[
+              styles.inputWrapper,
+              {
+                backgroundColor: colorScheme === 'dark'
+                  ? withOpacity(colors.card, 0.8)
+                  : withOpacity('#ffffff', 0.9),
+                borderWidth: 1,
+                borderColor: colorScheme === 'dark'
+                  ? withOpacity(colors.border, 0.5)
+                  : withOpacity(colors.border, 0.3),
+              }
+            ]}>
               <TextInput
                 style={[styles.input, { color: colors.text }]}
                 value={formData.qualifications}
@@ -193,7 +237,18 @@ export default function EditProfileScreen() {
               <Ionicons name="ribbon-outline" size={18} color={colors.primary} />
               <Text style={[styles.label, { color: colors.text }]}>Specialization</Text>
             </View>
-            <View style={[styles.inputWrapper, { backgroundColor: colors.inputBackground }]}>
+            <View style={[
+              styles.inputWrapper,
+              {
+                backgroundColor: colorScheme === 'dark'
+                  ? withOpacity(colors.card, 0.8)
+                  : withOpacity('#ffffff', 0.9),
+                borderWidth: 1,
+                borderColor: colorScheme === 'dark'
+                  ? withOpacity(colors.border, 0.5)
+                  : withOpacity(colors.border, 0.3),
+              }
+            ]}>
               <TextInput
                 style={[styles.input, { color: colors.text }]}
                 value={formData.specialization}
@@ -209,7 +264,18 @@ export default function EditProfileScreen() {
               <Ionicons name="briefcase-outline" size={18} color={colors.primary} />
               <Text style={[styles.label, { color: colors.text }]}>Experience</Text>
             </View>
-            <View style={[styles.inputWrapper, { backgroundColor: colors.inputBackground }]}>
+            <View style={[
+              styles.inputWrapper,
+              {
+                backgroundColor: colorScheme === 'dark'
+                  ? withOpacity(colors.card, 0.8)
+                  : withOpacity('#ffffff', 0.9),
+                borderWidth: 1,
+                borderColor: colorScheme === 'dark'
+                  ? withOpacity(colors.border, 0.5)
+                  : withOpacity(colors.border, 0.3),
+              }
+            ]}>
               <TextInput
                 style={[styles.input, { color: colors.text }]}
                 value={formData.experience}
@@ -225,7 +291,18 @@ export default function EditProfileScreen() {
               <Ionicons name="call-outline" size={18} color={colors.primary} />
               <Text style={[styles.label, { color: colors.text }]}>Phone</Text>
             </View>
-            <View style={[styles.inputWrapper, { backgroundColor: colors.inputBackground }]}>
+            <View style={[
+              styles.inputWrapper,
+              {
+                backgroundColor: colorScheme === 'dark'
+                  ? withOpacity(colors.card, 0.8)
+                  : withOpacity('#ffffff', 0.9),
+                borderWidth: 1,
+                borderColor: colorScheme === 'dark'
+                  ? withOpacity(colors.border, 0.5)
+                  : withOpacity(colors.border, 0.3),
+              }
+            ]}>
               <TextInput
                 style={[styles.input, { color: colors.text }]}
                 value={formData.phone}
@@ -242,7 +319,18 @@ export default function EditProfileScreen() {
               <Ionicons name="location-outline" size={18} color={colors.primary} />
               <Text style={[styles.label, { color: colors.text }]}>Address</Text>
             </View>
-            <View style={[styles.inputWrapper, { backgroundColor: colors.inputBackground }]}>
+            <View style={[
+              styles.inputWrapper,
+              {
+                backgroundColor: colorScheme === 'dark'
+                  ? withOpacity(colors.card, 0.8)
+                  : withOpacity('#ffffff', 0.9),
+                borderWidth: 1,
+                borderColor: colorScheme === 'dark'
+                  ? withOpacity(colors.border, 0.5)
+                  : withOpacity(colors.border, 0.3),
+              }
+            ]}>
               <TextInput
                 style={[styles.input, { color: colors.text }]}
                 value={formData.address}
@@ -259,7 +347,18 @@ export default function EditProfileScreen() {
               <Ionicons name="document-text-outline" size={18} color={colors.primary} />
               <Text style={[styles.label, { color: colors.text }]}>Bio</Text>
             </View>
-            <View style={[styles.textAreaWrapper, { backgroundColor: colors.inputBackground }]}>
+            <View style={[
+              styles.textAreaWrapper,
+              {
+                backgroundColor: colorScheme === 'dark'
+                  ? withOpacity(colors.card, 0.8)
+                  : withOpacity('#ffffff', 0.9),
+                borderWidth: 1,
+                borderColor: colorScheme === 'dark'
+                  ? withOpacity(colors.border, 0.5)
+                  : withOpacity(colors.border, 0.3),
+              }
+            ]}>
               <TextInput
                 style={[styles.textArea, { color: colors.text }]}
                 value={formData.bio}
@@ -271,7 +370,7 @@ export default function EditProfileScreen() {
               />
             </View>
           </View>
-        </View>
+        </BlurView>
 
         <TouchableOpacity
           style={[styles.saveButton, { backgroundColor: colors.primary }]}
@@ -334,11 +433,7 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: 'center',
     marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
+    overflow: 'hidden',
   },
   photoContainer: {
     position: 'relative',
@@ -378,11 +473,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 20,
     marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
+    overflow: 'hidden',
   },
   inputContainer: {
     marginBottom: 20,
@@ -398,25 +489,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   inputWrapper: {
-    borderRadius: 14,
+    borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
+    paddingVertical: 14,
   },
   textAreaWrapper: {
-    borderRadius: 14,
+    borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     height: 120,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
   },
   input: {
     fontSize: 16,
@@ -430,11 +511,6 @@ const styles = StyleSheet.create({
   saveButton: {
     borderRadius: 14,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 5,
   },
   gradientButton: {
     paddingVertical: 16,

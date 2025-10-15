@@ -23,6 +23,14 @@ import { StatusBar } from "expo-status-bar";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Config from '@/constants/Config';
 
+const withOpacity = (hex: string, alpha: number) => {
+  const clean = hex.replace('#', '');
+  const r = parseInt(clean.substring(0, 2), 16);
+  const g = parseInt(clean.substring(2, 4), 16);
+  const b = parseInt(clean.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
 export default function ChangePasswordScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
@@ -46,7 +54,7 @@ export default function ChangePasswordScreen() {
     }));
   };
 
-  const showAlert = (title, message) => {
+  const showAlert = (title: string, message: string) => {
     if (Platform.OS === 'web') {
       window.alert(`${title}\n${message}`);
     } else {
@@ -105,16 +113,11 @@ export default function ChangePasswordScreen() {
       style={styles.container}
       blurRadius={10}
     >
-      <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
-      <BlurView intensity={Platform.OS == 'ios' ? 330 : 0} style={StyleSheet.absoluteFill} tint={colorScheme} />
+      <BlurView intensity={Platform.OS === 'ios' ? 330 : 100} style={StyleSheet.absoluteFill} tint={colorScheme === 'dark' ? 'dark' : 'light'} />
       
-      <StatusBar
-        barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}
-        translucent
-        backgroundColor="transparent"
-      />
+      <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
 
-      <View style={[styles.header]}>
+      <View style={styles.header}>
         <View style={styles.headerRow}>
           <TouchableOpacity 
             onPress={() => router.back()}
@@ -131,14 +134,39 @@ export default function ChangePasswordScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.formSection, { backgroundColor: colors.card + 'CC', borderColor: colors.border }]}>
+        <BlurView
+          intensity={Platform.OS === 'ios' ? 12 : 100}
+          tint={colorScheme === 'dark' ? 'dark' : 'light'}
+          style={[
+            styles.formSection,
+            {
+              backgroundColor: colorScheme === 'dark' 
+                ? withOpacity(colors.card, 0.6)
+                : withOpacity(colors.card, 0.85),
+              borderColor: colorScheme === 'dark'
+                ? withOpacity(colors.border, 0.3)
+                : withOpacity(colors.border, 0.5),
+            }
+          ]}
+        >
           {/* Current Password */}
           <View style={styles.inputContainer}>
             <View style={styles.labelContainer}>
               <Ionicons name="lock-closed-outline" size={18} color={colors.primary} />
               <Text style={[styles.label, { color: colors.text }]}>Current Password</Text>
             </View>
-            <View style={[styles.inputWrapper, { backgroundColor: colors.inputBackground }]}>
+            <View style={[
+              styles.inputWrapper,
+              {
+                backgroundColor: colorScheme === 'dark'
+                  ? withOpacity(colors.card, 0.8)
+                  : withOpacity('#ffffff', 0.9),
+                borderWidth: 1,
+                borderColor: colorScheme === 'dark'
+                  ? withOpacity(colors.border, 0.5)
+                  : withOpacity(colors.border, 0.3),
+              }
+            ]}>
               <TextInput
                 style={[styles.input, { color: colors.text }]}
                 value={currentPassword}
@@ -167,7 +195,18 @@ export default function ChangePasswordScreen() {
               <Ionicons name="lock-open-outline" size={18} color={colors.primary} />
               <Text style={[styles.label, { color: colors.text }]}>New Password</Text>
             </View>
-            <View style={[styles.inputWrapper, { backgroundColor: colors.inputBackground }]}>
+            <View style={[
+              styles.inputWrapper,
+              {
+                backgroundColor: colorScheme === 'dark'
+                  ? withOpacity(colors.card, 0.8)
+                  : withOpacity('#ffffff', 0.9),
+                borderWidth: 1,
+                borderColor: colorScheme === 'dark'
+                  ? withOpacity(colors.border, 0.5)
+                  : withOpacity(colors.border, 0.3),
+              }
+            ]}>
               <TextInput
                 style={[styles.input, { color: colors.text }]}
                 value={newPassword}
@@ -196,7 +235,18 @@ export default function ChangePasswordScreen() {
               <Ionicons name="lock-closed-outline" size={18} color={colors.primary} />
               <Text style={[styles.label, { color: colors.text }]}>Confirm Password</Text>
             </View>
-            <View style={[styles.inputWrapper, { backgroundColor: colors.inputBackground }]}>
+            <View style={[
+              styles.inputWrapper,
+              {
+                backgroundColor: colorScheme === 'dark'
+                  ? withOpacity(colors.card, 0.8)
+                  : withOpacity('#ffffff', 0.9),
+                borderWidth: 1,
+                borderColor: colorScheme === 'dark'
+                  ? withOpacity(colors.border, 0.5)
+                  : withOpacity(colors.border, 0.3),
+              }
+            ]}>
               <TextInput
                 style={[styles.input, { color: colors.text }]}
                 value={confirmPassword}
@@ -218,7 +268,7 @@ export default function ChangePasswordScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </BlurView>
 
         <TouchableOpacity
           style={[styles.saveButton, { backgroundColor: colors.primary }]}
@@ -280,11 +330,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 20,
     marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
+    overflow: 'hidden',
   },
   inputContainer: {
     marginBottom: 20,
@@ -300,16 +346,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   inputWrapper: {
-    borderRadius: 14,
+    borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
   },
   input: {
     fontSize: 16,
@@ -322,11 +363,6 @@ const styles = StyleSheet.create({
   saveButton: {
     borderRadius: 14,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 5,
   },
   gradientButton: {
     paddingVertical: 16,

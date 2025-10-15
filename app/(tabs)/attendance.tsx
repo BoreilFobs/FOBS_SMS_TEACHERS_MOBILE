@@ -1,28 +1,31 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   Dimensions,
   ImageBackground,
   StatusBar,
   ActivityIndicator,
   RefreshControl,
   Platform,
-  useColorScheme
+  useColorScheme,
+  Animated,
+  Easing,
 } from "react-native";
-import { Feather, MaterialIcons } from "@expo/vector-icons";
-// import { useColorScheme } from "@/components/useColorScheme";
+import { Feather, MaterialIcons, Ionicons } from "@expo/vector-icons";
 import Colors from "@/constants/Colors";
-import { Link, useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import Config from '@/constants/Config';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get("window");
-const CARD_HEIGHT = width * 0.4;
+const CARD_WIDTH = (width - 56) / 2;
+const AnimatedFlatList = Animated.createAnimatedComponent(FlatList<Class>);
 
 interface Class {
   id: number;
@@ -36,6 +39,8 @@ export default function SchoolClassesScreen() {
   const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
   const params = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
+  const scrollY = useRef(new Animated.Value(0)).current;
   
   const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,6 +48,23 @@ export default function SchoolClassesScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const schoolId = params.schoolId as string;
+
+  const shimmerColors = useMemo(
+    () => ({
+      base: colorScheme === "dark" ? "#1f2937" : "#e5e7eb",
+      highlight: colorScheme === "dark" ? "#374151" : "#f3f4f6",
+      border: colorScheme === "dark" ? "#334155" : "#e2e8f0",
+    }),
+    [colorScheme]
+  );
+
+  const withOpacity = (hex: string, alpha: number) => {
+    const clean = hex.replace('#', '');
+    const r = parseInt(clean.substring(0, 2), 16);
+    const g = parseInt(clean.substring(2, 4), 16);
+    const b = parseInt(clean.substring(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
    useEffect(() => {
     // Check if schoolId does NOT contain at least one digit
     if (!/\d/.test(schoolId)) {
@@ -85,48 +107,202 @@ console.log(params);
     }
   }, [schoolId]);
 
-  const renderClassCard = ({ item }: { item: Class }) => {
+  const ClassCard = ({ item, index }: { item: Class; index: number }) => {
     const classConfig = getClassConfig(item.name);
+    const mountAnim = useRef(new Animated.Value(0)).current;
+    const pressAnim = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+      Animated.spring(mountAnim, {
+        toValue: 1,
+        delay: 40 * Math.min(index, 12),
+        friction: 9,
+        tension: 40,
+        useNativeDriver: true,
+      }).start();
+    }, [mountAnim, index]);
+
+    const scale = pressAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.96] });
+    const translateY = mountAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] });
+    const opacity = mountAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0.5, 1] });
     
     return (
-      <TouchableOpacity
-        style={[
-          styles.classCard,
-          {
-            backgroundColor: colors.card,
-            borderColor: colors.border,
-          },
-        ]}
-        activeOpacity={0.9}
-        onPress={() => router.push(`/attendance/students?class_id=${item.id}&school_id=${schoolId}`)}
-      >
-        <LinearGradient
-          colors={[classConfig.color + '30', classConfig.color + '10']}
-          style={styles.iconContainer}
+      <Animated.View style={{ opacity, transform: [{ translateY }, { scale }] }}>
+        <Pressable
+          android_ripple={{ color: withOpacity(colors.primary, 0.12), borderless: false }}
+          style={styles.cardWrapper}
+          onPressIn={() => {
+            Animated.spring(pressAnim, {
+              toValue: 1,
+              useNativeDriver: true,
+              friction: 6,
+              tension: 100,
+            }).start();
+          }}
+          onPressOut={() => {
+            Animated.spring(pressAnim, {
+              toValue: 0,
+              useNativeDriver: true,
+              friction: 6,
+              tension: 100,
+            }).start();
+          }}
+          onPress={() => router.push(`/attendance/students?class_id=${item.id}&school_id=${schoolId}`)}
+          accessibilityRole="button"
+          accessibilityLabel={`Open ${item.name}`}
         >
-          <Feather name={classConfig.icon} size={28} color={classConfig.color} />
-        </LinearGradient>
-        
-        <View style={styles.textContainer}>
-          <Text style={[styles.className, { color: colors.text }]}>
-            {item.name}
-          </Text>
-          <Text style={[styles.classDetails, { color: colors.textSecondary }]}>
-            {item.level} • {item.academic_year}
-          </Text>
-        </View>
-        
-        <View style={styles.arrowContainer}>
-          <Feather
-            name="chevron-right"
-            size={20}
-            color={colors.textSecondary}
-            style={{ opacity: 0.7 }}
-          />
-        </View>
-      </TouchableOpacity>
+          <BlurView
+            intensity={Platform.OS === "ios" ? 12 : 100}
+            tint={colorScheme === 'dark' ? 'dark' : 'light'}
+            style={[
+              styles.classCard,
+              {
+                backgroundColor: colorScheme === "dark"
+                  ? withOpacity(colors.card, 0.65)
+                  : withOpacity(colors.card, 0.85),
+                borderColor: colorScheme === 'dark'
+                  ? withOpacity(colors.border, 0.3)
+                  : withOpacity(colors.border, 0.5),
+              },
+            ]}
+          >
+            <LinearGradient
+              colors={
+                colorScheme === "dark"
+                  ? [withOpacity(classConfig.color, 0.25), withOpacity(classConfig.color, 0.08)]
+                  : [withOpacity(classConfig.color, 0.2), withOpacity(classConfig.color, 0.06)]
+              }
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.iconContainer}
+            >
+              <Feather name={classConfig.icon as any} size={28} color={classConfig.color} />
+            </LinearGradient>
+            
+            <View style={styles.textContainer}>
+              <Text style={[styles.className, { color: colors.text }]} numberOfLines={2}>
+                {item.name}
+              </Text>
+              <Text style={[styles.classDetails, { color: colors.textSecondary }]} numberOfLines={1}>
+                {item.level} • {item.academic_year}
+              </Text>
+            </View>
+            
+            <View 
+              style={[
+                styles.chevronPill,
+                {
+                  backgroundColor: colorScheme === 'dark'
+                    ? withOpacity(colors.primary, 0.15)
+                    : withOpacity(colors.primary, 0.1)
+                }
+              ]}
+            >
+              <Feather name="chevron-right" size={18} color={colors.primary} />
+            </View>
+          </BlurView>
+        </Pressable>
+      </Animated.View>
     );
   };
+
+  // Skeleton card component
+  const SkeletonCard = () => {
+    const shimmer = useRef(new Animated.Value(0)).current;
+    
+    useEffect(() => {
+      const loop = () => {
+        shimmer.setValue(0);
+        Animated.timing(shimmer, {
+          toValue: 1,
+          duration: 1400,
+          easing: Easing.bezier(0.4, 0.0, 0.2, 1),
+          useNativeDriver: true,
+        }).start(({ finished }) => finished && loop());
+      };
+      loop();
+      return () => shimmer.stopAnimation();
+    }, []);
+
+    const translateX = shimmer.interpolate({ 
+      inputRange: [0, 1], 
+      outputRange: [-CARD_WIDTH, CARD_WIDTH] 
+    });
+
+    return (
+      <View style={styles.cardWrapper}>
+        <View 
+          style={[
+            styles.classCard,
+            {
+              backgroundColor: colorScheme === 'dark' 
+                ? withOpacity(shimmerColors.base, 0.5)
+                : withOpacity(shimmerColors.base, 0.7),
+              borderColor: shimmerColors.border,
+            }
+          ]}
+        >
+          <View 
+            style={[
+              styles.iconContainer,
+              {
+                backgroundColor: shimmerColors.highlight,
+                opacity: 0.6,
+              }
+            ]}
+          />
+          
+          <View style={styles.textContainer}>
+            <View 
+              style={{
+                height: 18,
+                borderRadius: 6,
+                backgroundColor: shimmerColors.highlight,
+                width: '85%',
+                marginBottom: 8,
+                opacity: 0.5,
+              }}
+            />
+            <View 
+              style={{
+                height: 14,
+                borderRadius: 6,
+                backgroundColor: shimmerColors.highlight,
+                width: '60%',
+                opacity: 0.4,
+              }}
+            />
+          </View>
+          
+          <Animated.View 
+            pointerEvents="none" 
+            style={[
+              StyleSheet.absoluteFillObject,
+              {
+                opacity: colorScheme === 'dark' ? 0.15 : 0.2,
+                transform: [{ translateX }]
+              }
+            ]}
+          >
+            <LinearGradient
+              colors={
+                colorScheme === 'dark'
+                  ? ["transparent", "rgba(255,255,255,0.25)", "transparent"]
+                  : ["transparent", "rgba(255,255,255,0.45)", "transparent"]
+              }
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={{ flex: 1 }}
+            />
+          </Animated.View>
+        </View>
+      </View>
+    );
+  };
+
+  const renderClassCard = ({ item, index }: { item: Class; index: number }) => (
+    <ClassCard item={item} index={index} />
+  );
 
   if (loading && !refreshing) {
     return (
@@ -135,8 +311,32 @@ console.log(params);
         style={styles.container}
         blurRadius={10}
       >
-        <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
-        <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
+        <BlurView intensity={Platform.OS === 'ios' ? 330 : 100} style={StyleSheet.absoluteFill} tint={colorScheme === 'dark' ? 'dark' : 'light'} />
+        <StatusBar
+          barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}
+          translucent
+          backgroundColor="transparent"
+        />
+        
+        <LinearGradient
+          colors={
+            colorScheme === 'dark'
+              ? ['rgba(0,0,0,0.6)', 'transparent']
+              : ['rgba(255,255,255,0.8)', 'transparent']
+          }
+          style={styles.headerGradient}
+          pointerEvents="none"
+        />
+        
+        <View style={[styles.header, { paddingTop: insets.top }]}>
+          <Text style={styles.logo}>FobsSMS</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Students Attendance</Text>
+        </View>
+        <View style={styles.loadingGrid}>
+          {[...Array(6)].map((_, i) => (
+            <SkeletonCard key={`skeleton-${i}`} />
+          ))}
+        </View>
       </ImageBackground>
     );
   }
@@ -148,16 +348,34 @@ console.log(params);
         style={styles.container}
         blurRadius={10}
       >
-        <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
+        <BlurView intensity={Platform.OS === 'ios' ? 330 : 100} style={StyleSheet.absoluteFill} tint={colorScheme === 'dark' ? 'dark' : 'light'} />
+        <StatusBar
+          barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}
+          translucent
+          backgroundColor="transparent"
+        />
         <View style={styles.errorContainer}>
-          <MaterialIcons name="error-outline" size={48} color={colors.error} />
-          <Text style={[styles.errorText, { color: colors.text }]}>{error}</Text>
-          <TouchableOpacity 
-            style={[styles.retryButton, { backgroundColor: colors.primary }]}
-            onPress={fetchClasses}
+          <BlurView
+            intensity={Platform.OS === 'ios' ? 20 : 10}
+            tint={colorScheme === 'dark' ? 'dark' : 'light'}
+            style={[
+              styles.errorCard,
+              {
+                backgroundColor: colorScheme === 'dark' 
+                  ? withOpacity(colors.card, 0.7) 
+                  : withOpacity(colors.card, 0.9),
+              },
+            ]}
           >
-            <Text style={styles.retryText}>Try Again</Text>
-          </TouchableOpacity>
+            <MaterialIcons name="error-outline" size={48} color={colors.error} />
+            <Text style={[styles.errorText, { color: colors.text }]}>{error}</Text>
+            <Pressable 
+              style={[styles.retryButton, { backgroundColor: colors.primary }]}
+              onPress={fetchClasses}
+            >
+              <Text style={styles.retryText}>Try Again</Text>
+            </Pressable>
+          </BlurView>
         </View>
       </ImageBackground>
     );
@@ -169,8 +387,7 @@ console.log(params);
       style={styles.container}
       blurRadius={10}
     >
-      <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
-      <BlurView intensity={Platform.OS == 'ios' ? 330 : 0} style={StyleSheet.absoluteFill} tint={colorScheme} />
+      <BlurView intensity={Platform.OS === 'ios' ? 330 : 100} style={StyleSheet.absoluteFill} tint={colorScheme === 'dark' ? 'dark' : 'light'} />
       
       <StatusBar
         barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}
@@ -178,14 +395,27 @@ console.log(params);
         backgroundColor="transparent"
       />
 
-      <View style={[styles.header, { marginTop: StatusBar.currentHeight }]}>
-        <Text style={styles.logo}>FobsSMS</Text><Text style={[styles.title, { color: colors.text }]}>Students Attendance</Text>
+      <LinearGradient
+        colors={
+          colorScheme === 'dark'
+            ? ['rgba(0,0,0,0.6)', 'transparent']
+            : ['rgba(255,255,255,0.8)', 'transparent']
+        }
+        style={styles.headerGradient}
+        pointerEvents="none"
+      />
+
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+        <Text style={styles.logo}>FobsSMS</Text>
+        <Text style={[styles.title, { color: colors.text }]}>
+          Students Attendance
+        </Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Select a class to start attendance
+          {classes.length} {classes.length === 1 ? 'class' : 'classes'} • Tap to start
         </Text>
       </View>
 
-      <FlatList
+      <AnimatedFlatList
         data={classes}
         renderItem={renderClassCard}
         keyExtractor={(item) => item.id.toString()}
@@ -193,6 +423,11 @@ console.log(params);
         showsVerticalScrollIndicator={false}
         numColumns={2}
         columnWrapperStyle={styles.columnWrapper}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -201,12 +436,26 @@ console.log(params);
           />
         }
         ListEmptyComponent={
-          <View style={styles.emptyState}>
+          <BlurView
+            intensity={Platform.OS === 'ios' ? 20 : 10}
+            tint={colorScheme === 'dark' ? 'dark' : 'light'}
+            style={[
+              styles.emptyState,
+              {
+                backgroundColor: colorScheme === 'dark' 
+                  ? withOpacity(colors.card, 0.6) 
+                  : withOpacity(colors.card, 0.85),
+              },
+            ]}
+          >
             <Feather name="users" size={48} color={colors.textSecondary} />
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-              No classes found for this school
+            <Text style={[styles.emptyText, { color: colors.text }]}>
+              No classes found
             </Text>
-          </View>
+            <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
+              Classes will appear here once assigned
+            </Text>
+          </BlurView>
         }
       />
     </ImageBackground>
@@ -217,14 +466,18 @@ console.log(params);
 function getClassConfig(className: string) {
   const lowerName = className.toLowerCase();
   
-  if (lowerName.includes('form 1')) {
+  if (lowerName.includes('form 1') || lowerName.includes('grade 1')) {
     return { icon: 'users', color: '#6366F1' };
-  } else if (lowerName.includes('form 2')) {
+  } else if (lowerName.includes('form 2') || lowerName.includes('grade 2')) {
     return { icon: 'users', color: '#10B981' };
-  } else if (lowerName.includes('form 3')) {
+  } else if (lowerName.includes('form 3') || lowerName.includes('grade 3')) {
     return { icon: 'users', color: '#EF4444' };
-  } else if (lowerName.includes('form 4')) {
+  } else if (lowerName.includes('form 4') || lowerName.includes('grade 4')) {
     return { icon: 'users', color: '#F59E0B' };
+  } else if (lowerName.includes('form 5') || lowerName.includes('grade 5')) {
+    return { icon: 'award', color: '#8B5CF6' };
+  } else if (lowerName.includes('form 6') || lowerName.includes('grade 6')) {
+    return { icon: 'award', color: '#EC4899' };
   } else {
     return { icon: 'users', color: '#64748B' };
   }
@@ -233,105 +486,24 @@ function getClassConfig(className: string) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: Platform.OS === 'ios' ? 50 : 0,
   },
-  loader: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  cardWrapper: {
+    width: CARD_WIDTH,
+    marginBottom: 16,
   },
   header: {
     paddingHorizontal: 24,
-    paddingVertical: 16,
-    marginBottom: 16,
+    paddingVertical: 20,
+    marginBottom: 10,
+    zIndex: 10,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: '800',
-    marginBottom: 4,
-    marginTop: 20
-  },
-  subtitle: {
-    fontSize: 16,
-    opacity: 0.8,
-  },
-  listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 70,
-  },
-  columnWrapper: {
-    justifyContent: 'space-between',
-    gap: 16,
-    marginBottom: 16,
-  },
-  classCard: {
-    width: (width - 48) / 2,
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  iconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  textContainer: {
-    marginBottom: 16,
-  },
-  className: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  classDetails: {
-    fontSize: 14,
-    opacity: 0.8,
-    fontWeight: '500',
-  },
-  arrowContainer: {
+  headerGradient: {
     position: 'absolute',
-    right: 16,
-    bottom: 16,
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 48,
-  },
-  emptyText: {
-    marginTop: 16,
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  errorText: {
-    marginTop: 16,
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  retryButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryText: {
-    color: '#fff',
-    fontWeight: '600',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 180,
+    zIndex: 1,
   },
   logo: {
     fontSize: 28,
@@ -339,5 +511,132 @@ const styles = StyleSheet.create({
     color: Colors.dark.primary,
     fontFamily: Platform.OS === "ios" ? "Poppins-Bold" : "sans-serif-light",
     letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: '800',
+    marginBottom: 4,
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: 16,
+    opacity: 0.8,
+    fontWeight: '500',
+  },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 100,
+  },
+  columnWrapper: {
+    justifyContent: 'space-between',
+  },
+  classCard: {
+    width: CARD_WIDTH,
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 3,
+    overflow: 'hidden',
+    minHeight: 160,
+  },
+  iconContainer: {
+    width: 58,
+    height: 58,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  textContainer: {
+    flex: 1,
+    marginBottom: 8,
+  },
+  className: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+    letterSpacing: -0.2,
+    lineHeight: 22,
+  },
+  classDetails: {
+    fontSize: 13,
+    opacity: 0.75,
+    fontWeight: '500',
+  },
+  chevronPill: {
+    position: 'absolute',
+    right: 12,
+    bottom: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+  loadingGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    justifyContent: 'space-between',
+  },
+  emptyState: {
+    marginTop: 60,
+    marginHorizontal: 24,
+    padding: 48,
+    borderRadius: 20,
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  emptyText: {
+    marginTop: 16,
+    fontSize: 17,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    marginTop: 6,
+    fontSize: 14,
+    textAlign: 'center',
+    opacity: 0.7,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  errorCard: {
+    padding: 32,
+    borderRadius: 20,
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 360,
+    overflow: 'hidden',
+  },
+  errorText: {
+    marginTop: 16,
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 24,
+    fontWeight: '500',
+  },
+  retryButton: {
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  retryText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
   },
 });

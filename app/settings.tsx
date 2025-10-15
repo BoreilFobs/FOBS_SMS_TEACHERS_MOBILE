@@ -1,26 +1,37 @@
-import React from "react";
+import React, { useRef } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   ImageBackground,
   StatusBar,
   Platform,
-  useColorScheme
+  useColorScheme,
+  Animated,
 } from "react-native";
 import { Feather, FontAwesome } from "@expo/vector-icons";
-// import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 import { handleLogout } from '@/utils/auth';
-import { Link, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const withOpacity = (hex: string, alpha: number) => {
+  const clean = hex.replace('#', '');
+  const r = parseInt(clean.substring(0, 2), 16);
+  const g = parseInt(clean.substring(2, 4), 16);
+  const b = parseInt(clean.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
 
 export default function SettingsScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   type SettingsItem = {
     title: string;
@@ -78,8 +89,7 @@ export default function SettingsScreen() {
       style={styles.container}
       blurRadius={10}
     >
-      <BlurView intensity={330} style={StyleSheet.absoluteFill} tint={colorScheme} />
-      <BlurView intensity={Platform.OS == 'ios' ? 300 : 0} style={StyleSheet.absoluteFill} tint={colorScheme} />
+      <BlurView intensity={Platform.OS === 'ios' ? 330 : 100} style={StyleSheet.absoluteFill} tint={colorScheme === 'dark' ? 'dark' : 'light'} />
       
       <StatusBar
         barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}
@@ -87,8 +97,18 @@ export default function SettingsScreen() {
         backgroundColor="transparent"
       />
 
-      <View style={[styles.header]}>
-        <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
+      <LinearGradient
+        colors={
+          colorScheme === 'dark'
+            ? ['rgba(0,0,0,0.6)', 'transparent']
+            : ['rgba(255,255,255,0.8)', 'transparent']
+        }
+        style={styles.headerGradient}
+        pointerEvents="none"
+      />
+
+      <View style={[styles.header, { paddingTop: 10 }]}>
+        {/* <Text style={[styles.title, { color: colors.text }]}>Settings</Text> */}
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           Manage your account and preferences
         </Text>
@@ -101,56 +121,96 @@ export default function SettingsScreen() {
         {settingsOptions.map((section, sectionIndex) => (
           <View key={sectionIndex} style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Feather name={section.icon} size={20} color={colors.primary} />
+              <LinearGradient
+                colors={
+                  colorScheme === 'dark'
+                    ? [withOpacity(colors.primary, 0.2), withOpacity(colors.primary, 0.05)]
+                    : [withOpacity(colors.primary, 0.15), withOpacity(colors.primary, 0.08)]
+                }
+                style={styles.sectionIconContainer}
+              >
+                <Feather name={section.icon} size={18} color={colors.primary} />
+              </LinearGradient>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
                 {section.title}
               </Text>
             </View>
 
-            <View style={[styles.sectionContent, { backgroundColor: colors.card + 'CC', borderColor: colors.border }]}>
+            <BlurView
+              intensity={Platform.OS === 'ios' ? 12 : 100}
+              tint={colorScheme === 'dark' ? 'dark' : 'light'}
+              style={[
+                styles.sectionContent,
+                {
+                  backgroundColor: colorScheme === 'dark' 
+                    ? withOpacity(colors.card, 0.6)
+                    : withOpacity(colors.card, 0.85),
+                  borderColor: colorScheme === 'dark'
+                    ? withOpacity(colors.border, 0.3)
+                    : withOpacity(colors.border, 0.5),
+                }
+              ]}
+            >
               {section.items.map((item, itemIndex) => (
-                <TouchableOpacity
+                <Pressable
                   key={itemIndex}
                   style={[
                     styles.option,
                     itemIndex !== section.items.length - 1 && {
                       borderBottomWidth: 1,
-                      borderBottomColor: colors.border,
+                      borderBottomColor: withOpacity(colors.border, 0.3),
                     },
                   ]}
                   onPress={item.action}
-                  activeOpacity={0.7}
+                  android_ripple={{ color: withOpacity(colors.primary, 0.12) }}
                 >
                   <View style={styles.optionLeft}>
-                    <Feather
-                      name={item.icon}
-                      size={20}
-                      color={colors.textSecondary}
-                    />
+                    <View style={[styles.optionIconContainer, { backgroundColor: withOpacity(colors.primary, 0.1) }]}>
+                      <Feather
+                        name={item.icon}
+                        size={18}
+                        color={colors.primary}
+                      />
+                    </View>
                     <Text style={[styles.optionText, { color: colors.text }]}>
                       {item.title}
                     </Text>
                   </View>
-                  <Feather
-                    name="chevron-right"
-                    size={20}
-                    color={colors.textSecondary}
-                  />
-                </TouchableOpacity>
+                  <View style={[styles.chevronContainer, { backgroundColor: withOpacity(colors.primary, 0.08) }]}>
+                    <Feather
+                      name="chevron-right"
+                      size={18}
+                      color={colors.primary}
+                    />
+                  </View>
+                </Pressable>
               ))}
-            </View>
+            </BlurView>
           </View>
         ))}
 
-        <TouchableOpacity
-          style={[styles.logoutButton, { backgroundColor: colors.error + '50', borderColor: colors.error + '50' }]}
+        <Pressable
+          style={[
+            styles.logoutButton,
+            {
+              backgroundColor: withOpacity(colors.error, 0.15),
+              borderColor: withOpacity(colors.error, 0.3),
+            }
+          ]}
           onPress={() => handleLogout()}
+          android_ripple={{ color: withOpacity(colors.error, 0.2) }}
         >
-          <FontAwesome name="sign-out" size={18} color={colors.error} />
+          <LinearGradient
+            colors={[withOpacity(colors.error, 0.08), withOpacity(colors.error, 0.02)]}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={[styles.logoutIconContainer, { backgroundColor: withOpacity(colors.error, 0.15) }]}>
+            <FontAwesome name="sign-out" size={18} color={colors.error} />
+          </View>
           <Text style={[styles.logoutText, { color: colors.error }]}>
             Log Out
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       </ScrollView>
     </ImageBackground>
   );
@@ -160,10 +220,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  headerGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 180,
+    zIndex: 1,
+  },
   header: {
     paddingHorizontal: 24,
-    paddingVertical: 16,
-    marginBottom: 16,
+    paddingBottom: 24,
+    zIndex: 2,
   },
   title: {
     fontSize: 32,
@@ -188,6 +256,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     paddingHorizontal: 8,
   },
+  sectionIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "600",
@@ -209,9 +284,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 16,
   },
+  optionIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   optionText: {
     fontSize: 16,
     fontWeight: "500",
+  },
+  chevronContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logoutButton: {
     flexDirection: "row",
@@ -222,6 +311,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginTop: 8,
     borderWidth: 1,
+    overflow: 'hidden',
+  },
+  logoutIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logoutText: {
     fontSize: 16,

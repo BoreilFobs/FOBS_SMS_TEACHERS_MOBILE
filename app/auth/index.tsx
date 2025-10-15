@@ -13,7 +13,8 @@ import {
   ActivityIndicator,
   Platform,
   Dimensions,
-  useColorScheme
+  useColorScheme,
+  StatusBar
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
@@ -186,8 +187,14 @@ export default function AuthScreen() {
       style={styles.container}
       blurRadius={10}
     >
-      <BlurView intensity={30} style={StyleSheet.absoluteFill} tint={colorScheme} />
+      <BlurView intensity={Platform.OS === 'ios' ? 80 : 40} style={StyleSheet.absoluteFill} tint={colorScheme ?? 'light'} />
       
+      <StatusBar
+        barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}
+        translucent
+        backgroundColor="transparent"
+      />
+
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoid}
@@ -203,197 +210,248 @@ export default function AuthScreen() {
               { 
                 opacity: fadeAnim,
                 transform: [{ translateY: slideAnim }],
-                backgroundColor: colors.card,
                 shadowColor: colors.text,
               }
             ]}
           >
-            <LinearGradient
-              colors={[colors.primary, colors.tint]}
-              start={[0, 0]}
-              end={[1, 0]}
-              style={styles.gradientBorder}
-            />
-            
-            <View style={styles.header}>
-              <Ionicons 
-                name={isLogin ? 'log-in' : 'person-add'} 
-                size={40} 
-                color={colors.primary} 
-                style={styles.authIcon}
+            <BlurView
+              intensity={Platform.OS === 'ios' ? 20 : 12}
+              tint={colorScheme ?? 'light'}
+              style={[
+                styles.authCard,
+                {
+                  backgroundColor: colorScheme === 'dark' 
+                    ? 'rgba(30, 30, 35, 0.85)' 
+                    : 'rgba(255, 255, 255, 0.92)',
+                },
+              ]}
+            >
+              <LinearGradient
+                colors={[colors.primary, colors.tint]}
+                start={[0, 0]}
+                end={[1, 0]}
+                style={styles.gradientBorder}
               />
-              <Text style={[styles.title, { color: colors.text }]}>
-                {isLogin ? 'Welcome Back' : 'Create Account'}
-              </Text>
-              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                {isLogin ? 'Sign in to continue' : 'Join our community'}
-              </Text>
-            </View>
-
-            {errors.general && (
-              <View style={[styles.errorContainer, { backgroundColor: colors.error + '20' }]}>
-                <Ionicons name="warning-outline" size={16} color={colors.error} />
-                <Text style={[styles.errorText, { color: colors.error }]}>
-                  {errors.general}
+              
+              <View style={styles.header}>
+                <View style={[styles.iconContainer, { backgroundColor: `${colors.primary}20` }]}>
+                  <Ionicons 
+                    name={isLogin ? 'log-in' : 'person-add'} 
+                    size={32} 
+                    color={colors.primary} 
+                  />
+                </View>
+                <Text style={[styles.title, { color: colors.text }]}>
+                  {isLogin ? 'Welcome Back' : 'Create Account'}
+                </Text>
+                <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+                  {isLogin ? 'Sign in to continue' : 'Join our community'}
                 </Text>
               </View>
-            )}
 
-            {!isLogin && (
+              {errors.general && (
+                <BlurView
+                  intensity={Platform.OS === 'ios' ? 8 : 4}
+                  tint={colorScheme ?? 'light'}
+                  style={[
+                    styles.errorContainer, 
+                    { 
+                      backgroundColor: `${colors.error}20`,
+                      borderColor: `${colors.error}40`,
+                    }
+                  ]}
+                >
+                  <Ionicons name="warning-outline" size={16} color={colors.error} />
+                  <Text style={[styles.errorText, { color: colors.error }]}>
+                    {errors.general}
+                  </Text>
+                </BlurView>
+              )}
+
+              {!isLogin && (
+                <View>
+                  <BlurView
+                    intensity={Platform.OS === 'ios' ? 6 : 3}
+                    tint={colorScheme ?? 'light'}
+                    style={[
+                      styles.inputContainer, 
+                      { 
+                        borderColor: errors.name ? colors.error : colors.border,
+                        borderWidth: errors.name ? 2 : 1.5,
+                        backgroundColor: colorScheme === 'dark' 
+                          ? 'rgba(50, 50, 55, 0.4)' 
+                          : 'rgba(245, 245, 250, 0.6)',
+                      }
+                    ]}
+                  >
+                    <Ionicons 
+                      name="person-outline" 
+                      size={20} 
+                      color={errors.name ? colors.error : colors.textSecondary} 
+                      style={styles.inputIcon}
+                    />
+                    <TextInput
+                      style={[styles.input, { color: colors.text }]}
+                      placeholder="Full Name"
+                      placeholderTextColor={colors.textSecondary}
+                      value={formData.name}
+                      onChangeText={(text) => handleChange('name', text)}
+                      autoCapitalize="words"
+                      editable={!isLoading}
+                    />
+                  </BlurView>
+                  {errors.name && (
+                    <View style={styles.errorMessageContainer}>
+                      <Text style={[styles.errorMessage, { color: colors.error }]}>
+                        {errors.name}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+
               <View>
-                <View style={[
-                  styles.inputContainer, 
-                  { 
-                    borderColor: errors.name ? colors.error : colors.border,
-                    borderWidth: errors.name ? 1.5 : 1
-                  }
-                ]}>
+                <BlurView
+                  intensity={Platform.OS === 'ios' ? 6 : 3}
+                  tint={colorScheme ?? 'light'}
+                  style={[
+                    styles.inputContainer, 
+                    { 
+                      borderColor: errors.email ? colors.error : colors.border,
+                      borderWidth: errors.email ? 2 : 1.5,
+                      backgroundColor: colorScheme === 'dark' 
+                        ? 'rgba(50, 50, 55, 0.4)' 
+                        : 'rgba(245, 245, 250, 0.6)',
+                    }
+                  ]}
+                >
                   <Ionicons 
-                    name="person-outline" 
+                    name="mail-outline" 
                     size={20} 
-                    color={errors.name ? colors.error : colors.textSecondary} 
+                    color={errors.email ? colors.error : colors.textSecondary} 
                     style={styles.inputIcon}
                   />
                   <TextInput
                     style={[styles.input, { color: colors.text }]}
-                    placeholder="Full Name"
+                    placeholder="Email Address"
                     placeholderTextColor={colors.textSecondary}
-                    value={formData.name}
-                    onChangeText={(text) => handleChange('name', text)}
-                    autoCapitalize="words"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    value={formData.email}
+                    onChangeText={(text) => handleChange('email', text)}
                     editable={!isLoading}
                   />
-                </View>
-                {errors.name && (
+                </BlurView>
+                {errors.email && (
                   <View style={styles.errorMessageContainer}>
                     <Text style={[styles.errorMessage, { color: colors.error }]}>
-                      {errors.name}
+                      {errors.email}
                     </Text>
                   </View>
                 )}
               </View>
-            )}
 
-            <View>
-              <View style={[
-                styles.inputContainer, 
-                { 
-                  borderColor: errors.email ? colors.error : colors.border,
-                  borderWidth: errors.email ? 1.5 : 1
-                }
-              ]}>
-                <Ionicons 
-                  name="mail-outline" 
-                  size={20} 
-                  color={errors.email ? colors.error : colors.textSecondary} 
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  style={[styles.input, { color: colors.text }]}
-                  placeholder="Email Address"
-                  placeholderTextColor={colors.textSecondary}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  value={formData.email}
-                  onChangeText={(text) => handleChange('email', text)}
-                  editable={!isLoading}
-                />
-              </View>
-              {errors.email && (
-                <View style={styles.errorMessageContainer}>
-                  <Text style={[styles.errorMessage, { color: colors.error }]}>
-                    {errors.email}
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            <View>
-              <View style={[
-                styles.inputContainer, 
-                { 
-                  borderColor: errors.password ? colors.error : colors.border,
-                  borderWidth: errors.password ? 1.5 : 1
-                }
-              ]}>
-                <Ionicons 
-                  name="lock-closed-outline" 
-                  size={20} 
-                  color={errors.password ? colors.error : colors.textSecondary} 
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  style={[styles.input, { color: colors.text }]}
-                  placeholder="Password"
-                  placeholderTextColor={colors.textSecondary}
-                  secureTextEntry={!isPasswordVisible}
-                  value={formData.password}
-                  onChangeText={(text) => handleChange('password', text)}
-                  editable={!isLoading}
-                />
-                <TouchableOpacity 
-                  onPress={togglePasswordVisibility}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              <View>
+                <BlurView
+                  intensity={Platform.OS === 'ios' ? 6 : 3}
+                  tint={colorScheme ?? 'light'}
+                  style={[
+                    styles.inputContainer, 
+                    { 
+                      borderColor: errors.password ? colors.error : colors.border,
+                      borderWidth: errors.password ? 2 : 1.5,
+                      backgroundColor: colorScheme === 'dark' 
+                        ? 'rgba(50, 50, 55, 0.4)' 
+                        : 'rgba(245, 245, 250, 0.6)',
+                    }
+                  ]}
                 >
                   <Ionicons 
-                    name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'} 
+                    name="lock-closed-outline" 
                     size={20} 
                     color={errors.password ? colors.error : colors.textSecondary} 
+                    style={styles.inputIcon}
                   />
-                </TouchableOpacity>
+                  <TextInput
+                    style={[styles.input, { color: colors.text }]}
+                    placeholder="Password"
+                    placeholderTextColor={colors.textSecondary}
+                    secureTextEntry={!isPasswordVisible}
+                    value={formData.password}
+                    onChangeText={(text) => handleChange('password', text)}
+                    editable={!isLoading}
+                  />
+                  <TouchableOpacity 
+                    onPress={togglePasswordVisibility}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Ionicons 
+                      name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'} 
+                      size={20} 
+                      color={errors.password ? colors.error : colors.textSecondary} 
+                    />
+                  </TouchableOpacity>
+                </BlurView>
+                {errors.password && (
+                  <View style={styles.errorMessageContainer}>
+                    <Text style={[styles.errorMessage, { color: colors.error }]}>
+                      {errors.password}
+                    </Text>
+                  </View>
+                )}
               </View>
-              {errors.password && (
-                <View style={styles.errorMessageContainer}>
-                  <Text style={[styles.errorMessage, { color: colors.error }]}>
-                    {errors.password}
-                  </Text>
-                </View>
-              )}
-            </View>
 
-            <TouchableOpacity 
-              style={[
-                styles.primaryButton, 
-                { 
-                  backgroundColor: colors.primary,
-                  opacity: isLoading ? 0.8 : 1,
-                  shadowColor: colors.primary,
-                }
-              ]}
-              activeOpacity={0.9}
-              onPress={handleAuth}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <View style={styles.buttonContent}>
-                  <Text style={styles.buttonText}>
-                    {isLogin ? 'Sign In' : 'Sign Up'}
-                  </Text>
-                  <Ionicons 
-                    name="arrow-forward" 
-                    size={20} 
-                    color="white" 
-                    style={styles.buttonIcon}
-                  />
-                </View>
-              )}
-            </TouchableOpacity>
+              <TouchableOpacity 
+                style={[
+                  styles.primaryButton, 
+                  { 
+                    backgroundColor: colors.primary,
+                    opacity: isLoading ? 0.7 : 1,
+                    shadowColor: colors.primary,
+                  }
+                ]}
+                activeOpacity={0.9}
+                onPress={handleAuth}
+                disabled={isLoading}
+              >
+                <LinearGradient
+                  colors={[colors.primary, colors.tint]}
+                  start={[0, 0]}
+                  end={[1, 0]}
+                  style={styles.buttonGradient}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <View style={styles.buttonContent}>
+                      <Text style={styles.buttonText}>
+                        {isLogin ? 'Sign In' : 'Sign Up'}
+                      </Text>
+                      <Ionicons 
+                        name="arrow-forward" 
+                        size={20} 
+                        color="white" 
+                        style={styles.buttonIcon}
+                      />
+                    </View>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
 
-            <TouchableOpacity 
-              onPress={toggleAuthMode}
-              style={styles.toggleAuth}
-              activeOpacity={0.7}
-              disabled={isLoading}
-            >
-              <Text style={[styles.toggleText, { color: colors.textSecondary }]}>
-                {isLogin ? "Don't have an account? " : 'Already have an account? '}
-                <Text style={{ color: colors.primary, fontWeight: '600' }}>
-                  {isLogin ? 'Register now' : 'Login here'}
+              <TouchableOpacity 
+                onPress={toggleAuthMode}
+                style={styles.toggleAuth}
+                activeOpacity={0.7}
+                disabled={isLoading}
+              >
+                <Text style={[styles.toggleText, { color: colors.textSecondary }]}>
+                  {isLogin ? "Don't have an account? " : 'Already have an account? '}
+                  <Text style={{ color: colors.primary, fontWeight: '700' }}>
+                    {isLogin ? 'Register now' : 'Login here'}
+                  </Text>
                 </Text>
-              </Text>
-            </TouchableOpacity>
+              </TouchableOpacity>
+            </BlurView>
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -414,13 +472,15 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   authContainer: {
-    borderRadius: 24,
-    padding: 24,
     marginHorizontal: 16,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  authCard: {
+    borderRadius: 28,
+    padding: 28,
     overflow: 'hidden',
   },
   gradientBorder: {
@@ -428,77 +488,90 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     top: 0,
-    height: 4,
+    height: 5,
   },
   header: {
     alignItems: 'center',
     marginBottom: 32,
   },
-  authIcon: {
-    marginBottom: 16,
+  iconContainer: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
   },
   title: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '800',
     marginBottom: 8,
     textAlign: 'center',
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
   },
   subtitle: {
     fontSize: 16,
     textAlign: 'center',
     opacity: 0.8,
-    marginBottom: 8,
+    marginBottom: 4,
+    fontWeight: '500',
   },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-    gap: 8,
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 20,
+    gap: 10,
+    borderWidth: 1,
+    overflow: 'hidden',
   },
   errorText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
+    flex: 1,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    marginBottom: 4,
+    borderRadius: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    marginBottom: 6,
+    overflow: 'hidden',
   },
   inputIcon: {
-    marginRight: 12,
+    marginRight: 14,
     opacity: 0.7,
   },
   input: {
     flex: 1,
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
     paddingVertical: 2,
   },
   errorMessageContainer: {
-    marginBottom: 12,
-    marginLeft: 12,
+    marginBottom: 14,
+    marginLeft: 14,
   },
   errorMessage: {
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   primaryButton: {
-    borderRadius: 12,
+    borderRadius: 14,
+    marginTop: 20,
+    marginBottom: 20,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 8,
+    overflow: 'hidden',
+  },
+  buttonGradient: {
     padding: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 16,
-    marginBottom: 24,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
   },
   buttonContent: {
     flexDirection: 'row',
@@ -506,9 +579,10 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
     marginRight: 8,
+    letterSpacing: -0.3,
   },
   buttonIcon: {
     marginTop: 2,
@@ -516,9 +590,10 @@ const styles = StyleSheet.create({
   toggleAuth: {
     marginTop: 8,
     alignItems: 'center',
-    padding: 8,
+    padding: 12,
   },
   toggleText: {
-    fontSize: 14,
+    fontSize: 15,
+    fontWeight: '500',
   },
 });
