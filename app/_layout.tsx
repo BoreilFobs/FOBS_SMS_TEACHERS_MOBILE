@@ -70,10 +70,10 @@ function RootLayoutNav() {
     <ThemeProvider value={modifiedTheme}>
       <View style={styles.root}>
         {/* Update Modal - will block navigation if update is required */}
-        <UpdateModal onUpdateChecked={setUpdateRequired} />
+        {/* <UpdateModal onUpdateChecked={setUpdateRequired} /> */}
         
         {/* Web App Update Modal - only shows on web platform */}
-        <WebAppUpdateModal />
+        {/* <WebAppUpdateModal /> */}
         
         <Stack>
           {/* Main tabs (will appear in tab bar) */}
