@@ -74,6 +74,8 @@ const PlatformTextInput = ({
   if (Platform.OS === 'web') {
     const webStyles = {
       width: '100%',
+      maxWidth: '100%',
+      boxSizing: 'border-box',
       borderWidth: style.borderWidth || 1,
       borderRadius: style.borderRadius || 12,
       padding: style.padding || 16,
@@ -862,7 +864,6 @@ const styles = StyleSheet.create({
   progressDot: {
     height: 8,
     borderRadius: 4,
-    transition: 'all 0.3s ease',
   },
   contentContainer: {
     flex: 1,
@@ -877,6 +878,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     width: '100%',
+    maxWidth: Platform.OS === 'web' ? '100%' : undefined,
   },
   iconCircle: {
     width: 100,
@@ -915,6 +917,7 @@ const styles = StyleSheet.create({
   },
   inputCard: {
     width: '100%',
+    maxWidth: Platform.OS === 'web' ? '100%' : undefined,
     borderRadius: 16,
     borderWidth: 1,
     padding: 4,
@@ -936,7 +939,8 @@ const styles = StyleSheet.create({
   },
   buttonGradient: {
     paddingTop: 20,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+    paddingBottom: Platform.OS === 'ios' ? 40 : Platform.OS === 'web' ? 0 : 20,
+    marginBottom: Platform.OS === 'web' ? 100 : 0,
   },
   buttonContainer: {
     flexDirection: 'row',
