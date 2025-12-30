@@ -17,6 +17,7 @@ import {
   useColorScheme,
   Animated,
   Easing,
+  Alert,
 } from "react-native";
 import { Feather, MaterialIcons, Ionicons } from "@expo/vector-icons";
 import Colors from "@/constants/Colors";
@@ -61,6 +62,7 @@ export default function StudentMarksScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [markInput, setMarkInput] = useState("");
+  const [deletingMarkId, setDeletingMarkId] = useState<number | null>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
 
@@ -173,6 +175,62 @@ export default function StudentMarksScreen() {
     }
   };
 
+  const handleDeleteMark = async (student: Student) => {
+    if (!student.markId) return;
+
+    Alert.alert(
+      "Delete Mark",
+      `Are you sure you want to delete the mark for ${student.name}?`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setDeletingMarkId(student.markId!);
+            try {
+              const response = await fetch(`${Config.apiBaseUrl}/marks`, {
+                method: 'DELETE',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  school_id: schoolId,
+                  student_id: student.id,
+                  subject_id: subjectId,
+                  class_id: classId,
+                  exam_id: sequenceId,
+                })
+              });
+
+              const data = await response.json();
+
+              if (data.success) {
+                // Update local state - remove the mark
+                const updatedStudents = students.map((s) =>
+                  s.id === student.id
+                    ? { ...s, currentMark: null, markId: null }
+                    : s
+                );
+                setStudents(updatedStudents);
+              } else {
+                throw new Error(data.message || 'Failed to delete mark');
+              }
+            } catch (err) {
+              alert(err instanceof Error ? `${err.message} Check Network` : 'Failed to delete mark');
+              console.error(err);
+            } finally {
+              setDeletingMarkId(null);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   // Student card component with animations
   const StudentCard = ({ item, index }: { item: Student; index: number }) => {
     const mountAnim = useRef(new Animated.Value(0)).current;
@@ -264,26 +322,47 @@ export default function StudentMarksScreen() {
             </View>
             
             <View style={styles.markContainer}>
-              {item.currentMark ? (
-                <BlurView
-                  intensity={Platform.OS === 'ios' ? 8 : 4}
-                  tint={colorScheme ?? 'light'}
-                  style={[
-                    styles.markBadge,
-                    {
-                      backgroundColor: item.currentMark >= 10 
-                        ? withOpacity('#10B981', 0.2) 
-                        : withOpacity('#EF4444', 0.2),
-                    },
-                  ]}
-                >
-                  <Text style={[
-                    styles.markText, 
-                    { color: item.currentMark >= 10 ? '#10B981' : '#EF4444' }
-                  ]}>
-                    {item.currentMark}/20
-                  </Text>
-                </BlurView>
+              {item.currentMark !== null && item.currentMark !== undefined ? (
+                <View style={styles.markWithDelete}>
+                  <BlurView
+                    intensity={Platform.OS === 'ios' ? 8 : 4}
+                    tint={colorScheme ?? 'light'}
+                    style={[
+                      styles.markBadge,
+                      {
+                        backgroundColor: item.currentMark >= 10 
+                          ? withOpacity('#10B981', 0.2) 
+                          : withOpacity('#EF4444', 0.2),
+                      },
+                    ]}
+                  >
+                    <Text style={[
+                      styles.markText, 
+                      { color: item.currentMark >= 10 ? '#10B981' : '#EF4444' }
+                    ]}>
+                      {item.currentMark}/20
+                    </Text>
+                  </BlurView>
+                  {item.markId && (
+                    <Pressable
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleDeleteMark(item);
+                      }}
+                      style={[
+                        styles.deleteButton,
+                        { backgroundColor: withOpacity('#EF4444', 0.15) }
+                      ]}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                      {deletingMarkId === item.markId ? (
+                        <ActivityIndicator size="small" color="#EF4444" />
+                      ) : (
+                        <Feather name="x" size={14} color="#EF4444" />
+                      )}
+                    </Pressable>
+                  )}
+                </View>
               ) : (
                 <View style={[styles.editIcon, { backgroundColor: withOpacity(colors.primary, 0.1) }]}>
                   <Feather name="edit-2" size={16} color={colors.primary} />
@@ -683,6 +762,18 @@ const styles = StyleSheet.create({
   markText: {
     fontSize: 15,
     fontWeight: '700',
+  },
+  markWithDelete: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  deleteButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   editIcon: {
     width: 32,
