@@ -41,6 +41,14 @@ export default function UpdateModal({ onUpdateChecked }: UpdateModalProps) {
 
   const currentVersion = Config.appVersion;
 
+  // Don't show update modal on web - always up to date
+  if (Platform.OS === 'web') {
+    useEffect(() => {
+      onUpdateChecked?.(false);
+    }, []);
+    return null;
+  }
+
   useEffect(() => {
     checkForUpdates();
   }, []);

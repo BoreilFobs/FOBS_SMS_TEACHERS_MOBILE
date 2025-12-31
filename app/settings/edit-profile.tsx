@@ -39,6 +39,7 @@ export default function EditProfileScreen() {
   const { user, teacher, updateTeacher } = useUserStore();
 
   const [formData, setFormData] = useState({
+    email: user?.email || "",
     qualifications: teacher?.qualifications || "",
     specialization: teacher?.specialization || "",
     experience: teacher?.experience || "",
@@ -48,6 +49,14 @@ export default function EditProfileScreen() {
   });
   const [profilePhoto, setProfilePhoto] = useState(teacher?.profile_photo || null);
   const [isLoading, setIsLoading] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [emailChanged, setEmailChanged] = useState(false);
+
+  const handleEmailChange = (text: string) => {
+    setFormData({ ...formData, email: text });
+    setEmailChanged(text !== user?.email);
+    setEmailError('');
+  };
 
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -71,12 +80,23 @@ export default function EditProfileScreen() {
     };
 
   const handleUpdateProfile = async () => {
+    // Validate email
+    if (!formData.email.trim()) {
+      setEmailError('Email is required');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      setEmailError('Please enter a valid email');
+      return;
+    }
+
     setIsLoading(true);
     try {
       const formDataToSend = new FormData();
       if (user?.id) {
         formDataToSend.append('user_id', user.id.toString());
       }
+      formDataToSend.append('email', formData.email);
       formDataToSend.append('qualifications', formData.qualifications);
       formDataToSend.append('specialization', formData.specialization);
       formDataToSend.append('experience', formData.experience);
@@ -104,10 +124,19 @@ export default function EditProfileScreen() {
 
       if (data.success) {
         updateTeacher(data.teacher);
+        // Update user email if changed
+        if (data.user) {
+          useUserStore.getState().updateUser(data.user);
+        }
         showAlert("Success", "Profile updated successfully!");
         router.back();
       } else {
-        showAlert("Error", data.message || "Failed to update profile");
+        // Check for email error
+        if (data.message && data.message.toLowerCase().includes('email')) {
+          setEmailError('This email is already registered to another account.');
+        } else {
+          showAlert("Error", data.message || "Failed to update profile");
+        }
       }
     } catch (error) {
       showAlert("Error", "An error occurred while updating your profile");
@@ -184,9 +213,6 @@ export default function EditProfileScreen() {
           <Text style={[styles.name, { color: colors.text }]}>
             {user?.name}
           </Text>
-          <Text style={[styles.email, { color: colors.textSecondary }]}>
-            {user?.email}
-          </Text>
         </BlurView>
 
         <BlurView
@@ -204,6 +230,45 @@ export default function EditProfileScreen() {
             }
           ]}
         >
+          {/* Email Input */}
+          <View style={styles.inputContainer}>
+            <View style={styles.labelContainer}>
+              <Ionicons name="mail-outline" size={18} color={colors.primary} />
+              <Text style={[styles.label, { color: colors.text }]}>Email</Text>
+            </View>
+            <View style={[
+              styles.inputWrapper,
+              {
+                backgroundColor: colorScheme === 'dark'
+                  ? withOpacity(colors.card, 0.8)
+                  : withOpacity('#ffffff', 0.9),
+                borderWidth: emailError ? 2 : 1,
+                borderColor: emailError 
+                  ? colors.error 
+                  : colorScheme === 'dark'
+                    ? withOpacity(colors.border, 0.5)
+                    : withOpacity(colors.border, 0.3),
+              }
+            ]}>
+              <TextInput
+                style={[styles.input, { color: colors.text }]}
+                value={formData.email}
+                onChangeText={handleEmailChange}
+                placeholder="Enter your email"
+                placeholderTextColor={colors.textSecondary}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+            {emailError ? (
+              <Text style={[styles.errorText, { color: colors.error }]}>{emailError}</Text>
+            ) : emailChanged ? (
+              <Text style={[styles.warningText, { color: colors.primary }]}>
+                Changing your email will update your login credentials.
+              </Text>
+            ) : null}
+          </View>
+
           {/* Modern Input Fields */}
           <View style={styles.inputContainer}>
             <View style={styles.labelContainer}>
@@ -521,5 +586,16 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  errorText: {
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 4,
+  },
+  warningText: {
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 4,
+    fontStyle: 'italic',
   },
 });
