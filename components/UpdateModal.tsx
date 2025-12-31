@@ -73,12 +73,17 @@ export default function UpdateModal({ onUpdateChecked }: UpdateModalProps) {
       });
 
       const data: UpdateResponse = await response.json();
-      setUpdateInfo(data);
+      
+      // Check if versions are the same - if so, don't show update
+      const isSameVersion = data.version === currentVersion;
+      const shouldShowUpdate = data.update_available && !isSameVersion;
+      
+      setUpdateInfo(shouldShowUpdate ? data : { ...data, update_available: false });
       setLoading(false);
 
       // Notify parent component
       if (onUpdateChecked) {
-        onUpdateChecked(data.update_available);
+        onUpdateChecked(shouldShowUpdate);
       }
     } catch (error) {
       console.error('Error checking for updates:', error);
