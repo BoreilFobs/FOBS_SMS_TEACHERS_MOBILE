@@ -15,6 +15,7 @@ import Colors from "@/constants/Colors";
 import AuthWrapper from "@/components/AuthWrapper";
 import UpdateModal from "@/components/UpdateModal";
 import WebAppUpdateModal from "@/components/WebAppUpdateModal";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 if (Platform.OS === 'web') {
   
 }
@@ -67,6 +68,7 @@ function RootLayoutNav() {
   };
 
   return (
+    <LanguageProvider>
     <ThemeProvider value={modifiedTheme}>
       <View style={styles.root}>
         {/* Update Modal - will block navigation if update is required */}
@@ -178,8 +180,7 @@ function RootLayoutNav() {
               title: Platform.OS === "ios" ? "" : "Help",
               headerBackTitle: "",
               headerTintColor: modifiedTheme.colors.primary,
-              headerShown: Platform.OS === "ios" ? false : true,
-
+              headerShown: false,
             }}
           />
 
@@ -202,6 +203,17 @@ function RootLayoutNav() {
               headerTintColor: modifiedTheme.colors.primary,
               headerShown: false,
 
+            }}
+          />
+
+          <Stack.Screen
+            name="reports/index"
+            options={{
+              title: "Reports",
+              headerBackTitle: "Back",
+              headerTintColor: modifiedTheme.colors.primary,
+              headerShown: false,
+              presentation: 'card'
             }}
           />
 
@@ -279,6 +291,7 @@ function RootLayoutNav() {
         </Stack>
       </View>
     </ThemeProvider>
+    </LanguageProvider>
   );
 }
 const styles = StyleSheet.create({

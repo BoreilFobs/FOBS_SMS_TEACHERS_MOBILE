@@ -1,21 +1,18 @@
 import React from "react";
 import { Tabs } from "expo-router";
-import { Feather } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import Colors from "@/constants/Colors";
-// import { useColorScheme } from "@/components/useColorScheme";
 import AuthWrapper from "@/components/AuthWrapper";
-import { Link, useNavigationContainerRef, useLocalSearchParams } from "expo-router";
 import SetupWrapper from "@/components/SetupWrapper";
 import { BlurView } from "expo-blur";
 import { Platform, StyleSheet, View, useColorScheme } from "react-native";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const currentColors = Colors[colorScheme ?? "light"];
-  const params = useLocalSearchParams();
-  const schoolId = params.schoolId as string;
-  console.log(`schoolId in TabLayout: ${schoolId}`);
+  const { language } = useLanguage();
   
   return (
     <AuthWrapper>
@@ -25,7 +22,6 @@ export default function TabLayout() {
           tabBarActiveTintColor: currentColors.tint,
           tabBarInactiveTintColor: currentColors.tabIconDefault,
           tabBarStyle: { 
-            // paddingBottom: '30px',
             marginBottom: Platform.OS === 'web' ? 50 : 0,
             backgroundColor: 'transparent',
             borderTopWidth: 0,
@@ -34,56 +30,97 @@ export default function TabLayout() {
             left: 0,
             right: 0,
             elevation: 0,
-            height: 80,
+            height: 85,
+            paddingTop: 8,
           },
           tabBarBackground: () => (
             <BlurView 
-              intensity={80}
-              tint={colorScheme}
+              intensity={Platform.OS === 'ios' ? 100 : 120}
+              tint={colorScheme === 'dark' ? 'dark' : 'light'}
               style={StyleSheet.absoluteFill}
             />
           ), 
           tabBarLabelStyle: {
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: "600",
-            marginBottom: 4,
+            marginBottom: Platform.OS === 'ios' ? 0 : 8,
           },
           headerShown: false,
         }}
       >
+          {/* Home Tab - Dashboard */}
+          <Tabs.Screen
+            name="home"
+            options={{
+              title: language === 'fr' ? 'Accueil' : 'Home',
+              tabBarIcon: ({ color, focused }) => (
+                <View style={styles.iconContainer}>
+                  <Ionicons 
+                    name={focused ? "home" : "home-outline"} 
+                    size={24} 
+                    color={color} 
+                  />
+                  {focused && <View style={[styles.activeIndicator, { backgroundColor: color }]} />}
+                </View>
+              ),
+            }}
+          />
+
+          {/* Marks Tab */}
+          <Tabs.Screen
+            name="subjects"
+            options={{
+              title: language === 'fr' ? 'Notes' : 'Marks',
+              tabBarIcon: ({ color, focused }) => (
+                <View style={styles.iconContainer}>
+                  <Feather 
+                    name="edit-3" 
+                    size={22} 
+                    color={color} 
+                  />
+                  {focused && <View style={[styles.activeIndicator, { backgroundColor: color }]} />}
+                </View>
+              ),
+            }}
+          />
+
+          {/* Attendance Tab */}
           <Tabs.Screen
             name="attendance"
             options={{
-              title: "Attendance",
-              tabBarIcon: ({ color }) => (
-                <Feather name="check-square" size={24} color={color} />
+              title: language === 'fr' ? 'Présences' : 'Attendance',
+              tabBarIcon: ({ color, focused }) => (
+                <View style={styles.iconContainer}>
+                  <Ionicons 
+                    name={focused ? "checkmark-circle" : "checkmark-circle-outline"} 
+                    size={24} 
+                    color={color} 
+                  />
+                  {focused && <View style={[styles.activeIndicator, { backgroundColor: color }]} />}
+                </View>
               ),
             }}
-            initialParams={{ schoolId: schoolId ?? 'default_id' }} // 👈 This is key
           />
 
-         <Tabs.Screen
-          name="subjects"
-          options={{
-            title: "Marks",
-            tabBarIcon: ({ color }) => (
-              <Feather name="edit" size={24} color={color} />
-            ),
-          }}
-        />
-         
-          {/* <Tabs.Screen
-            name="settings"
+          {/* Profile Tab */}
+          <Tabs.Screen
+            name="profile"
             options={{
-              title: "settings",
-              tabBarIcon: ({ color }) => (
-                <Feather name="settings" size={24} color={color} />
+              title: language === 'fr' ? 'Profil' : 'Profile',
+              tabBarIcon: ({ color, focused }) => (
+                <View style={styles.iconContainer}>
+                  <Ionicons 
+                    name={focused ? "person" : "person-outline"} 
+                    size={24} 
+                    color={color} 
+                  />
+                  {focused && <View style={[styles.activeIndicator, { backgroundColor: color }]} />}
+                </View>
               ),
             }}
-         /> */}
+          />
       </Tabs>
       </SetupWrapper>
-
     </AuthWrapper>
   );
 }
@@ -92,13 +129,12 @@ const styles = StyleSheet.create({
   iconContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 8,
+    paddingTop: 4,
   },
   activeIndicator: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
     marginTop: 4,
   },
-  
 });

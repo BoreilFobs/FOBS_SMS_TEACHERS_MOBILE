@@ -1,30 +1,31 @@
-import React, { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
+  ScrollView,
   TouchableOpacity,
   Modal,
-  Pressable,
   Dimensions,
-  ImageBackground,
   StatusBar,
-  ActivityIndicator,
   RefreshControl,
   Platform,
   useColorScheme,
-  Animated,
-  Easing,
+  ActivityIndicator,
 } from "react-native";
-import { Feather, MaterialIcons, Ionicons } from "@expo/vector-icons";
+import { Feather, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import Colors from "@/constants/Colors";
-import { Link, useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import Config from '@/constants/Config';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import useSchoolStore from '@/utils/stores/schoolStore';
+import { useLanguage } from '@/contexts/LanguageContext';
+import SkeletonLoader from '@/components/SkeletonLoader';
+
+const { width } = Dimensions.get("window");
 
 interface ExamSequence {
   school_id: number;
@@ -37,50 +38,51 @@ interface ExamSequence {
   is_published: boolean;
 }
 
-const AnimatedFlatList = Animated.createAnimatedComponent(FlatList<ExamSequence>);
-
-const shimmerColors = ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.3)', 'rgba(255,255,255,0.1)'];
-const withOpacity = (hex: string, opacity: number) => {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-};
-
 export default function ExamSequencesScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
   const params = useLocalSearchParams();
-  const subjectId = params.subject_id as string;
-  const schoolId = params.school_id as string;
+  const { activeSchool } = useSchoolStore();
+  const { language } = useLanguage();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+
+  const schoolId = activeSchool?.id?.toString() || '';
+  const classId = params.class_id as string;
+  const subjectId = params.subject_id as string;
+
   const [sequences, setSequences] = useState<ExamSequence[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedSequence, setSelectedSequence] = useState<ExamSequence | null>(null);
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const insets = useSafeAreaInsets();
+
+  const withOpacity = (hex: string, alpha: number) => {
+    const clean = hex.replace('#', '');
+    const r = parseInt(clean.substring(0, 2), 16);
+    const g = parseInt(clean.substring(2, 4), 16);
+    const b = parseInt(clean.substring(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
 
   const fetchSequences = async () => {
     try {
-      setLoading(true);      
-      if (!schoolId) {
-        throw new Error('No school selected');
+      setLoading(true);
+      if (!activeSchool) {
+        throw new Error(language === 'fr' ? 'Aucune école sélectionnée' : 'No school selected');
       }
 
-      const response = await fetch(
-        `${Config.apiBaseUrl}/exam-sequences?school_id=${schoolId}`
-      );
+      const response = await fetch(`${Config.apiBaseUrl}/exam-sequences?school_id=${schoolId}`);
       const data = await response.json();
       
       if (data.success) {
         setSequences(data.data);
+        setError(null);
       } else {
-        setError(data.message || 'Failed to fetch exam sequences');
+        setError(data.message || (language === 'fr' ? 'Échec du chargement' : 'Failed to fetch'));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Network error occurred');
+      setError(err instanceof Error ? err.message : 'Network error');
       console.error(err);
     } finally {
       setLoading(false);
@@ -97,475 +99,167 @@ export default function ExamSequencesScreen() {
     fetchSequences();
   }, []);
 
-  const handlePublishToggle = async (sequence: ExamSequence) => {
-    try {
-      // Here you would call your API to toggle publish status
-      // This is just UI update for the example
-      const updatedSequences = sequences.map(s => 
-        s.name === sequence.name ? { ...s, is_published: !s.is_published } : s
-      );
-      setSequences(updatedSequences);
-    } catch (err) {
-      console.error('Failed to toggle publish status:', err);
+  const handleSelectExam = (sequence: ExamSequence) => {
+    if (!sequence.mark_entry_allowed) {
+      setSelectedSequence(sequence);
+    } else {
+      router.push(`/marks/students?class_id=${classId}&school_id=${schoolId}&subject_id=${subjectId}&sequence_id=${sequence.id}`);
     }
   };
 
-  // Exam card component with animations
-  const ExamCard = ({ item, index }: { item: ExamSequence; index: number }) => {
-    const mountAnim = useRef(new Animated.Value(0)).current;
-    const pressAnim = useRef(new Animated.Value(1)).current;
-
-    useEffect(() => {
-      Animated.spring(mountAnim, {
-        toValue: 1,
-        friction: 9,
-        tension: 40,
-        delay: index * 50,
-        useNativeDriver: true,
-      }).start();
-    }, [mountAnim, index]);
-
-    const handlePressIn = () => {
-      Animated.spring(pressAnim, {
-        toValue: 0.96,
-        friction: 6,
-        tension: 100,
-        useNativeDriver: true,
-      }).start();
-    };
-
-    const handlePressOut = () => {
-      Animated.spring(pressAnim, {
-        toValue: 1,
-        friction: 6,
-        tension: 100,
-        useNativeDriver: true,
-      }).start();
-    };
-
-    const translateY = mountAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [20, 0],
-    });
-
-    const opacity = mountAnim.interpolate({
-      inputRange: [0, 0.5, 1],
-      outputRange: [0, 0.5, 1],
-    });
-
+  const ExamCard = ({ item }: { item: ExamSequence }) => {
+    const isOpen = item.mark_entry_allowed;
+    const statusColor = isOpen ? '#10B981' : '#EF4444';
+    
     return (
-      <Animated.View
-        style={[
-          styles.cardWrapper,
-          {
-            opacity,
-            transform: [{ translateY }, { scale: pressAnim }],
-          },
-        ]}
+      <TouchableOpacity
+        style={[styles.examCard, { backgroundColor: withOpacity(colors.card, 0.9) }]}
+        onPress={() => handleSelectExam(item)}
+        activeOpacity={0.7}
       >
-        <Pressable onPressIn={handlePressIn} onPressOut={handlePressOut} onPress={() => setSelectedSequence(item)}>
-          <BlurView
-            intensity={Platform.OS === 'ios' ? 12 : 100}
-            tint={colorScheme === 'dark' ? 'dark' : 'light'}
-            style={[
-              styles.sequenceCard,
-              {
-                backgroundColor: colorScheme === 'dark' 
-                  ? withOpacity(colors.card, 0.6) 
-                  : withOpacity(colors.card, 0.85),
-              },
-            ]}
-          >
-            <LinearGradient
-              colors={
-                colorScheme === 'dark'
-                  ? ['rgba(99, 102, 241, 0.15)', 'rgba(99, 102, 241, 0.05)']
-                  : ['rgba(99, 102, 241, 0.12)', 'rgba(99, 102, 241, 0.08)']
-              }
-              style={styles.sequenceIcon}
-            >
-              <Feather name="calendar" size={20} color="#6366F1" />
-            </LinearGradient>
-            
-            <View style={styles.sequenceInfo}>
-              <Text style={[styles.sequenceName, { color: colors.text }]}>
-                {item.name}
-              </Text>
-              <Text style={[styles.sequenceMeta, { color: colors.textSecondary }]}>
-                Term {item.term} • {item.academic_year}
-              </Text>
-              <Text style={[styles.sequenceDate, { color: colors.textSecondary }]}>
-                Starts: {new Date(item.start_date).toLocaleDateString()}
-              </Text>
-            </View>
-            
-            <View style={styles.statusContainer}>
-              <BlurView
-                intensity={Platform.OS === 'ios' ? 8 : 4}
-                tint={colorScheme === 'dark' ? 'dark' : 'light'}
-                style={[
-                  styles.statusBadge,
-                  { 
-                    backgroundColor: item.is_published 
-                      ? withOpacity('#10B981', 0.2) 
-                      : withOpacity('#EF4444', 0.2),
-                  }
-                ]}
-              >
-                <Text style={{ 
-                  color: item.is_published ? '#10B981' : '#EF4444',
-                  fontWeight: '600',
-                  fontSize: 12
-                }}>
-                  {item.is_published ? 'Published' : 'Draft'}
-                </Text>
-              </BlurView>
-              
-              <BlurView
-                intensity={Platform.OS === 'ios' ? 8 : 4}
-                tint={colorScheme === 'dark' ? 'dark' : 'light'}
-                style={[
-                  styles.markEntryBadge,
-                  { 
-                    backgroundColor: item.mark_entry_allowed 
-                      ? withOpacity('#10B981', 0.2) 
-                      : withOpacity('#EF4444', 0.2),
-                  }
-                ]}
-              >
-                <Feather 
-                  name={item.mark_entry_allowed ? 'unlock' : 'lock'} 
-                  size={14} 
-                  color={item.mark_entry_allowed ? '#10B981' : '#EF4444'} 
-                />
-                <Text style={{ 
-                  color: item.mark_entry_allowed ? '#10B981' : '#EF4444',
-                  marginLeft: 4,
-                  fontSize: 12,
-                  fontWeight: '600',
-                }}>
-                  {item.mark_entry_allowed ? 'Open' : 'Closed'}
-                </Text>
-              </BlurView>
-            </View>
-
-            <View style={styles.chevronPill}>
-              <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-            </View>
-          </BlurView>
-        </Pressable>
-      </Animated.View>
-    );
-  };
-
-  // Skeleton card component
-  const SkeletonCard = ({ index }: { index: number }) => {
-    const shimmerAnim = useRef(new Animated.Value(0)).current;
-
-    useEffect(() => {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(shimmerAnim, {
-            toValue: 1,
-            duration: 1400,
-            easing: Easing.bezier(0.4, 0.0, 0.6, 1),
-            useNativeDriver: true,
-          }),
-          Animated.timing(shimmerAnim, {
-            toValue: 0,
-            duration: 1400,
-            easing: Easing.bezier(0.4, 0.0, 0.6, 1),
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
-    }, [shimmerAnim]);
-
-    const opacity = shimmerAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0.3, 0.7],
-    });
-
-    return (
-      <Animated.View style={[styles.cardWrapper, { opacity }]}>
-        <BlurView
-          intensity={Platform.OS === 'ios' ? 12 : 8}
-          tint={colorScheme === 'dark' ? 'dark' : 'light'}
-          style={[
-            styles.sequenceCard,
-            {
-              backgroundColor: colorScheme === 'dark' 
-                ? withOpacity(colors.card, 0.4) 
-                : withOpacity(colors.card, 0.6),
-            },
-          ]}
+        <LinearGradient
+          colors={[withOpacity('#6366F1', 0.2), withOpacity('#6366F1', 0.05)]}
+          style={styles.iconContainer}
         >
-          <View style={[styles.sequenceIcon, { backgroundColor: withOpacity(colors.text, 0.1) }]} />
-          <View style={styles.sequenceInfo}>
-            <View style={[styles.skeletonText, styles.skeletonTitle, { backgroundColor: withOpacity(colors.text, 0.1) }]} />
-            <View style={[styles.skeletonText, styles.skeletonSubtitle, { backgroundColor: withOpacity(colors.text, 0.08) }]} />
-            <View style={[styles.skeletonText, styles.skeletonDate, { backgroundColor: withOpacity(colors.text, 0.08) }]} />
+          <Feather name="calendar" size={22} color="#6366F1" />
+        </LinearGradient>
+        
+        <View style={styles.examInfo}>
+          <Text style={[styles.examName, { color: colors.text }]} numberOfLines={1}>
+            {item.name}
+          </Text>
+          <Text style={[styles.examMeta, { color: colors.textSecondary }]}>
+            {language === 'fr' ? 'Trimestre' : 'Term'} {item.term} • {item.academic_year}
+          </Text>
+          <Text style={[styles.examDate, { color: colors.textSecondary }]}>
+            {language === 'fr' ? 'Début:' : 'Starts:'} {new Date(item.start_date).toLocaleDateString()}
+          </Text>
+        </View>
+        
+        <View style={styles.statusSection}>
+          <View style={[styles.statusBadge, { backgroundColor: withOpacity(statusColor, 0.15) }]}>
+            <Feather name={isOpen ? 'unlock' : 'lock'} size={14} color={statusColor} />
+            <Text style={[styles.statusText, { color: statusColor }]}>
+              {isOpen ? (language === 'fr' ? 'Ouvert' : 'Open') : (language === 'fr' ? 'Fermé' : 'Closed')}
+            </Text>
           </View>
-        </BlurView>
-      </Animated.View>
+          
+          <View style={[styles.chevronContainer, { backgroundColor: withOpacity(colors.primary, 0.1) }]}>
+            <Feather name="chevron-right" size={18} color={colors.primary} />
+          </View>
+        </View>
+      </TouchableOpacity>
     );
   };
 
-  const renderExamCard = ({ item, index }: { item: ExamSequence; index: number }) => (
-    <ExamCard item={item} index={index} />
+  const renderHeader = () => (
+    <View style={styles.headerContent}>
+      <Text style={[styles.title, { color: colors.text }]}>
+        {language === 'fr' ? 'Séquences d\'examen' : 'Exam Sequences'}
+      </Text>
+      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+        {language === 'fr' ? 'Sélectionnez une séquence pour saisir les notes' : 'Select a sequence to enter marks'}
+      </Text>
+    </View>
   );
 
   if (loading && !refreshing) {
     return (
-      <ImageBackground
-        source={require("@/assets/images/auth-bg2.jpg")}
-        style={styles.container}
-        blurRadius={10}
-      >
-        <BlurView intensity={Platform.OS === 'ios' ? 330 : 100} style={StyleSheet.absoluteFill} tint={colorScheme === 'dark' ? 'dark' : 'light'} />
-        <StatusBar
-          barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}
-          translucent
-          backgroundColor="transparent"
-        />
-        <View style={[styles.header, { paddingTop: 0 }]}>
-          {/* <Text style={[styles.title, { color: colors.text }]}>Exam Sequences</Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Loading sequences...</Text> */}
-        </View>
-        <View style={styles.loadingGrid}>
-          {[0, 1, 2, 3, 4, 5].map((i) => (
-            <SkeletonCard key={i} index={i} />
-          ))}
-        </View>
-      </ImageBackground>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <BlurView intensity={Platform.OS === 'ios' ? 80 : 100} style={StyleSheet.absoluteFill} tint={colorScheme === 'dark' ? 'dark' : 'light'} />
+        <StatusBar barStyle={colorScheme === "dark" ? "light-content" : "dark-content"} translucent backgroundColor="transparent" />
+        <ScrollView contentContainerStyle={{ paddingTop: 16, paddingHorizontal: 20 }}>
+          <View style={styles.listContent}>
+            <SkeletonLoader type="header" />
+            <SkeletonLoader type="card" count={5} height={100} />
+          </View>
+        </ScrollView>
+      </View>
     );
   }
 
   if (error) {
     return (
-      <ImageBackground
-        source={require("@/assets/images/auth-bg2.jpg")}
-        style={styles.container}
-        blurRadius={10}
-      >
-        <BlurView intensity={Platform.OS === 'ios' ? 330 : 100} style={StyleSheet.absoluteFill} tint={colorScheme === 'dark' ? 'dark' : 'light'} />
-        <StatusBar
-          barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}
-          translucent
-          backgroundColor="transparent"
-        />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <BlurView intensity={Platform.OS === 'ios' ? 80 : 100} style={StyleSheet.absoluteFill} tint={colorScheme === 'dark' ? 'dark' : 'light'} />
+        <StatusBar barStyle={colorScheme === "dark" ? "light-content" : "dark-content"} translucent backgroundColor="transparent" />
         <View style={styles.errorContainer}>
-          <BlurView
-            intensity={Platform.OS === 'ios' ? 20 : 10}
-            tint={colorScheme === 'dark' ? 'dark' : 'light'}
-            style={[
-              styles.errorCard,
-              {
-                backgroundColor: colorScheme === 'dark' 
-                  ? withOpacity(colors.card, 0.7) 
-                  : withOpacity(colors.card, 0.9),
-              },
-            ]}
-          >
+          <View style={[styles.errorCard, { backgroundColor: withOpacity(colors.card, 0.9) }]}>
             <MaterialIcons name="error-outline" size={48} color={colors.error} />
             <Text style={[styles.errorText, { color: colors.text }]}>{error}</Text>
-            <Pressable 
+            <TouchableOpacity
               style={[styles.retryButton, { backgroundColor: colors.primary }]}
               onPress={fetchSequences}
             >
-              <Text style={styles.retryText}>Try Again</Text>
-            </Pressable>
-          </BlurView>
+              <Text style={styles.retryText}>
+                {language === 'fr' ? 'Réessayer' : 'Try Again'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </ImageBackground>
+      </View>
     );
   }
 
   return (
-    <ImageBackground
-      source={require("@/assets/images/auth-bg2.jpg")}
-      style={styles.container}
-      blurRadius={10}
-    >
-      <BlurView intensity={Platform.OS === 'ios' ? 330 : 100} style={StyleSheet.absoluteFill} tint={colorScheme === 'dark' ? 'dark' : 'light'} />
-      
-      <StatusBar
-        barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}
-        translucent
-        backgroundColor="transparent"
-      />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <BlurView intensity={Platform.OS === 'ios' ? 80 : 100} style={StyleSheet.absoluteFill} tint={colorScheme === 'dark' ? 'dark' : 'light'} />
+      <StatusBar barStyle={colorScheme === "dark" ? "light-content" : "dark-content"} translucent backgroundColor="transparent" />
 
-      <LinearGradient
-        colors={
-          colorScheme === 'dark'
-            ? ['rgba(0,0,0,0.6)', 'transparent']
-            : ['rgba(255,255,255,0.8)', 'transparent']
-        }
-        style={styles.headerGradient}
-      />
-
-      <View style={[styles.header, { paddingTop: 10 }]}>
-        {/* <Text style={[styles.title, { color: colors.text }]}>
-          Exam Sequences
-        </Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-        </Text> */}
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{sequences.length} {sequences.length === 1 ? 'sequence' : 'sequences'} • Tap to manage</Text>
-      </View>
-
-      <AnimatedFlatList
+      <FlatList
         data={sequences}
-        keyExtractor={(item) => `${item.name}-${item.term}-${item.academic_year}`}
-        contentContainerStyle={styles.listContent}
-        renderItem={renderExamCard}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
-        )}
-        scrollEventThrottle={16}
+        renderItem={({ item }) => <ExamCard item={item} />}
+        keyExtractor={(item) => item.id.toString()}
+        contentContainerStyle={[styles.listContent, { paddingTop: 16, paddingBottom: insets.bottom + 20 }]}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={renderHeader}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
         ListEmptyComponent={
-          <BlurView
-            intensity={Platform.OS === 'ios' ? 20 : 10}
-            tint={colorScheme === 'dark' ? 'dark' : 'light'}
-            style={[
-              styles.emptyState,
-              {
-                backgroundColor: colorScheme === 'dark' 
-                  ? withOpacity(colors.card, 0.6) 
-                  : withOpacity(colors.card, 0.85),
-              },
-            ]}
-          >
-            <Feather name="calendar" size={48} color={colors.textSecondary} />
-            <Text style={[styles.emptyText, { color: colors.text }]}>
-              No exam sequences found
+          <View style={styles.emptyState}>
+            <Ionicons name="calendar-outline" size={48} color={colors.textSecondary} />
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+              {language === 'fr' ? 'Aucune séquence disponible' : 'No sequences available'}
             </Text>
-            <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
-              Sequences will appear here once created
-            </Text>
-          </BlurView>
+          </View>
         }
       />
 
-      {/* Sequence Detail Modal */}
+      {/* Locked Exam Modal */}
       <Modal
-        visible={!!selectedSequence}
+        visible={selectedSequence !== null}
         transparent
         animationType="fade"
         onRequestClose={() => setSelectedSequence(null)}
       >
-        <BlurView
-          intensity={Platform.OS === 'ios' ? 60 : 30}
-          tint={colorScheme === 'dark' ? 'dark' : 'light'}
-          style={StyleSheet.absoluteFill}
-        >
-          <Pressable 
-            style={styles.modalBackdrop}
-            onPress={() => setSelectedSequence(null)}
-          >
-            <View style={styles.modalOverlay}>
-              <Pressable onPress={(e) => e.stopPropagation()}>
-                <BlurView
-                  intensity={Platform.OS === 'ios' ? 20 : 100}
-                  tint={colorScheme === 'dark' ? 'dark' : 'light'}
-                  style={[
-                    styles.modalContent, 
-                    { 
-                      backgroundColor: colorScheme === 'dark' 
-                        ? withOpacity(colors.card, 0.85) 
-                        : withOpacity(colors.card, 0.9),
-                    }
-                  ]}
-                >
-                  {selectedSequence && (
-                    <>
-                      <Text style={[styles.modalTitle, { color: colors.text }]}>
-                        {selectedSequence.name}
-                      </Text>
-                      
-                      <View style={styles.modalRow}>
-                        <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>Term:</Text>
-                        <Text style={[styles.modalValue, { color: colors.text }]}>
-                          {selectedSequence.term}
-                        </Text>
-                      </View>
-                      
-                      <View style={styles.modalRow}>
-                        <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>Academic Year:</Text>
-                        <Text style={[styles.modalValue, { color: colors.text }]}>
-                          {selectedSequence.academic_year}
-                        </Text>
-                      </View>
-                      
-                      <View style={styles.modalRow}>
-                        <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>Start Date:</Text>
-                        <Text style={[styles.modalValue, { color: colors.text }]}>
-                          {new Date(selectedSequence.start_date).toLocaleDateString()}
-                        </Text>
-                      </View>
-                      
-                      <View style={styles.modalRow}>
-                        <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>Status:</Text>
-                        <Text style={[styles.modalValue, { 
-                          color: selectedSequence.is_published ? '#10B981' : '#EF4444'
-                        }]}>
-                          {selectedSequence.is_published ? 'Published' : 'Draft'}
-                        </Text>
-                      </View>
-                      
-                      <View style={styles.modalRow}>
-                        <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>Mark Entry:</Text>
-                        <Text style={[styles.modalValue, { 
-                          color: selectedSequence.mark_entry_allowed ? '#10B981' : '#EF4444'
-                        }]}>
-                          {selectedSequence.mark_entry_allowed ? 'Open' : 'Closed'}
-                        </Text>
-                      </View>
-
-                      <View style={styles.modalButtons}>  
-                        {selectedSequence.mark_entry_allowed ? (
-                          <View style={styles.modalButtons}>
-                            <Pressable
-                              style={[styles.cancelButton, { borderColor: colors.border }]}
-                              onPress={() => {
-                                setSelectedSequence(null);
-                                router.push(`/marks/students?sequence_id=${selectedSequence.id}&school_id=${schoolId}&class_id=${params.class_id}&subject_id=${subjectId}`)
-                              }}
-                            >
-                              <Text style={[styles.buttonText, { color: colors.text, backgroundColor: colors.textSecondary, padding: 12, borderRadius: 8 }]}>
-                                fill marks
-                              </Text>
-                            </Pressable>
-                          </View>
-                        ) : null}
-                        
-                        <View style={styles.modalButtons}>
-                          <Pressable
-                            style={[styles.cancelButton, { borderColor: colors.border }]}
-                            onPress={() => setSelectedSequence(null)}
-                          >
-                            <Text style={[styles.buttonText, { color: colors.text, backgroundColor: "red", padding: 12, borderRadius: 8}]}>
-                              Close
-                            </Text>
-                          </Pressable>
-                        </View>
-                      </View>
-                    </>
-                  )}
-                </BlurView>
-              </Pressable>
+        <View style={styles.modalOverlay}>
+          <BlurView intensity={Platform.OS === 'ios' ? 40 : 80} style={StyleSheet.absoluteFill} tint="dark" />
+          <View style={[styles.modalContent, { backgroundColor: withOpacity(colors.card, 0.95) }]}>
+            <View style={[styles.modalIconContainer, { backgroundColor: withOpacity('#EF4444', 0.15) }]}>
+              <Feather name="lock" size={32} color="#EF4444" />
             </View>
-          </Pressable>
-        </BlurView>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              {language === 'fr' ? 'Saisie fermée' : 'Entry Closed'}
+            </Text>
+            <Text style={[styles.modalMessage, { color: colors.textSecondary }]}>
+              {language === 'fr' 
+                ? `La saisie des notes pour "${selectedSequence?.name}" est actuellement fermée. Contactez l'administrateur pour l'ouvrir.`
+                : `Mark entry for "${selectedSequence?.name}" is currently closed. Contact administrator to open it.`
+              }
+            </Text>
+            <TouchableOpacity
+              style={[styles.modalButton, { backgroundColor: colors.primary }]}
+              onPress={() => setSelectedSequence(null)}
+            >
+              <Text style={styles.modalButtonText}>
+                {language === 'fr' ? 'Compris' : 'Got it'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
-    </ImageBackground>
+    </View>
   );
 }
 
@@ -573,185 +267,118 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  cardWrapper: {
-    marginBottom: 12,
-  },
-  header: {
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    marginBottom: 10,
-    zIndex: 10,
-  },
-  headerGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 180,
-    zIndex: 1,
-    pointerEvents: 'none',
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '800',
-    marginBottom: 4,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 16,
-    opacity: 0.8,
-    fontWeight: '500',
-  },
-  listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 100,
-  },
-  sequenceCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 18,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 3,
-    overflow: 'hidden',
-  },
-  sequenceIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
-  sequenceInfo: {
+  loadingContainer: {
     flex: 1,
-  },
-  sequenceName: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 5,
-    letterSpacing: -0.2,
-  },
-  sequenceMeta: {
-    fontSize: 13,
-    marginBottom: 3,
-    fontWeight: '500',
-    opacity: 0.8,
-  },
-  sequenceDate: {
-    fontSize: 12,
-    opacity: 0.7,
-    fontWeight: '500',
-  },
-  statusContainer: {
-    alignItems: 'flex-end',
-    gap: 8,
-  },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  markEntryBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  chevronPill: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 8,
-  },
-  loadingGrid: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-  },
-  emptyState: {
-    marginTop: 60,
-    marginHorizontal: 24,
-    padding: 48,
-    borderRadius: 20,
     alignItems: 'center',
-    overflow: 'hidden',
+    gap: 12,
   },
-  emptyText: {
-    marginTop: 16,
-    fontSize: 17,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  emptySubtext: {
-    marginTop: 6,
-    fontSize: 14,
-    textAlign: 'center',
-    opacity: 0.7,
+  loadingText: {
+    fontSize: 16,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: 20,
   },
   errorCard: {
     padding: 32,
     borderRadius: 20,
     alignItems: 'center',
-    width: '100%',
-    maxWidth: 360,
-    overflow: 'hidden',
+    gap: 16,
   },
   errorText: {
-    marginTop: 16,
     fontSize: 16,
     textAlign: 'center',
-    marginBottom: 24,
-    fontWeight: '500',
   },
   retryButton: {
-    paddingHorizontal: 28,
-    paddingVertical: 14,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
     borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
   },
   retryText: {
     color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  listContent: {
+    paddingHorizontal: 20,
+  },
+  headerContent: {
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 28,
     fontWeight: '700',
+    marginBottom: 4,
+  },
+  subtitle: {
     fontSize: 15,
   },
-  skeletonText: {
-    height: 14,
-    borderRadius: 7,
-    marginBottom: 8,
+  examCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 12,
   },
-  skeletonTitle: {
-    width: '70%',
-    height: 16,
+  iconContainer: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
   },
-  skeletonSubtitle: {
-    width: '50%',
-    height: 13,
-  },
-  skeletonDate: {
-    width: '40%',
-    height: 12,
-  },
-  modalBackdrop: {
+  examInfo: {
     flex: 1,
+  },
+  examName: {
+    fontSize: 17,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  examMeta: {
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  examDate: {
+    fontSize: 13,
+  },
+  statusSection: {
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  chevronContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    gap: 8,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 8,
   },
   modalOverlay: {
     flex: 1,
@@ -761,45 +388,41 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: '100%',
-    borderRadius: 20,
-    padding: 24,
-    gap: 16,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 10,
+    maxWidth: 340,
+    padding: 28,
+    borderRadius: 24,
+    alignItems: 'center',
+  },
+  modalIconContainer: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginBottom: 8,
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: 12,
+    textAlign: 'center',
   },
-  modalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
+  modalMessage: {
+    fontSize: 15,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
   },
-  modalLabel: {
-    fontSize: 14,
-  },
-  modalValue: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 16,
-  },
-  cancelButton: {
+  modalButton: {
+    paddingHorizontal: 32,
+    paddingVertical: 14,
     borderRadius: 12,
-    padding: 14,
+    width: '100%',
     alignItems: 'center',
-    minWidth: 100,
   },
-  buttonText: {
+  modalButtonText: {
+    color: '#fff',
     fontWeight: '600',
+    fontSize: 16,
   },
 });

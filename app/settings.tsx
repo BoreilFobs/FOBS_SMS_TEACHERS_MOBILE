@@ -1,218 +1,279 @@
-import React, { useRef } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  Pressable,
+  TouchableOpacity,
   ScrollView,
-  ImageBackground,
-  StatusBar,
-  Platform,
+  Alert,
+  ActivityIndicator,
   useColorScheme,
-  Animated,
 } from "react-native";
-import { Feather, FontAwesome } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import Colors from "@/constants/Colors";
-import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { handleLogout } from '@/utils/auth';
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useLanguage } from "@/contexts/LanguageContext";
+import useUserStore from '@/utils/stores/userStore';
+import useSchoolStore from '@/utils/stores/schoolStore';
+import Config from '@/constants/Config';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const withOpacity = (hex: string, alpha: number) => {
-  const clean = hex.replace('#', '');
-  const r = parseInt(clean.substring(0, 2), 16);
-  const g = parseInt(clean.substring(2, 4), 16);
-  const b = parseInt(clean.substring(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-};
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
+interface SettingItem {
+  id: string;
+  icon: IconName;
+  title: string;
+  subtitle?: string;
+  action: () => void;
+  rightElement?: React.ReactNode;
+  danger?: boolean;
+}
 
 export default function SettingsScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { language, setLanguage, t } = useLanguage();
+  const { user, teacher } = useUserStore();
+  const { activeSchool } = useSchoolStore();
+  
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  type SettingsItem = {
-    title: string;
-    icon: keyof typeof Feather.glyphMap;
-    action: () => void;
+  const handleLanguageToggle = () => {
+    const newLang = language === 'en' ? 'fr' : 'en';
+    setLanguage(newLang);
   };
 
-  const settingsOptions: Array<{
-    title: string;
-    icon: keyof typeof Feather.glyphMap;
-    items: SettingsItem[];
-  }> = [
+  const confirmLogout = () => {
+    Alert.alert(
+      language === 'fr' ? 'Déconnexion' : 'Logout',
+      language === 'fr' ? 'Êtes-vous sûr de vouloir vous déconnecter ?' : 'Are you sure you want to logout?',
+      [
+        { text: language === 'fr' ? 'Annuler' : 'Cancel', style: 'cancel' },
+        {
+          text: language === 'fr' ? 'Déconnexion' : 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            setIsLoggingOut(true);
+            try {
+              const token = await AsyncStorage.getItem('token');
+              // Call logout API
+              await fetch(`${Config.apiBaseUrl}/logout`, {
+                method: 'POST',
+                headers: {
+                  'Accept': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                }
+              });
+            } catch (err) {
+              console.error('Logout API error:', err);
+            }
+            
+            await handleLogout();
+          }
+        }
+      ]
+    );
+  };
+
+  const handleNotifications = () => {
+    Alert.alert(
+      language === 'fr' ? 'Notifications' : 'Notifications',
+      language === 'fr' ? 'Les notifications arrivent bientôt' : 'Notifications coming soon',
+      [{ text: 'OK' }]
+    );
+  };
+
+  const settingsGroups = [
     {
-      title: "Account",
-      icon: "user",
+      title: language === 'fr' ? 'COMPTE' : 'ACCOUNT',
       items: [
         {
-          title: "Edit Profile",
-          icon: "edit",
-          action: () => router.push('/settings/edit-profile'),
+          id: 'profile',
+          icon: 'person-outline' as IconName,
+          title: language === 'fr' ? 'Modifier le profil' : 'Edit Profile',
+          subtitle: user?.email,
+          action: () => router.push('/settings/edit-profile')
         },
         {
-          title: "Change Password",
-          icon: "lock",
-          action: () => router.push('/settings/change-password'),
-        },
-      ],
+          id: 'security',
+          icon: 'lock-closed-outline' as IconName,
+          title: language === 'fr' ? 'Changer le mot de passe' : 'Change Password',
+          subtitle: language === 'fr' ? 'Mettre à jour le mot de passe' : 'Update your password',
+          action: () => router.push('/settings/change-password')
+        }
+      ]
     },
     {
-      title: "Support",
-      icon: "help-circle",
+      title: language === 'fr' ? 'PRÉFÉRENCES' : 'PREFERENCES',
       items: [
         {
-          title: "Help Center",
-          icon: "help-circle",
-          action: () => router.push('/support/help'),
+          id: 'language',
+          icon: 'language-outline' as IconName,
+          title: language === 'fr' ? 'Langue' : 'Language',
+          subtitle: language === 'en' ? 'English' : 'Français',
+          action: handleLanguageToggle,
+          rightElement: (
+            <View style={[styles.languageToggle, { backgroundColor: colors.primary + '20' }]}>
+              <Text style={[styles.languageText, { color: colors.primary }]}>
+                {language === 'en' ? '🇬🇧 EN' : '🇫🇷 FR'}
+              </Text>
+            </View>
+          )
         },
         {
-          title: "Contact Us",
-          icon: "mail",
-          action: () => router.push('/support/contact'),
-        },
-        {
-          title: "About",
-          icon: "info",
-          action: () => router.push('/support/about'),
-        },
-      ],
+          id: 'notifications',
+          icon: 'notifications-outline' as IconName,
+          title: 'Notifications',
+          subtitle: language === 'fr' ? 'Gérer les notifications' : 'Manage notifications',
+          action: handleNotifications
+        }
+      ]
     },
+    {
+      title: language === 'fr' ? 'SUPPORT' : 'SUPPORT',
+      items: [
+        {
+          id: 'help',
+          icon: 'help-circle-outline' as IconName,
+          title: language === 'fr' ? 'Aide' : 'Help',
+          subtitle: language === 'fr' ? 'FAQ et contact' : 'FAQ & Contact',
+          action: () => router.push('/support/help')
+        },
+        {
+          id: 'about',
+          icon: 'information-circle-outline' as IconName,
+          title: language === 'fr' ? 'À propos' : 'About',
+          subtitle: `Version ${Config.appVersion || '1.0.0'}`,
+          action: () => router.push('/support/about')
+        }
+      ]
+    },
+    {
+      title: '',
+      items: [
+        {
+          id: 'logout',
+          icon: 'log-out-outline' as IconName,
+          title: language === 'fr' ? 'Déconnexion' : 'Logout',
+          action: confirmLogout,
+          danger: true
+        }
+      ]
+    }
   ];
 
-  return (
-    <ImageBackground
-      source={require("@/assets/images/auth-bg2.jpg")}
-      style={styles.container}
-      blurRadius={10}
+  const renderSettingItem = (item: SettingItem) => (
+    <TouchableOpacity
+      key={item.id}
+      style={[styles.settingItem, { backgroundColor: colors.card }]}
+      onPress={item.action}
+      activeOpacity={0.7}
     >
-      <BlurView intensity={Platform.OS === 'ios' ? 330 : 100} style={StyleSheet.absoluteFill} tint={colorScheme === 'dark' ? 'dark' : 'light'} />
-      
-      <StatusBar
-        barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}
-        translucent
-        backgroundColor="transparent"
-      />
-
-      <LinearGradient
-        colors={
-          colorScheme === 'dark'
-            ? ['rgba(0,0,0,0.6)', 'transparent']
-            : ['rgba(255,255,255,0.8)', 'transparent']
-        }
-        style={styles.headerGradient}
-        pointerEvents="none"
-      />
-
-      <View style={[styles.header, { paddingTop: 10 }]}>
-        {/* <Text style={[styles.title, { color: colors.text }]}>Settings</Text> */}
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Manage your account and preferences
-        </Text>
+      <View style={[
+        styles.iconContainer, 
+        { backgroundColor: item.danger ? colors.error + '20' : colors.primary + '15' }
+      ]}>
+        <Ionicons 
+          name={item.icon} 
+          size={20} 
+          color={item.danger ? colors.error : colors.primary} 
+        />
       </View>
+      
+      <View style={styles.itemContent}>
+        <Text style={[
+          styles.itemTitle, 
+          { color: item.danger ? colors.error : colors.text }
+        ]}>
+          {item.title}
+        </Text>
+        {item.subtitle && (
+          <Text style={[styles.itemSubtitle, { color: colors.textSecondary }]}>
+            {item.subtitle}
+          </Text>
+        )}
+      </View>
+      
+      {item.rightElement || (
+        <Ionicons 
+          name="chevron-forward" 
+          size={18} 
+          color={colors.textSecondary} 
+        />
+      )}
+    </TouchableOpacity>
+  );
 
-      <ScrollView
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Header */}
+      <LinearGradient
+        colors={[colors.primary, colors.tint]}
+        start={[0, 0]}
+        end={[1, 1]}
+        style={[styles.header, { paddingTop: insets.top + 10 }]}
+      >
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="arrow-back" size={24} color="white" />
+        </TouchableOpacity>
+        
+        <View style={styles.profileSection}>
+          <View style={styles.avatarContainer}>
+            <Ionicons name="person" size={36} color={colors.primary} />
+          </View>
+          <View style={styles.profileInfo}>
+            <Text style={styles.profileName}>{user?.name || (language === 'fr' ? 'Enseignant' : 'Teacher')}</Text>
+            <Text style={styles.profileEmail}>{user?.email}</Text>
+            {activeSchool && (
+              <Text style={styles.profileSchool}>{activeSchool.name}</Text>
+            )}
+          </View>
+        </View>
+      </LinearGradient>
+
+      <ScrollView 
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {settingsOptions.map((section, sectionIndex) => (
-          <View key={sectionIndex} style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <LinearGradient
-                colors={
-                  colorScheme === 'dark'
-                    ? [withOpacity(colors.primary, 0.2), withOpacity(colors.primary, 0.05)]
-                    : [withOpacity(colors.primary, 0.15), withOpacity(colors.primary, 0.08)]
-                }
-                style={styles.sectionIconContainer}
-              >
-                <Feather name={section.icon} size={18} color={colors.primary} />
-              </LinearGradient>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                {section.title}
+        {settingsGroups.map((group, index) => (
+          <View key={index} style={styles.settingsGroup}>
+            {group.title ? (
+              <Text style={[styles.groupTitle, { color: colors.textSecondary }]}>
+                {group.title}
               </Text>
-            </View>
-
-            <BlurView
-              intensity={Platform.OS === 'ios' ? 12 : 100}
-              tint={colorScheme === 'dark' ? 'dark' : 'light'}
-              style={[
-                styles.sectionContent,
-                {
-                  backgroundColor: colorScheme === 'dark' 
-                    ? withOpacity(colors.card, 0.6)
-                    : withOpacity(colors.card, 0.85),
-                  borderColor: colorScheme === 'dark'
-                    ? withOpacity(colors.border, 0.3)
-                    : withOpacity(colors.border, 0.5),
-                }
-              ]}
-            >
-              {section.items.map((item, itemIndex) => (
-                <Pressable
-                  key={itemIndex}
-                  style={[
-                    styles.option,
-                    itemIndex !== section.items.length - 1 && {
-                      borderBottomWidth: 1,
-                      borderBottomColor: withOpacity(colors.border, 0.3),
-                    },
-                  ]}
-                  onPress={item.action}
-                  android_ripple={{ color: withOpacity(colors.primary, 0.12) }}
-                >
-                  <View style={styles.optionLeft}>
-                    <View style={[styles.optionIconContainer, { backgroundColor: withOpacity(colors.primary, 0.1) }]}>
-                      <Feather
-                        name={item.icon}
-                        size={18}
-                        color={colors.primary}
-                      />
-                    </View>
-                    <Text style={[styles.optionText, { color: colors.text }]}>
-                      {item.title}
-                    </Text>
-                  </View>
-                  <View style={[styles.chevronContainer, { backgroundColor: withOpacity(colors.primary, 0.08) }]}>
-                    <Feather
-                      name="chevron-right"
-                      size={18}
-                      color={colors.primary}
-                    />
-                  </View>
-                </Pressable>
+            ) : null}
+            <View style={[styles.groupContainer, { backgroundColor: colors.card }]}>
+              {group.items.map((item, itemIndex) => (
+                <View key={item.id}>
+                  {renderSettingItem(item)}
+                  {itemIndex < group.items.length - 1 && (
+                    <View style={[styles.separator, { backgroundColor: colors.border }]} />
+                  )}
+                </View>
               ))}
-            </BlurView>
+            </View>
           </View>
         ))}
 
-        <Pressable
-          style={[
-            styles.logoutButton,
-            {
-              backgroundColor: withOpacity(colors.error, 0.15),
-              borderColor: withOpacity(colors.error, 0.3),
-            }
-          ]}
-          onPress={() => handleLogout()}
-          android_ripple={{ color: withOpacity(colors.error, 0.2) }}
-        >
-          <LinearGradient
-            colors={[withOpacity(colors.error, 0.08), withOpacity(colors.error, 0.02)]}
-            style={StyleSheet.absoluteFill}
-          />
-          <View style={[styles.logoutIconContainer, { backgroundColor: withOpacity(colors.error, 0.15) }]}>
-            <FontAwesome name="sign-out" size={18} color={colors.error} />
+        {isLoggingOut && (
+          <View style={styles.loggingOutOverlay}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={[styles.loggingOutText, { color: colors.textSecondary }]}>
+              {language === 'fr' ? 'Déconnexion...' : 'Logging out...'}
+            </Text>
           </View>
-          <Text style={[styles.logoutText, { color: colors.error }]}>
-            Log Out
-          </Text>
-        </Pressable>
+        )}
       </ScrollView>
-    </ImageBackground>
+    </View>
   );
 }
 
@@ -220,108 +281,121 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  headerGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 180,
-    zIndex: 1,
-  },
   header: {
-    paddingHorizontal: 24,
     paddingBottom: 24,
-    zIndex: 2,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25
   },
-  title: {
-    fontSize: 32,
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16
+  },
+  profileSection: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  avatarContainer: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16
+  },
+  profileInfo: {
+    flex: 1
+  },
+  profileName: {
+    fontSize: 22,
     fontWeight: '800',
-    marginBottom: 4,
+    color: 'white',
+    marginBottom: 4
   },
-  subtitle: {
-    fontSize: 16,
-    opacity: 0.8,
+  profileEmail: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.85)'
+  },
+  profileSchool: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: 2
   },
   scrollContent: {
-    paddingHorizontal: 16,
+    padding: 16,
     paddingBottom: 32,
   },
-  section: {
-    marginBottom: 24,
+  settingsGroup: {
+    marginBottom: 20
   },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 12,
-    paddingHorizontal: 8,
+  groupTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+    marginLeft: 4
   },
-  sectionIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-  },
-  sectionContent: {
+  groupContainer: {
     borderRadius: 16,
-    borderWidth: 1,
-    overflow: "hidden",
-  },
-  option: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-  },
-  optionLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-  },
-  optionIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  optionText: {
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  chevronContainer: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoutButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-    padding: 16,
-    borderRadius: 12,
-    marginTop: 8,
-    borderWidth: 1,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2
   },
-  logoutIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+  settingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16
+  },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14
+  },
+  itemContent: {
+    flex: 1
+  },
+  itemTitle: {
+    fontSize: 16,
+    fontWeight: '600'
+  },
+  itemSubtitle: {
+    fontSize: 13,
+    marginTop: 2
+  },
+  separator: {
+    height: 1,
+    marginLeft: 70
+  },
+  languageToggle: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12
+  },
+  languageText: {
+    fontSize: 14,
+    fontWeight: '600'
+  },
+  loggingOutOverlay: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 10
   },
-  logoutText: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  loggingOutText: {
+    fontSize: 14
+  }
 });

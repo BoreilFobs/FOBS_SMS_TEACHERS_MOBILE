@@ -1,37 +1,40 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
+  ScrollView,
   TouchableOpacity,
   Modal,
   TextInput,
-  Pressable,
   Dimensions,
-  ImageBackground,
   StatusBar,
-  ActivityIndicator,
   RefreshControl,
   Platform,
   useColorScheme,
-  Animated,
-  Easing,
+  ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
 } from "react-native";
-import { Feather, MaterialIcons, Ionicons } from "@expo/vector-icons";
+import { Feather, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import Colors from "@/constants/Colors";
 import { useLocalSearchParams } from "expo-router";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import Config from '@/constants/Config';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import useSchoolStore from '@/utils/stores/schoolStore';
+import { useLanguage } from '@/contexts/LanguageContext';
+import SkeletonLoader from '@/components/SkeletonLoader';
+
+const { width } = Dimensions.get("window");
 
 interface Student {
   id: number;
   name: string;
   currentMark?: number | null;
-  markId?: number | null; // Add this to track mark ID if it exists
+  markId?: number | null;
 }
 
 interface ClassInfo {
@@ -39,21 +42,14 @@ interface ClassInfo {
   name: string;
 }
 
-const AnimatedFlatList = Animated.createAnimatedComponent(FlatList<Student>);
-
-const shimmerColors = ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.3)', 'rgba(255,255,255,0.1)'];
-const withOpacity = (hex: string, opacity: number) => {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-};
-
 export default function StudentMarksScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
   const params = useLocalSearchParams();
-  
+  const { activeSchool } = useSchoolStore();
+  const { language } = useLanguage();
+  const insets = useSafeAreaInsets();
+
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,36 +59,36 @@ export default function StudentMarksScreen() {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [markInput, setMarkInput] = useState("");
   const [deletingMarkId, setDeletingMarkId] = useState<number | null>(null);
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const insets = useSafeAreaInsets();
 
   const classId = params.class_id as string;
-  const schoolId = params.school_id as string;
+  const schoolId = activeSchool?.id?.toString() || '';
   const sequenceId = params.sequence_id as string;
   const subjectId = params.subject_id as string;
-  console.log(`id : ${params.subject_id} classId: ${classId}, schoolId: ${schoolId}, sequenceId: ${sequenceId}, subjectId: ${subjectId}`);
-  
- const fetchStudentsWithMarks = async () => {
+
+  const withOpacity = (hex: string, alpha: number) => {
+    const clean = hex.replace('#', '');
+    const r = parseInt(clean.substring(0, 2), 16);
+    const g = parseInt(clean.substring(2, 4), 16);
+    const b = parseInt(clean.substring(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
+
+  const fetchStudentsWithMarks = async () => {
     try {
       setLoading(true);
       
-      // First fetch students in class
-      const studentsResponse = await fetch(
-        `${Config.apiBaseUrl}/class-students?class_id=${classId}`
-      );
+      const studentsResponse = await fetch(`${Config.apiBaseUrl}/class-students?class_id=${classId}`);
       const studentsData = await studentsResponse.json();
       
       if (!studentsData.success) {
         throw new Error(studentsData.message || 'Failed to fetch students');
       }
 
-      // Then fetch existing marks for this exam/subject/class
       const marksResponse = await fetch(
         `${Config.apiBaseUrl}/marks?school_id=${schoolId}&exam_id=${sequenceId}&subject_id=${subjectId}&class_id=${classId}`
       );
       const marksData = await marksResponse.json();
 
-      // Combine the data
       const studentsWithMarks = studentsData.students.map((student: any) => {
         const existingMark = marksData.success 
           ? marksData.data.find((mark: any) => mark.student_id === student.id)
@@ -109,7 +105,7 @@ export default function StudentMarksScreen() {
       setStudents(studentsWithMarks);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Network error occurred');
+      setError(err instanceof Error ? err.message : 'Network error');
       console.error(err);
     } finally {
       setLoading(false);
@@ -130,48 +126,52 @@ export default function StudentMarksScreen() {
 
   const handleMarkSubmit = async () => {
     if (!selectedStudent || !markInput) return;
+    
+    const mark = parseFloat(markInput);
+    if (isNaN(mark) || mark < 0 || mark > 20) {
+      Alert.alert(
+        language === 'fr' ? 'Erreur' : 'Error',
+        language === 'fr' ? 'La note doit être entre 0 et 20' : 'Mark must be between 0 and 20'
+      );
+      return;
+    }
+
     setLoadingMark(true);
     try {
       const response = await fetch(`${Config.apiBaseUrl}/marks`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           school_id: schoolId,
           student_id: selectedStudent.id,
           subject_id: subjectId,
           class_id: classId,
           exam_id: sequenceId,
-          mark: parseFloat(markInput)
+          mark: mark
         })
       });
 
       const data = await response.json();
 
       if (data.success) {
-        // Update local state
         const updatedStudents = students.map((student) =>
           student.id === selectedStudent.id
-            ? { 
-                ...student, 
-                currentMark: parseFloat(markInput),
-                markId: data.data.id
-              }
+            ? { ...student, currentMark: mark, markId: data.data.id }
             : student
         );
-        setLoadingMark(false);
-
         setStudents(updatedStudents);
-
         setSelectedStudent(null);
         setMarkInput("");
       } else {
-        throw new Error(`${data.message} Check Network` || 'Failed to save mark');
+        throw new Error(data.message || 'Failed to save mark');
       }
     } catch (err) {
-      alert(err instanceof Error ? `${err.message} Check Network` : 'Failed to save mark');
-      console.error(err);
+      Alert.alert(
+        language === 'fr' ? 'Erreur' : 'Error',
+        err instanceof Error ? err.message : 'Failed to save mark'
+      );
+    } finally {
+      setLoadingMark(false);
     }
   };
 
@@ -179,24 +179,21 @@ export default function StudentMarksScreen() {
     if (!student.markId) return;
 
     Alert.alert(
-      "Delete Mark",
-      `Are you sure you want to delete the mark for ${student.name}?`,
+      language === 'fr' ? 'Supprimer la note' : 'Delete Mark',
+      language === 'fr' 
+        ? `Êtes-vous sûr de vouloir supprimer la note de ${student.name}?`
+        : `Are you sure you want to delete the mark for ${student.name}?`,
       [
+        { text: language === 'fr' ? 'Annuler' : 'Cancel', style: 'cancel' },
         {
-          text: "Cancel",
-          style: "cancel"
-        },
-        {
-          text: "Delete",
-          style: "destructive",
+          text: language === 'fr' ? 'Supprimer' : 'Delete',
+          style: 'destructive',
           onPress: async () => {
             setDeletingMarkId(student.markId!);
             try {
               const response = await fetch(`${Config.apiBaseUrl}/marks`, {
                 method: 'DELETE',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   school_id: schoolId,
                   student_id: student.id,
@@ -209,19 +206,15 @@ export default function StudentMarksScreen() {
               const data = await response.json();
 
               if (data.success) {
-                // Update local state - remove the mark
                 const updatedStudents = students.map((s) =>
-                  s.id === student.id
-                    ? { ...s, currentMark: null, markId: null }
-                    : s
+                  s.id === student.id ? { ...s, currentMark: null, markId: null } : s
                 );
                 setStudents(updatedStudents);
               } else {
-                throw new Error(data.message || 'Failed to delete mark');
+                throw new Error(data.message || 'Failed to delete');
               }
             } catch (err) {
-              alert(err instanceof Error ? `${err.message} Check Network` : 'Failed to delete mark');
-              console.error(err);
+              Alert.alert('Error', err instanceof Error ? err.message : 'Failed to delete');
             } finally {
               setDeletingMarkId(null);
             }
@@ -231,453 +224,215 @@ export default function StudentMarksScreen() {
     );
   };
 
-  // Student card component with animations
-  const StudentCard = ({ item, index }: { item: Student; index: number }) => {
-    const mountAnim = useRef(new Animated.Value(0)).current;
-    const pressAnim = useRef(new Animated.Value(1)).current;
+  const getMarkColor = (mark: number | null | undefined) => {
+    if (mark === null || mark === undefined) return colors.textSecondary;
+    if (mark >= 16) return '#10B981';
+    if (mark >= 10) return '#F59E0B';
+    return '#EF4444';
+  };
 
-    useEffect(() => {
-      Animated.spring(mountAnim, {
-        toValue: 1,
-        friction: 9,
-        tension: 40,
-        delay: index * 50,
-        useNativeDriver: true,
-      }).start();
-    }, [mountAnim, index]);
-
-    const handlePressIn = () => {
-      Animated.spring(pressAnim, {
-        toValue: 0.96,
-        friction: 6,
-        tension: 100,
-        useNativeDriver: true,
-      }).start();
-    };
-
-    const handlePressOut = () => {
-      Animated.spring(pressAnim, {
-        toValue: 1,
-        friction: 6,
-        tension: 100,
-        useNativeDriver: true,
-      }).start();
-    };
-
-    const translateY = mountAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [20, 0],
-    });
-
-    const opacity = mountAnim.interpolate({
-      inputRange: [0, 0.5, 1],
-      outputRange: [0, 0.5, 1],
-    });
-
+  const StudentCard = ({ item }: { item: Student }) => {
+    const hasMark = item.currentMark !== null && item.currentMark !== undefined;
+    const markColor = getMarkColor(item.currentMark);
+    
     return (
-      <Animated.View
-        style={[
-          styles.cardWrapper,
-          {
-            opacity,
-            transform: [{ translateY }, { scale: pressAnim }],
-          },
-        ]}
+      <TouchableOpacity
+        style={[styles.studentCard, { backgroundColor: withOpacity(colors.card, 0.9) }]}
+        onPress={() => {
+          setSelectedStudent(item);
+          setMarkInput(item.currentMark?.toString() || "");
+        }}
+        activeOpacity={0.7}
       >
-        <Pressable 
-          onPressIn={handlePressIn} 
-          onPressOut={handlePressOut} 
-          onPress={() => {
-            setSelectedStudent(item);
-            setMarkInput(item.currentMark?.toString() || "");
-          }}
+        <LinearGradient
+          colors={[withOpacity('#6366F1', 0.2), withOpacity('#6366F1', 0.05)]}
+          style={styles.avatarContainer}
         >
-          <BlurView
-            intensity={Platform.OS === 'ios' ? 12 : 100}
-            tint={colorScheme ?? 'light'}
-            style={[
-              styles.studentCard,
-              {
-                backgroundColor: colorScheme === 'dark' 
-                  ? withOpacity(colors.card, 0.6) 
-                  : withOpacity(colors.card, 0.85),
-              },
-            ]}
-          >
-            <LinearGradient
-              colors={
-                colorScheme === 'dark'
-                  ? ['rgba(99, 102, 241, 0.15)', 'rgba(99, 102, 241, 0.05)']
-                  : ['rgba(99, 102, 241, 0.12)', 'rgba(99, 102, 241, 0.08)']
-              }
-              style={styles.studentAvatar}
-            >
-              <Feather name="user" size={20} color="#6366F1" />
-            </LinearGradient>
-            
-            <View style={styles.studentInfo}>
-              <Text style={[styles.studentName, { color: colors.text }]}>
-                {item.name}
-              </Text>
-            </View>
-            
-            <View style={styles.markContainer}>
-              {item.currentMark !== null && item.currentMark !== undefined ? (
-                <View style={styles.markWithDelete}>
-                  <BlurView
-                    intensity={Platform.OS === 'ios' ? 8 : 4}
-                    tint={colorScheme ?? 'light'}
-                    style={[
-                      styles.markBadge,
-                      {
-                        backgroundColor: item.currentMark >= 10 
-                          ? withOpacity('#10B981', 0.2) 
-                          : withOpacity('#EF4444', 0.2),
-                      },
-                    ]}
-                  >
-                    <Text style={[
-                      styles.markText, 
-                      { color: item.currentMark >= 10 ? '#10B981' : '#EF4444' }
-                    ]}>
-                      {item.currentMark}/20
-                    </Text>
-                  </BlurView>
-                  {item.markId && (
-                    <Pressable
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        handleDeleteMark(item);
-                      }}
-                      style={[
-                        styles.deleteButton,
-                        { backgroundColor: withOpacity('#EF4444', 0.15) }
-                      ]}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    >
-                      {deletingMarkId === item.markId ? (
-                        <ActivityIndicator size="small" color="#EF4444" />
-                      ) : (
-                        <Feather name="x" size={14} color="#EF4444" />
-                      )}
-                    </Pressable>
+          <Feather name="user" size={22} color="#6366F1" />
+        </LinearGradient>
+        
+        <View style={styles.studentInfo}>
+          <Text style={[styles.studentName, { color: colors.text }]} numberOfLines={1}>
+            {item.name}
+          </Text>
+        </View>
+        
+        <View style={styles.markSection}>
+          {hasMark ? (
+            <View style={styles.markDisplay}>
+              <View style={[styles.markBadge, { backgroundColor: withOpacity(markColor, 0.15) }]}>
+                <Text style={[styles.markText, { color: markColor }]}>
+                  {item.currentMark}/20
+                </Text>
+              </View>
+              {item.markId && (
+                <TouchableOpacity
+                  style={[styles.deleteButton, { backgroundColor: withOpacity('#EF4444', 0.15) }]}
+                  onPress={() => handleDeleteMark(item)}
+                  disabled={deletingMarkId === item.markId}
+                >
+                  {deletingMarkId === item.markId ? (
+                    <ActivityIndicator size="small" color="#EF4444" />
+                  ) : (
+                    <Feather name="trash-2" size={14} color="#EF4444" />
                   )}
-                </View>
-              ) : (
-                <View style={[styles.editIcon, { backgroundColor: withOpacity(colors.primary, 0.1) }]}>
-                  <Feather name="edit-2" size={16} color={colors.primary} />
-                </View>
+                </TouchableOpacity>
               )}
             </View>
-
-            <View style={styles.chevronPill}>
-              <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+          ) : (
+            <View style={[styles.addMarkButton, { backgroundColor: withOpacity(colors.primary, 0.1) }]}>
+              <Feather name="edit-2" size={16} color={colors.primary} />
             </View>
-          </BlurView>
-        </Pressable>
-      </Animated.View>
+          )}
+        </View>
+      </TouchableOpacity>
     );
   };
 
-  // Skeleton card component
-  const SkeletonCard = ({ index }: { index: number }) => {
-    const shimmerAnim = useRef(new Animated.Value(0)).current;
-
-    useEffect(() => {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(shimmerAnim, {
-            toValue: 1,
-            duration: 1400,
-            easing: Easing.bezier(0.4, 0.0, 0.6, 1),
-            useNativeDriver: true,
-          }),
-          Animated.timing(shimmerAnim, {
-            toValue: 0,
-            duration: 1400,
-            easing: Easing.bezier(0.4, 0.0, 0.6, 1),
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
-    }, [shimmerAnim]);
-
-    const opacity = shimmerAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0.3, 0.7],
-    });
-
-    return (
-      <Animated.View style={[styles.cardWrapper, { opacity }]}>
-        <BlurView
-          intensity={Platform.OS === 'ios' ? 12 : 8}
-          tint={colorScheme ?? 'light'}
-          style={[
-            styles.studentCard,
-            {
-              backgroundColor: colorScheme === 'dark' 
-                ? withOpacity(colors.card, 0.4) 
-                : withOpacity(colors.card, 0.6),
-            },
-          ]}
-        >
-          <View style={[styles.studentAvatar, { backgroundColor: withOpacity(colors.text, 0.1) }]} />
-          <View style={styles.studentInfo}>
-            <View style={[styles.skeletonText, styles.skeletonName, { backgroundColor: withOpacity(colors.text, 0.1) }]} />
-          </View>
-          <View style={[styles.skeletonMark, { backgroundColor: withOpacity(colors.text, 0.08) }]} />
-        </BlurView>
-      </Animated.View>
-    );
-  };
-
-  const renderStudentCard = ({ item, index }: { item: Student; index: number }) => (
-    <StudentCard item={item} index={index} />
+  const renderHeader = () => (
+    <View style={styles.headerContent}>
+      <Text style={[styles.title, { color: colors.text }]}>
+        {language === 'fr' ? 'Saisir les notes' : 'Enter Marks'}
+      </Text>
+      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+        {classInfo?.name || ''} • {students.filter(s => s.currentMark !== null).length}/{students.length} {language === 'fr' ? 'notes saisies' : 'marks entered'}
+      </Text>
+    </View>
   );
 
   if (loading && !refreshing) {
     return (
-      <ImageBackground
-        source={require("@/assets/images/auth-bg2.jpg")}
-        style={styles.container}
-        blurRadius={10}
-      >
-        <BlurView intensity={Platform.OS === 'ios' ? 330 : 100} style={StyleSheet.absoluteFill} tint={colorScheme ?? 'light'} />
-        <StatusBar
-          barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}
-          translucent
-          backgroundColor="transparent"
-        />
-        <View style={[styles.header, { paddingTop: 0 }]}>
-          {/* <Text style={[styles.title, { color: colors.text }]}>Student Marks</Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Loading students...</Text> */}
-        </View>
-        <View style={styles.loadingGrid}>
-          {[0, 1, 2, 3, 4, 5].map((i) => (
-            <SkeletonCard key={i} index={i} />
-          ))}
-        </View>
-      </ImageBackground>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <BlurView intensity={Platform.OS === 'ios' ? 80 : 100} style={StyleSheet.absoluteFill} tint={colorScheme === 'dark' ? 'dark' : 'light'} />
+        <StatusBar barStyle={colorScheme === "dark" ? "light-content" : "dark-content"} translucent backgroundColor="transparent" />
+        <ScrollView contentContainerStyle={{ paddingTop: 16, paddingHorizontal: 20 }}>
+          <View style={styles.listContent}>
+            <SkeletonLoader type="header" />
+            <SkeletonLoader type="list" count={8} height={85} />
+          </View>
+        </ScrollView>
+      </View>
     );
   }
 
   if (error) {
     return (
-      <ImageBackground
-        source={require("@/assets/images/auth-bg2.jpg")}
-        style={styles.container}
-        blurRadius={10}
-      >
-        <BlurView intensity={Platform.OS === 'ios' ? 330 : 100} style={StyleSheet.absoluteFill} tint={colorScheme ?? 'light'} />
-        <StatusBar
-          barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}
-          translucent
-          backgroundColor="transparent"
-        />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <BlurView intensity={Platform.OS === 'ios' ? 80 : 100} style={StyleSheet.absoluteFill} tint={colorScheme === 'dark' ? 'dark' : 'light'} />
+        <StatusBar barStyle={colorScheme === "dark" ? "light-content" : "dark-content"} translucent backgroundColor="transparent" />
         <View style={styles.errorContainer}>
-          <BlurView
-            intensity={Platform.OS === 'ios' ? 20 : 10}
-            tint={colorScheme ?? 'light'}
-            style={[
-              styles.errorCard,
-              {
-                backgroundColor: colorScheme === 'dark' 
-                  ? withOpacity(colors.card, 0.7) 
-                  : withOpacity(colors.card, 0.9),
-              },
-            ]}
-          >
+          <View style={[styles.errorCard, { backgroundColor: withOpacity(colors.card, 0.9) }]}>
             <MaterialIcons name="error-outline" size={48} color={colors.error} />
             <Text style={[styles.errorText, { color: colors.text }]}>{error}</Text>
-            <Pressable 
+            <TouchableOpacity
               style={[styles.retryButton, { backgroundColor: colors.primary }]}
               onPress={fetchStudentsWithMarks}
             >
-              <Text style={styles.retryText}>Try Again</Text>
-            </Pressable>
-          </BlurView>
+              <Text style={styles.retryText}>
+                {language === 'fr' ? 'Réessayer' : 'Try Again'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </ImageBackground>
+      </View>
     );
   }
 
   return (
-    <ImageBackground
-      source={require("@/assets/images/auth-bg2.jpg")}
-      style={styles.container}
-      blurRadius={10}
-    >
-      <BlurView intensity={Platform.OS === 'ios' ? 330 : 100} style={StyleSheet.absoluteFill} tint={colorScheme ?? 'light'} />
-      
-      <StatusBar
-        barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}
-        translucent
-        backgroundColor="transparent"
-      />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <BlurView intensity={Platform.OS === 'ios' ? 80 : 100} style={StyleSheet.absoluteFill} tint={colorScheme === 'dark' ? 'dark' : 'light'} />
+      <StatusBar barStyle={colorScheme === "dark" ? "light-content" : "dark-content"} translucent backgroundColor="transparent" />
 
-      <LinearGradient
-        colors={
-          colorScheme === 'dark'
-            ? ['rgba(0,0,0,0.6)', 'transparent']
-            : ['rgba(255,255,255,0.8)', 'transparent']
-        }
-        style={styles.headerGradient}
-      />
-
-      <View style={[styles.header, { paddingTop: 0 }]}>
-        {/* <Text style={[styles.title, { color: colors.text }]}>
-          {classInfo?.name || 'Class'}
-        </Text> */}
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          {students.length} {classInfo?.name || 'Class'} {students.length === 1 ? 'student' : 'students'} • Tap to enter marks on 20
-        </Text>
-      </View>
-
-      <AnimatedFlatList
+      <FlatList
         data={students}
+        renderItem={({ item }) => <StudentCard item={item} />}
         keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={styles.listContent}
-        renderItem={renderStudentCard}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
-        )}
-        scrollEventThrottle={16}
+        contentContainerStyle={[styles.listContent, { paddingTop: 16, paddingBottom: insets.bottom + 20 }]}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={renderHeader}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
         ListEmptyComponent={
-          <BlurView
-            intensity={Platform.OS === 'ios' ? 20 : 10}
-            tint={colorScheme ?? 'light'}
-            style={[
-              styles.emptyState,
-              {
-                backgroundColor: colorScheme === 'dark' 
-                  ? withOpacity(colors.card, 0.6) 
-                  : withOpacity(colors.card, 0.85),
-              },
-            ]}
-          >
-            <Feather name="users" size={48} color={colors.textSecondary} />
-            <Text style={[styles.emptyText, { color: colors.text }]}>
-              No students found
+          <View style={styles.emptyState}>
+            <Ionicons name="people-outline" size={48} color={colors.textSecondary} />
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+              {language === 'fr' ? 'Aucun élève dans cette classe' : 'No students in this class'}
             </Text>
-            <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
-              Students will appear here once enrolled
-            </Text>
-          </BlurView>
+          </View>
         }
       />
 
       {/* Mark Entry Modal */}
       <Modal
-        visible={!!selectedStudent}
+        visible={selectedStudent !== null}
         transparent
         animationType="fade"
         onRequestClose={() => setSelectedStudent(null)}
       >
-        <BlurView
-          intensity={Platform.OS === 'ios' ? 60 : 50}
-          tint={colorScheme === 'dark' ? 'dark' : 'light'}
-          style={StyleSheet.absoluteFill}
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
         >
-          <Pressable 
-            style={styles.modalBackdrop}
-            onPress={() => {setSelectedStudent(null);setLoadingMark(false);}}
-          >
-            <View style={styles.modalOverlay}>
-              <Pressable onPress={(e) => e.stopPropagation()}>
-                <BlurView
-                  intensity={Platform.OS === 'ios' ? 20 : 10}
-                  tint={colorScheme === 'dark' ? 'dark' : 'light'}
-                  style={[
-                    styles.modalContent, 
-                    { 
-                      backgroundColor: colorScheme === 'dark' 
-                        ? withOpacity(colors.card, 0.85) 
-                        : withOpacity(colors.card, 0.9),
-                    }
-                  ]}
-                >
-                  <Text style={[styles.modalTitle, { color: colors.text }]}>
-                    Enter Mark for {selectedStudent?.name}
-                  </Text>
-
-                  <BlurView
-                    intensity={Platform.OS === 'ios' ? 8 : 4}
-                    tint={colorScheme === 'dark' ? 'dark' : 'light'}
-                    style={[
-                      styles.markInputContainer,
-                      {
-                        borderColor: colors.border,
-                        backgroundColor: colorScheme === 'dark' 
-                          ? withOpacity(colors.background, 0.6) 
-                          : withOpacity(colors.background, 0.8),
-                      },
-                    ]}
-                  >
-                    <TextInput
-                      style={[
-                        styles.markInput,
-                        {
-                          color: colors.text,
-                        },
-                      ]}
-                      placeholder="Enter mark (0-20)"
-                      placeholderTextColor={colors.textSecondary}
-                      keyboardType="numeric"
-                      value={markInput}
-                      onChangeText={(text) => {
-                        // Validate input is between 0 and 20
-                        const num = parseFloat(text);
-                        if (text === '' || (!isNaN(num) && num >= 0 && num <= 20)) {
-                          setMarkInput(text);
-                        }
-                      }}
-                      maxLength={5} // Allow for decimals like 18.5
-                    />
-                  </BlurView>
-
-                  <View style={styles.modalButtons}>
-                    <Pressable
-                      style={[styles.cancelButton, { borderColor: colors.border }]}
-                      onPress={() => {setSelectedStudent(null);setLoadingMark(false);}}
-                    >
-                      <Text style={[styles.buttonText, { color: colors.text }]}>
-                        Cancel
-                      </Text>
-                    </Pressable>
-
-                    <Pressable
-                      style={[
-                        styles.submitButton,
-                        { 
-                          backgroundColor: colors.primary,
-                          opacity: !markInput || loadingMark ? 0.6 : 1,
-                        },
-                      ]}
-                      onPress={handleMarkSubmit}
-                      disabled={!markInput || loadingMark}
-                    >
-                      {loadingMark ? (
-                        <ActivityIndicator color="white" />
-                      ) : (
-                        <Text style={[styles.buttonText, { color: 'white' }]}>Submit</Text>
-                      )}
-                    </Pressable>
-                  </View>
-                </BlurView>
-              </Pressable>
+          <BlurView intensity={Platform.OS === 'ios' ? 40 : 80} style={StyleSheet.absoluteFill} tint="dark" />
+          <View style={[styles.modalContent, { backgroundColor: withOpacity(colors.card, 0.95) }]}>
+            <View style={[styles.modalIconContainer, { backgroundColor: withOpacity('#6366F1', 0.15) }]}>
+              <Feather name="edit-3" size={28} color="#6366F1" />
             </View>
-          </Pressable>
-        </BlurView>
+            
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              {selectedStudent?.name}
+            </Text>
+            <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+              {language === 'fr' ? 'Entrez la note (0-20)' : 'Enter mark (0-20)'}
+            </Text>
+            
+            <TextInput
+              style={[styles.markInput, { 
+                backgroundColor: withOpacity(colors.background, 0.5),
+                color: colors.text,
+                borderColor: colors.border
+              }]}
+              placeholder="0"
+              placeholderTextColor={colors.textSecondary}
+              keyboardType="decimal-pad"
+              value={markInput}
+              onChangeText={setMarkInput}
+              maxLength={5}
+              autoFocus
+            />
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton, { backgroundColor: withOpacity(colors.text, 0.1) }]}
+                onPress={() => {
+                  setSelectedStudent(null);
+                  setMarkInput("");
+                }}
+              >
+                <Text style={[styles.cancelButtonText, { color: colors.text }]}>
+                  {language === 'fr' ? 'Annuler' : 'Cancel'}
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton, { backgroundColor: colors.primary }]}
+                onPress={handleMarkSubmit}
+                disabled={loadingMark || !markInput}
+              >
+                {loadingMark ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.saveButtonText}>
+                    {language === 'fr' ? 'Enregistrer' : 'Save'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
-    </ImageBackground>
+    </View>
   );
 }
 
@@ -685,186 +440,118 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  cardWrapper: {
-    marginBottom: 12,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
   },
-  header: {
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    marginBottom: 10,
-    zIndex: 10,
-  },
-  headerGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 180,
-    zIndex: 1,
-    pointerEvents: 'none',
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '800',
-    marginBottom: 4,
-    paddingTop: 40,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
+  loadingText: {
     fontSize: 16,
-    opacity: 0.8,
-    paddingTop: 40,
-    fontWeight: '500',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorCard: {
+    padding: 32,
+    borderRadius: 20,
+    alignItems: 'center',
+    gap: 16,
+  },
+  errorText: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  retryButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  retryText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
   },
   listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 100,
+    paddingHorizontal: 20,
+  },
+  headerContent: {
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 15,
   },
   studentCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 18,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 3,
-    overflow: 'hidden',
+    padding: 14,
+    borderRadius: 14,
+    marginBottom: 10,
   },
-  studentAvatar: {
-    width: 44,
-    height: 44,
+  avatarContainer: {
+    width: 48,
+    height: 48,
     borderRadius: 12,
-    alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
+    alignItems: 'center',
+    marginRight: 12,
   },
   studentInfo: {
     flex: 1,
   },
   studentName: {
     fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: -0.2,
+    fontWeight: '600',
   },
-  markContainer: {
-    minWidth: 70,
+  markSection: {
     alignItems: 'flex-end',
-    marginRight: 8,
+  },
+  markDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   markBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 10,
-    overflow: 'hidden',
+    borderRadius: 8,
   },
   markText: {
     fontSize: 15,
     fontWeight: '700',
   },
-  markWithDelete: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
   deleteButton: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  editIcon: {
     width: 32,
     height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
+    borderRadius: 8,
     justifyContent: 'center',
-  },
-  chevronPill: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  loadingGrid: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
+  addMarkButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   emptyState: {
-    marginTop: 60,
-    marginHorizontal: 24,
-    padding: 48,
-    borderRadius: 20,
     alignItems: 'center',
-    overflow: 'hidden',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    gap: 8,
   },
   emptyText: {
-    marginTop: 16,
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '600',
-    textAlign: 'center',
-  },
-  emptySubtext: {
-    marginTop: 6,
-    fontSize: 14,
-    textAlign: 'center',
-    opacity: 0.7,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  errorCard: {
-    padding: 32,
-    borderRadius: 20,
-    alignItems: 'center',
-    width: '100%',
-    maxWidth: 360,
-    overflow: 'hidden',
-  },
-  errorText: {
-    marginTop: 16,
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 24,
-    fontWeight: '500',
-  },
-  retryButton: {
-    paddingHorizontal: 28,
-    paddingVertical: 14,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  retryText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  skeletonText: {
-    height: 14,
-    borderRadius: 7,
-  },
-  skeletonName: {
-    width: '60%',
-    height: 16,
-  },
-  skeletonMark: {
-    width: 50,
-    height: 28,
-    borderRadius: 10,
-    marginRight: 8,
-  },
-  modalBackdrop: {
-    flex: 1,
+    marginTop: 8,
   },
   modalOverlay: {
     flex: 1,
@@ -874,59 +561,61 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: '100%',
-    borderRadius: 20,
-    padding: 24,
-    gap: 20,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 10,
+    maxWidth: 340,
+    padding: 28,
+    borderRadius: 24,
+    alignItems: 'center',
+  },
+  modalIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
     marginBottom: 4,
-    letterSpacing: -0.3,
+    textAlign: 'center',
   },
-  markInputContainer: {
-    borderRadius: 14,
-    borderWidth: 1.5,
-    overflow: 'hidden',
+  modalSubtitle: {
+    fontSize: 14,
+    marginBottom: 20,
   },
   markInput: {
+    width: '100%',
     height: 56,
-    padding: 16,
-    fontSize: 16,
-    fontWeight: '600',
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    fontSize: 24,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 20,
   },
   modalButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     gap: 12,
-    marginTop: 8,
+    width: '100%',
   },
-  cancelButton: {
+  modalButton: {
     flex: 1,
-    borderWidth: 1.5,
-    borderRadius: 14,
-    padding: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  submitButton: {
-    flex: 1,
-    borderRadius: 14,
-    padding: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 4,
+  cancelButton: {},
+  saveButton: {},
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
-  buttonText: {
-    fontWeight: '700',
-    fontSize: 15,
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

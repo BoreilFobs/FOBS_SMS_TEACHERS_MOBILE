@@ -21,11 +21,13 @@ import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSchools } from "@/hooks/useSchools";
 import useUserStore from '@/utils/stores/userStore';
+import useSchoolStore from '@/utils/stores/schoolStore';
 import AuthWrapper from "@/components/AuthWrapper";
 import SetupWrapper from "@/components/SetupWrapper";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { SchoolResponse } from "@/hooks/types";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width - 40;
@@ -37,33 +39,66 @@ export default function SchoolsScreen() {
   const blurTint: "light" | "dark" = (colorScheme === "light" ? "light" : "dark");
   const router = useRouter();
   const { user, teacher, loadUserData } = useUserStore();
+  const { setActiveSchool, setSchools, activeSchool } = useSchoolStore();
+  const { language } = useLanguage();
   const scrollY = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
 
-  // Check if this is the user's first visit
+  // Auto-redirect to home if school is already selected
   useEffect(() => {
-    const checkFirstVisit = async () => {
-      try {
-        const hasVisited = await AsyncStorage.getItem('@hasVisitedBefore');
-        if (!hasVisited) {
-          // Mark as visited before redirecting
-          await AsyncStorage.setItem('@hasVisitedBefore', 'true');
-          // Redirect to about screen
-          router.replace('/support/about');
-        }
-      } catch (error) {
-        console.error('Error checking first visit:', error);
-      }
-    };
-
-    checkFirstVisit();
-  }, []);
+    if (activeSchool) {
+      router.replace('/(tabs)/home');
+    }
+  }, [activeSchool]);
 
   if (!teacher || !user) {
     loadUserData();
   }
 
   const { schoolData, loading, error, refetch } = useSchools();
+
+  // Update school store when schoolData loads
+  useEffect(() => {
+    if (schoolData && schoolData.length > 0) {
+      // Convert SchoolResponse to School format for the store
+      const schools = schoolData.map((item) => ({
+        id: item.school.id,
+        name: item.school.name,
+        code: item.school.acronym || item.school.code || '',
+        logo: item.school.logo_url || undefined,
+        status: item.school.status,
+        pivot: {
+          is_approved: !!item.teacher_school.isActive,
+        },
+      }));
+      setSchools(schools);
+      
+      // If no active school selected, auto-select the first active one
+      if (!activeSchool && schools.length > 0) {
+        const firstActive = schools.find(s => s.pivot?.is_approved);
+        if (firstActive) {
+          setActiveSchool(firstActive);
+        }
+      }
+    }
+  }, [schoolData]);
+
+  // Handle school selection
+  const handleSchoolSelect = (item: SchoolResponse) => {
+    const school = {
+      id: item.school.id,
+      name: item.school.name,
+      code: item.school.acronym || item.school.code || '',
+      logo: item.school.logo_url || undefined,
+      status: item.school.status,
+      pivot: {
+        is_approved: !!item.teacher_school.isActive,
+      },
+    };
+    setActiveSchool(school);
+    // Navigate to home tab instead of subjects
+    router.push('/(tabs)/home');
+  };
 
   const shimmerColors = useMemo(
     () => ({
@@ -149,7 +184,7 @@ export default function SchoolsScreen() {
               tension: 100,
             }).start();
           }}
-          onPress={() => router.push(`/(tabs)/subjects?schoolId=${item.school.id}`)}
+          onPress={() => handleSchoolSelect(item)}
           accessibilityRole="button"
           accessibilityLabel={`Open ${item.school.name}`}
         >
