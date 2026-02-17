@@ -66,9 +66,13 @@ export default function SchoolsScreen() {
         name: item.school.name,
         code: item.school.acronym || item.school.code || '',
         logo: item.school.logo_url || undefined,
-        status: item.school.status,
+        address: item.school.address,
+        phone: item.school.phone,
+        email: item.school.email,
+        status: 'active' as const,
         pivot: {
           is_approved: !!item.teacher_school.isActive,
+          created_at: item.teacher_school.created_at,
         },
       }));
       setSchools(schools);
@@ -90,9 +94,13 @@ export default function SchoolsScreen() {
       name: item.school.name,
       code: item.school.acronym || item.school.code || '',
       logo: item.school.logo_url || undefined,
-      status: item.school.status,
+      address: item.school.address,
+      phone: item.school.phone,
+      email: item.school.email,
+      status: 'active' as const,
       pivot: {
         is_approved: !!item.teacher_school.isActive,
+        created_at: item.teacher_school.created_at,
       },
     };
     setActiveSchool(school);

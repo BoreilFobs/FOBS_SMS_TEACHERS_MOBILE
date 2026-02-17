@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLanguage } from '@/contexts/LanguageContext';
 import Config from '@/constants/Config';
+import { getUserAndTeacherData } from '@/utils/storage/getUserAndTeacher';
 
 const { width, height } = Dimensions.get('window');
 
@@ -42,6 +43,7 @@ export default function SchoolSwitcher({ visible, onClose }: SchoolSwitcherProps
   
   const [loading, setLoading] = useState(false);
   const [fetchingSchools, setFetchingSchools] = useState(false);
+  const [localSchools, setLocalSchools] = useState<School[]>([]);
 
   const withOpacity = (hex: string, alpha: number) => {
     const clean = hex.replace('#', '');
@@ -51,34 +53,72 @@ export default function SchoolSwitcher({ visible, onClose }: SchoolSwitcherProps
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   };
 
-  const fetchSchools = async () => {
-    if (!teacher) return;
-    
+  // Use local schools if available, otherwise fall back to store
+  const displaySchools = localSchools.length > 0 ? localSchools : schools;
+
+  const fetchSchools = useCallback(async () => {
     try {
       setFetchingSchools(true);
-      const response = await fetch(
-        `${Config.apiBaseUrl}/teacher-schools?teacher_id=${teacher.id}`
-      );
+
+      // Get teacher ID: try store first, then AsyncStorage
+      let teacherId = useUserStore.getState().teacher?.id;
+      if (!teacherId) {
+        await useUserStore.getState().loadUserData();
+        teacherId = useUserStore.getState().teacher?.id;
+      }
+      if (!teacherId) {
+        console.warn('SchoolSwitcher: No teacher ID available');
+        return;
+      }
+
+      const url = `${Config.apiBaseUrl}/teacher-schools?teacher_id=${teacherId}`;
+      console.log('SchoolSwitcher: Fetching schools from', url);
+
+      const response = await fetch(url, {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+      });
       const data = await response.json();
-      
-      if (data.success && data.schools) {
-        const approvedSchools = data.schools.filter(
-          (s: School) => s.pivot?.is_approved && s.status === 'active'
-        );
+      console.log('SchoolSwitcher: API response success:', data.success, 'items:', data.data?.length);
+
+      if (data.success && Array.isArray(data.data)) {
+        const approvedSchools: School[] = data.data
+          .filter((item: any) => item.teacher_school?.isActive)
+          .map((item: any) => ({
+            id: item.school.id,
+            name: item.school.name,
+            code: item.school.acronym || item.school.code || '',
+            logo: item.school.logo_url || undefined,
+            address: item.school.address,
+            phone: item.school.phone,
+            email: item.school.email,
+            status: 'active' as const,
+            pivot: {
+              is_approved: true,
+              created_at: item.teacher_school.created_at,
+            },
+          }));
+
+        console.log('SchoolSwitcher: Approved schools count:', approvedSchools.length);
+
+        // Update both local state (for immediate display) and the global store
+        setLocalSchools(approvedSchools);
         setSchools(approvedSchools);
       }
     } catch (err) {
-      console.error('Error fetching schools:', err);
+      console.error('SchoolSwitcher: Error fetching schools:', err);
     } finally {
       setFetchingSchools(false);
     }
-  };
+  }, [setSchools]);
 
   useEffect(() => {
-    if (visible && schools.length === 0) {
+    if (visible) {
       fetchSchools();
     }
-  }, [visible]);
+  }, [visible, fetchSchools]);
 
   const handleSelectSchool = (school: School) => {
     setLoading(true);
@@ -172,98 +212,109 @@ export default function SchoolSwitcher({ visible, onClose }: SchoolSwitcherProps
             </TouchableOpacity>
           </View>
 
-          {/* Current School */}
-          {activeSchool && (
-            <View style={styles.section}>
-              <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
-                {language === 'fr' ? 'École actuelle' : 'Current School'}
-              </Text>
-              <View
-                style={[
-                  styles.currentSchool,
-                  { backgroundColor: withOpacity(colors.primary, 0.1) },
-                ]}
-              >
-                {activeSchool.logo ? (
-                  <Image source={{ uri: activeSchool.logo }} style={styles.currentSchoolLogo} />
-                ) : (
-                  <LinearGradient
-                    colors={[colors.primary, colors.tint]}
-                    style={styles.currentSchoolLogoPlaceholder}
-                  >
-                    <Text style={styles.currentSchoolLogoText}>
-                      {activeSchool.name.charAt(0)}
-                    </Text>
-                  </LinearGradient>
-                )}
-                <View style={styles.currentSchoolInfo}>
-                  <Text style={[styles.currentSchoolName, { color: colors.text }]}>
-                    {activeSchool.name}
-                  </Text>
-                  <Text style={[styles.currentSchoolDetails, { color: colors.textSecondary }]}>
-                    {activeSchool.code} • {activeSchool.academic_year || '2024-2025'}
-                  </Text>
-                </View>
-                <View style={[styles.activeBadge, { backgroundColor: colors.primary }]}>
-                  <Feather name="check" size={12} color="white" />
-                </View>
-              </View>
-            </View>
-          )}
-
-          {/* Recent Schools */}
-          {recentSchools.length > 1 && (
-            <View style={styles.section}>
-              <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
-                {language === 'fr' ? 'Récent' : 'Recent'}
-              </Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {recentSchools
-                  .filter(s => s.id !== activeSchool?.id)
-                  .map((school) => (
-                    <TouchableOpacity
-                      key={school.id}
-                      style={[styles.recentItem, { backgroundColor: withOpacity(colors.card, 0.8) }]}
-                      onPress={() => handleSelectSchool(school)}
+          {/* Scrollable content area */}
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            bounces={true}
+            contentContainerStyle={{ paddingBottom: 10 }}
+          >
+            {/* Current School */}
+            {activeSchool && (
+              <View style={styles.section}>
+                <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
+                  {language === 'fr' ? 'École actuelle' : 'Current School'}
+                </Text>
+                <View
+                  style={[
+                    styles.currentSchool,
+                    { backgroundColor: withOpacity(colors.primary, 0.1) },
+                  ]}
+                >
+                  {activeSchool.logo ? (
+                    <Image source={{ uri: activeSchool.logo }} style={styles.currentSchoolLogo} />
+                  ) : (
+                    <LinearGradient
+                      colors={[colors.primary, colors.tint]}
+                      style={styles.currentSchoolLogoPlaceholder}
                     >
-                      {school.logo ? (
-                        <Image source={{ uri: school.logo }} style={styles.recentLogo} />
-                      ) : (
-                        <View style={[styles.recentLogoPlaceholder, { backgroundColor: colors.primary }]}>
-                          <Text style={styles.recentLogoText}>{school.name.charAt(0)}</Text>
-                        </View>
-                      )}
-                      <Text style={[styles.recentName, { color: colors.text }]} numberOfLines={1}>
-                        {school.name.split(' ').slice(0, 2).join(' ')}
+                      <Text style={styles.currentSchoolLogoText}>
+                        {activeSchool.name.charAt(0)}
                       </Text>
-                    </TouchableOpacity>
-                  ))}
-              </ScrollView>
-            </View>
-          )}
-
-          {/* All Schools */}
-          <View style={[styles.section, { flex: 1 }]}>
-            <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
-              {language === 'fr' ? 'Toutes les écoles' : 'All Schools'}
-            </Text>
-            
-            {fetchingSchools ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={colors.primary} />
+                    </LinearGradient>
+                  )}
+                  <View style={styles.currentSchoolInfo}>
+                    <Text style={[styles.currentSchoolName, { color: colors.text }]}>
+                      {activeSchool.name}
+                    </Text>
+                    <Text style={[styles.currentSchoolDetails, { color: colors.textSecondary }]}>
+                      {activeSchool.code} • {activeSchool.academic_year || '2024-2025'}
+                    </Text>
+                  </View>
+                  <View style={[styles.activeBadge, { backgroundColor: colors.primary }]}>
+                    <Feather name="check" size={12} color="white" />
+                  </View>
+                </View>
               </View>
-            ) : (
-              <ScrollView style={styles.schoolsList} showsVerticalScrollIndicator={false}>
-                {schools.map((school) => (
+            )}
+
+            {/* Recent Schools */}
+            {recentSchools.length > 1 && (
+              <View style={styles.section}>
+                <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
+                  {language === 'fr' ? 'Récent' : 'Recent'}
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {recentSchools
+                    .filter(s => s.id !== activeSchool?.id)
+                    .map((school) => (
+                      <TouchableOpacity
+                        key={school.id}
+                        style={[styles.recentItem, { backgroundColor: withOpacity(colors.card, 0.8) }]}
+                        onPress={() => handleSelectSchool(school)}
+                      >
+                        {school.logo ? (
+                          <Image source={{ uri: school.logo }} style={styles.recentLogo} />
+                        ) : (
+                          <View style={[styles.recentLogoPlaceholder, { backgroundColor: colors.primary }]}>
+                            <Text style={styles.recentLogoText}>{school.name.charAt(0)}</Text>
+                          </View>
+                        )}
+                        <Text style={[styles.recentName, { color: colors.text }]} numberOfLines={1}>
+                          {school.name.split(' ').slice(0, 2).join(' ')}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* All Schools */}
+            <View style={styles.section}>
+              <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
+                {language === 'fr' ? 'Toutes les écoles' : 'All Schools'}
+              </Text>
+              
+              {fetchingSchools ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                </View>
+              ) : displaySchools.length === 0 ? (
+                <View style={styles.loadingContainer}>
+                  <Text style={{ color: colors.textSecondary, textAlign: 'center' }}>
+                    {language === 'fr' ? 'Aucune école trouvée' : 'No schools found'}
+                  </Text>
+                </View>
+              ) : (
+                displaySchools.map((school) => (
                   <SchoolItem
                     key={school.id}
                     school={school}
                     isActive={activeSchool?.id === school.id}
                   />
-                ))}
-              </ScrollView>
-            )}
-          </View>
+                ))
+              )}
+            </View>
+          </ScrollView>
 
           {/* Add School Button */}
           <TouchableOpacity
@@ -416,9 +467,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     textAlign: 'center',
-  },
-  schoolsList: {
-    flex: 1,
   },
   schoolItem: {
     flexDirection: 'row',

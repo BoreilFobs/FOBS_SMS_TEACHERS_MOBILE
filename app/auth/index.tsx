@@ -354,7 +354,7 @@ export default function AuthScreen() {
     if (!validateForm()) return;
     
     setIsLoading(true);
-    setErrors(prev => ({ ...prev, general: undefined }));
+    setErrors({});
     
     try {
      const endpoint = isLogin ? '/login' : '/register';
@@ -383,10 +383,58 @@ export default function AuthScreen() {
         } else {
             throw new Error('Authentication token missing in response');
         }
-      await new Promise(resolve => setTimeout(resolve, 1500));
      
-    } catch (error) {
-      setErrors(prev => ({ ...prev, general: 'Authentication failed. Please try again.' }));
+    } catch (error: any) {
+      const newErrors: FormErrors = {};
+
+      if (axios.isAxiosError(error) && error.response) {
+        const { status, data: resData } = error.response;
+        const serverErrors = resData?.errors || {};
+        const serverMessage = resData?.message || '';
+
+        // Map field-level errors from the API
+        if (serverErrors.email) {
+          newErrors.email = Array.isArray(serverErrors.email)
+            ? serverErrors.email[0]
+            : serverErrors.email;
+        }
+        if (serverErrors.password) {
+          newErrors.password = Array.isArray(serverErrors.password)
+            ? serverErrors.password[0]
+            : serverErrors.password;
+        }
+        if (serverErrors.name) {
+          newErrors.name = Array.isArray(serverErrors.name)
+            ? serverErrors.name[0]
+            : serverErrors.name;
+        }
+
+        // Set a user-friendly general message based on status code
+        if (status === 401) {
+          // Wrong email/password
+          if (!newErrors.email && !newErrors.password) {
+            newErrors.general = serverMessage || 'Invalid email or password. Please try again.';
+          }
+        } else if (status === 403) {
+          // Email exists but wrong role
+          newErrors.general = serverMessage || 'This account cannot be used with this app.';
+        } else if (status === 422) {
+          // Validation errors (e.g. registration: email taken, password too short)
+          if (!newErrors.email && !newErrors.password && !newErrors.name) {
+            newErrors.general = serverMessage || 'Please check your input and try again.';
+          }
+        } else if (status === 429) {
+          newErrors.general = 'Too many attempts. Please wait a moment and try again.';
+        } else {
+          newErrors.general = serverMessage || 'Something went wrong. Please try again.';
+        }
+      } else if (error?.message === 'Network Error' || error?.code === 'ERR_NETWORK') {
+        newErrors.general = 'Network error. Please check your internet connection.';
+      } else {
+        newErrors.general = error?.message || 'An unexpected error occurred. Please try again.';
+      }
+
+      setErrors(newErrors);
     } finally {
       setIsLoading(false);
     }

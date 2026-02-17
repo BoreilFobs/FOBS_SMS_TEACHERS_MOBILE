@@ -118,6 +118,7 @@ const useSchoolStore = create<SchoolStoreState>()(
       partialize: (state) => ({
         activeSchool: state.activeSchool,
         recentSchools: state.recentSchools,
+        schools: state.schools,
       }),
     }
   )

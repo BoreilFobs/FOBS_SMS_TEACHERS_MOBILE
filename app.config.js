@@ -2,7 +2,7 @@ export default {
   expo: {
     name: "FobsSMS Teachers",
     slug: "FOBS_SMS_TEACHER_MOBILE",
-    version: "1.0.2",
+    version: "1.1.2",
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "automatic", // This follows the system theme

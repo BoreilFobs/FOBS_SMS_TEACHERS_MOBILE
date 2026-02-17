@@ -7,6 +7,8 @@ export interface School {
   logo_url: string;
   email: string;
   phone: string;
+  code?: string;
+  status?: string;
 }
 
 // Teacher-school relationship object
