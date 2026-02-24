@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  Platform,
   ActivityIndicator,
   useColorScheme,
 } from "react-native";
@@ -49,36 +50,48 @@ export default function SettingsScreen() {
     setLanguage(newLang);
   };
 
-  const confirmLogout = () => {
-    Alert.alert(
-      language === 'fr' ? 'Déconnexion' : 'Logout',
-      language === 'fr' ? 'Êtes-vous sûr de vouloir vous déconnecter ?' : 'Are you sure you want to logout?',
-      [
-        { text: language === 'fr' ? 'Annuler' : 'Cancel', style: 'cancel' },
-        {
-          text: language === 'fr' ? 'Déconnexion' : 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            setIsLoggingOut(true);
-            try {
-              const token = await AsyncStorage.getItem('token');
-              // Call logout API
-              await fetch(`${Config.apiBaseUrl}/logout`, {
-                method: 'POST',
-                headers: {
-                  'Accept': 'application/json',
-                  'Authorization': `Bearer ${token}`
-                }
-              });
-            } catch (err) {
-              console.error('Logout API error:', err);
-            }
-            
-            await handleLogout();
-          }
+  const performLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      // Call logout API
+      await fetch(`${Config.apiBaseUrl}/logout`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`
         }
-      ]
-    );
+      });
+    } catch (err) {
+      console.error('Logout API error:', err);
+    }
+
+    await handleLogout();
+  };
+
+  const confirmLogout = () => {
+    const title = language === 'fr' ? 'Déconnexion' : 'Logout';
+    const message = language === 'fr' ? 'Êtes-vous sûr de vouloir vous déconnecter ?' : 'Are you sure you want to logout?';
+
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm(message);
+      if (confirmed) {
+        performLogout();
+      }
+    } else {
+      Alert.alert(
+        title,
+        message,
+        [
+          { text: language === 'fr' ? 'Annuler' : 'Cancel', style: 'cancel' },
+          {
+            text: language === 'fr' ? 'Déconnexion' : 'Logout',
+            style: 'destructive',
+            onPress: performLogout,
+          }
+        ]
+      );
+    }
   };
 
   const handleNotifications = () => {

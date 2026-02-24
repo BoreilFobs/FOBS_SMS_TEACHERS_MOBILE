@@ -61,38 +61,47 @@ export default function ProfileScreen() {
     setLanguage(newLang);
   };
 
-  const handleLogout = () => {
-    Alert.alert(
-      t('logout'),
-      t('logout_confirm'),
-      [
-        { text: t('cancel'), style: 'cancel' },
-        {
-          text: t('logout'),
-          style: 'destructive',
-          onPress: async () => {
-            setIsLoggingOut(true);
-            try {
-              const token = await AsyncStorage.getItem('auth_token');
-              await fetch(`${Config.apiBaseUrl}/logout`, {
-                method: 'POST',
-                headers: {
-                  'Accept': 'application/json',
-                  'Authorization': `Bearer ${token}`
-                }
-              });
-            } catch (err) {
-              console.error('Logout API error:', err);
-            }
-            
-            await clearUserData();
-            clearSchools();
-            await AsyncStorage.removeItem('auth_token');
-            router.replace('/auth');
-          }
+  const performLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      const token = await AsyncStorage.getItem('auth_token');
+      await fetch(`${Config.apiBaseUrl}/logout`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`
         }
-      ]
-    );
+      });
+    } catch (err) {
+      console.error('Logout API error:', err);
+    }
+
+    await clearUserData();
+    clearSchools();
+    await AsyncStorage.removeItem('auth_token');
+    router.replace('/auth');
+  };
+
+  const handleLogout = () => {
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm(t('logout_confirm'));
+      if (confirmed) {
+        performLogout();
+      }
+    } else {
+      Alert.alert(
+        t('logout'),
+        t('logout_confirm'),
+        [
+          { text: t('cancel'), style: 'cancel' },
+          {
+            text: t('logout'),
+            style: 'destructive',
+            onPress: performLogout,
+          }
+        ]
+      );
+    }
   };
 
   const menuGroups = [
