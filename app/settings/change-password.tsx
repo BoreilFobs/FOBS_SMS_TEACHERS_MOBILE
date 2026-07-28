@@ -36,7 +36,7 @@ const withOpacity = (hex: string, alpha: number) => {
 type ForgotPasswordStep = 'email' | 'otp' | 'password';
 
 export default function ChangePasswordScreen() {
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme() === "dark" ? "dark" : "light";
   const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
   const { user } = useUserStore();

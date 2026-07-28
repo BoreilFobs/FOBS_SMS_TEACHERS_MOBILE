@@ -6,11 +6,17 @@ export default {
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "automatic", // This follows the system theme
-    splash: {
-      image: "./assets/images/splash.png",
-      resizeMode: "contain",
-      backgroundColor: "#2f373f"
-    },
+    // SDK 57 removed the top-level `splash` key; it is configured via the plugin below.
+    plugins: [
+      [
+        "expo-splash-screen",
+        {
+          image: "./assets/images/splash.png",
+          resizeMode: "contain",
+          backgroundColor: "#2f373f"
+        }
+      ]
+    ],
     updates: {
       fallbackToCacheTimeout: 0
     },
@@ -27,15 +33,6 @@ export default {
         foregroundImage: "./assets/images/adaptive-icon.png",
         backgroundColor: "#2f373f"
       },
-      splash: {
-        image: "./assets/images/splash.png",
-        resizeMode: "contain",
-        backgroundColor: "#2f373f"
-      },
-      statusBar: {
-        translucent: true,
-        barStyle: "dark-content"
-      }
     },
     web: {
       favicon: "./assets/images/favicon.png"

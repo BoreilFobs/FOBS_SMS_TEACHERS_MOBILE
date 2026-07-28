@@ -43,7 +43,7 @@ interface ClassInfo {
 }
 
 export default function StudentMarksScreen() {
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme() === "dark" ? "dark" : "light";
   const colors = Colors[colorScheme ?? "light"];
   const params = useLocalSearchParams();
   const { activeSchool } = useSchoolStore();

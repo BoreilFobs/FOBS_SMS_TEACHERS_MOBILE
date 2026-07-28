@@ -20,7 +20,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const STORAGE_KEY = '@webAppUpdateModalDismissed';
 
 export default function WebAppUpdateModal() {
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme() === "dark" ? "dark" : "light";
   const colors = Colors[colorScheme ?? 'light'];
   const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(true);

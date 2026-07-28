@@ -10,7 +10,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme() === "dark" ? "dark" : "light";
   const currentColors = Colors[colorScheme ?? "light"];
   const { language } = useLanguage();
   

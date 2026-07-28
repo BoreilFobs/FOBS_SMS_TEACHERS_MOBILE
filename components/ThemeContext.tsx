@@ -18,7 +18,7 @@ const ThemeContext = createContext<ThemeContextType>({
 });
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
-  const systemTheme = useSystemColorScheme() || "light";
+  const systemTheme = useSystemColorScheme() === "dark" ? "dark" : "light";
   const [theme, setTheme] = useState<ThemeType>("system");
 
   useEffect(() => {

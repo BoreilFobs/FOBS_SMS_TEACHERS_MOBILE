@@ -22,7 +22,7 @@ interface Request {
 }
 
 export default function PendingRequestsScreen() {
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme() === "dark" ? "dark" : "light";
   const colors = Colors[colorScheme ?? "light"];
   const [requests, setRequests] = useState<Request[]>([
     {

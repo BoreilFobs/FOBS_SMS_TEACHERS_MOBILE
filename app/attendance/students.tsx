@@ -47,7 +47,7 @@ interface AttendanceData {
 }
 
 export default function ClassAttendanceScreen() {
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme() === "dark" ? "dark" : "light";
   const colors = Colors[colorScheme ?? "light"];
   const params = useLocalSearchParams();
   const { activeSchool } = useSchoolStore();

@@ -35,7 +35,7 @@ interface Class {
 }
 
 export default function ClassSelectionScreen() {
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme() === "dark" ? "dark" : "light";
   const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
   const params = useLocalSearchParams();

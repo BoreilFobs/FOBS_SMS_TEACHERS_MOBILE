@@ -18,7 +18,7 @@ export const SkeletonLoader: React.FC<SkeletonLoaderProps> = ({
   width = '100%',
   style 
 }) => {
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme() === "dark" ? "dark" : "light";
   const colors = Colors[colorScheme ?? 'light'];
   const pulseAnim = useRef(new Animated.Value(0)).current;
 

@@ -32,7 +32,7 @@ const showAlert = (title: string, message: string) => {
 };
 
 export default function AddSchoolScreen() {
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme() === "light" ? "light" : "dark";
   const colors = Colors[colorScheme ?? "dark"];
   const router = useRouter();
   const [schoolCode, setSchoolCode] = useState("");

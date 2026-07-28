@@ -60,7 +60,7 @@ interface RecentActivity {
 }
 
 export default function HomeScreen() {
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme() === "dark" ? "dark" : "light";
   const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
   const insets = useSafeAreaInsets();

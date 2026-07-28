@@ -1,11 +1,11 @@
 import { FontAwesome } from "@expo/vector-icons";
+import { useFonts } from "expo-font";
 import {
   DarkTheme,
   DefaultTheme,
+  Stack,
   ThemeProvider,
-} from "@react-navigation/native";
-import { useFonts } from "expo-font";
-import { Stack, Tabs } from "expo-router";
+} from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useState } from "react";
 import { BlurView } from 'expo-blur';
@@ -51,7 +51,7 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme() === "dark" ? "dark" : "light";
   const theme = colorScheme === "dark" ? DarkTheme : DefaultTheme;
   const [updateRequired, setUpdateRequired] = useState(false);
 

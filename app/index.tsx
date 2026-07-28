@@ -34,7 +34,7 @@ const CARD_WIDTH = width - 40;
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList<SchoolResponse>);
 
 export default function SchoolsScreen() {
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme() === "light" ? "light" : "dark";
   const colors = Colors[colorScheme ?? "dark"];
   const blurTint: "light" | "dark" = (colorScheme === "light" ? "light" : "dark");
   const router = useRouter();
@@ -435,7 +435,7 @@ export default function SchoolsScreen() {
           <Animated.View 
             pointerEvents="none" 
             style={[
-              StyleSheet.absoluteFillObject,
+              StyleSheet.absoluteFill,
               {
                 opacity: colorScheme === 'dark' ? 0.15 : 0.2,
                 transform: [{ translateX }]

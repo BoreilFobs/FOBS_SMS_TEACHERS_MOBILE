@@ -31,7 +31,7 @@ const FACEBOOK_URL = "https://facebook.com/BoreilFobs";
 const GITHUB_URL = "https://github.com/BoreilFobs";
 
 export default function ContactUsScreen() {
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme() === "dark" ? "dark" : "light";
   const colors = Colors[colorScheme ?? "light"];
   const { t, language } = useLanguage();
   

@@ -1,24 +1,31 @@
 // components/CustomHeader.tsx
+import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { StyleSheet, Text, View } from 'react-native';
-import { HeaderBackButton } from '@react-navigation/elements';
-import { useTheme } from '@react-navigation/native';
+import { useRouter, useTheme } from 'expo-router';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 export const CustomHeader = ({ options }: any) => {
   const theme = useTheme();
-  
+  const router = useRouter();
+
   return (
-    <BlurView 
+    <BlurView
       intensity={30}
       tint={theme.dark ? 'dark' : 'light'}
       style={styles.container}
     >
       <View style={styles.content}>
         {options.headerBack && (
-          <HeaderBackButton
-            tintColor={options.headerTintColor || theme.colors.primary}
-            onPress={() => navigation.goBack()}
-          />
+          <Pressable
+            hitSlop={8}
+            onPress={() => router.back()}
+          >
+            <Ionicons
+              name="arrow-back"
+              size={24}
+              color={options.headerTintColor || theme.colors.primary}
+            />
+          </Pressable>
         )}
         <Text style={[styles.title, { color: options.headerTintColor || theme.colors.text }]}>
           {options.title || ' '}

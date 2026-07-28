@@ -39,7 +39,7 @@ interface ExamSequence {
 }
 
 export default function ExamSequencesScreen() {
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme() === "dark" ? "dark" : "light";
   const colors = Colors[colorScheme ?? "light"];
   const params = useLocalSearchParams();
   const { activeSchool } = useSchoolStore();

@@ -33,7 +33,7 @@ const withOpacity = (hex: string, alpha: number) => {
 };
 
 export default function EditProfileScreen() {
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme() === "dark" ? "dark" : "light";
   const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
   const { user, teacher, updateTeacher } = useUserStore();

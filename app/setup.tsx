@@ -161,7 +161,7 @@ const PlatformTextInput = ({
 
 export default function TeacherSetupScreen() {
   const router = useRouter();
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme() === "dark" ? "dark" : "light";
   const colors = Colors[colorScheme ?? 'light'];
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({

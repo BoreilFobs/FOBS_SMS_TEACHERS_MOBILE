@@ -30,7 +30,7 @@ interface Subject {
 }
 
 export default function SubjectsScreen() {
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme() === "dark" ? "dark" : "light";
   const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
   const { teacher } = useUserStore();

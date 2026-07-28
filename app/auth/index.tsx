@@ -41,7 +41,7 @@ type ForgotPasswordStep = 'email' | 'otp' | 'password';
 
 export default function AuthScreen() {
   const router = useRouter();
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme() === "dark" ? "dark" : "light";
   const colors = Colors[colorScheme ?? 'light'];
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({

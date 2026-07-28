@@ -31,7 +31,7 @@ interface UpdateModalProps {
 }
 
 export default function UpdateModal({ onUpdateChecked }: UpdateModalProps) {
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme() === "light" ? "light" : "dark";
   const colors = Colors[colorScheme ?? 'dark'];
   const [updateInfo, setUpdateInfo] = useState<UpdateResponse | null>(null);
   const [loading, setLoading] = useState(true);
