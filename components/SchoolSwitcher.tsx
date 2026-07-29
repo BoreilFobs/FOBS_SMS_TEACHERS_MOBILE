@@ -23,6 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLanguage } from '@/contexts/LanguageContext';
 import Config from '@/constants/Config';
 import { getUserAndTeacherData } from '@/utils/storage/getUserAndTeacher';
+import { authFetch } from '@/services/authFetch';
 
 const { width, height } = Dimensions.get('window');
 
@@ -74,7 +75,7 @@ export default function SchoolSwitcher({ visible, onClose }: SchoolSwitcherProps
       const url = `${Config.apiBaseUrl}/teacher-schools?teacher_id=${teacherId}`;
       console.log('SchoolSwitcher: Fetching schools from', url);
 
-      const response = await fetch(url, {
+      const response = await authFetch(url, {
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
@@ -94,6 +95,8 @@ export default function SchoolSwitcher({ visible, onClose }: SchoolSwitcherProps
             address: item.school.address,
             phone: item.school.phone,
             email: item.school.email,
+            academic_year: item.school.academic_year,
+            academic_year_id: item.school.academic_year_id,
             status: 'active' as const,
             pivot: {
               is_approved: true,
@@ -247,7 +250,8 @@ export default function SchoolSwitcher({ visible, onClose }: SchoolSwitcherProps
                       {activeSchool.name}
                     </Text>
                     <Text style={[styles.currentSchoolDetails, { color: colors.textSecondary }]}>
-                      {activeSchool.code} • {activeSchool.academic_year || '2024-2025'}
+                      {activeSchool.code}
+                      {activeSchool.academic_year ? ` • ${activeSchool.academic_year}` : ''}
                     </Text>
                   </View>
                   <View style={[styles.activeBadge, { backgroundColor: colors.primary }]}>

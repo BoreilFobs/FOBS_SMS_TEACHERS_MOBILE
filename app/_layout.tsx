@@ -1,24 +1,20 @@
 import { FontAwesome } from "@expo/vector-icons";
 import { useFonts } from "expo-font";
 import {
-  DarkTheme,
-  DefaultTheme,
+  DarkTheme as RouterDarkTheme,
+  DefaultTheme as RouterDefaultTheme,
   Stack,
-  ThemeProvider,
+  ThemeProvider as NavigationThemeProvider,
 } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useState } from "react";
-import { BlurView } from 'expo-blur';
-import { Platform, Text, View, StyleSheet, useColorScheme } from 'react-native';
-// import { useColorScheme } from "@/components/useColorScheme";
-import Colors from "@/constants/Colors";
-import AuthWrapper from "@/components/AuthWrapper";
+import { Platform, View, StyleSheet } from 'react-native';
 import UpdateModal from "@/components/UpdateModal";
-import WebAppUpdateModal from "@/components/WebAppUpdateModal";
 import { LanguageProvider } from "@/contexts/LanguageContext";
-if (Platform.OS === 'web') {
-  
-}
+import { ThemeProvider as AppThemeProvider } from "@/components/ThemeContext";
+import { useAppTheme } from "@/hooks/useAppTheme";
+import { UpdatesProvider } from "@/contexts/UpdatesContext";
+import { ProfessionalProfileProvider } from "@/contexts/ProfessionalProfileContext";
 export { ErrorBoundary } from "expo-router";
 
 export const unstable_settings = {
@@ -47,29 +43,39 @@ export default function RootLayout() {
     return null;
   }
 
-  return <RootLayoutNav />;
+  return (
+    <AppThemeProvider>
+      <LanguageProvider>
+        <UpdatesProvider>
+          <ProfessionalProfileProvider>
+            <RootLayoutNav />
+          </ProfessionalProfileProvider>
+        </UpdatesProvider>
+      </LanguageProvider>
+    </AppThemeProvider>
+  );
 }
 
 function RootLayoutNav() {
-  const colorScheme = useColorScheme() === "dark" ? "dark" : "light";
-  const theme = colorScheme === "dark" ? DarkTheme : DefaultTheme;
-  const [updateRequired, setUpdateRequired] = useState(false);
+  const { resolvedTheme, colors } = useAppTheme();
+  const theme =
+    resolvedTheme === "dark" ? RouterDarkTheme : RouterDefaultTheme;
+  const [, setUpdateRequired] = useState(false);
 
   const modifiedTheme = {
     ...theme,
     colors: {
       ...theme.colors,
-      primary: Colors[colorScheme ?? "light"].primary,
-      background: Colors[colorScheme ?? "light"].background,
-      card: Colors[colorScheme ?? "light"].card,
-      text: Colors[colorScheme ?? "light"].text,
-      border: Colors[colorScheme ?? "light"].border,
+      primary: colors.primary,
+      background: colors.background,
+      card: colors.surface,
+      text: colors.text,
+      border: colors.border,
     },
   };
 
   return (
-    <LanguageProvider>
-    <ThemeProvider value={modifiedTheme}>
+    <NavigationThemeProvider value={modifiedTheme}>
       <View style={styles.root}>
         {/* Update Modal - will block navigation if update is required */}
         <UpdateModal onUpdateChecked={setUpdateRequired} />
@@ -290,8 +296,7 @@ function RootLayoutNav() {
           />
         </Stack>
       </View>
-    </ThemeProvider>
-    </LanguageProvider>
+    </NavigationThemeProvider>
   );
 }
 const styles = StyleSheet.create({

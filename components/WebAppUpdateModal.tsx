@@ -129,7 +129,7 @@ export default function WebAppUpdateModal() {
       onRequestClose={handleClose}
     >
       <BlurView
-        intensity={Platform.OS === 'ios' ? 60 : 30}
+        intensity={30}
         tint={colorScheme === 'dark' ? 'dark' : 'light'}
         style={styles.backdrop}
       >
@@ -143,7 +143,7 @@ export default function WebAppUpdateModal() {
           ]}
         >
           <BlurView
-            intensity={Platform.OS === 'ios' ? 20 : 100}
+            intensity={100}
             tint={colorScheme === 'dark' ? 'dark' : 'light'}
             style={[
               styles.modalContent,

@@ -1,125 +1,157 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Tabs } from "expo-router";
-import { Feather, Ionicons } from "@expo/vector-icons";
-import Colors from "@/constants/Colors";
+import { Ionicons } from "@expo/vector-icons";
+import { ColorValue, Platform, StyleSheet, View } from "react-native";
 import AuthWrapper from "@/components/AuthWrapper";
 import SetupWrapper from "@/components/SetupWrapper";
-import { BlurView } from "expo-blur";
-import { Platform, StyleSheet, View, useColorScheme } from "react-native";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAppTheme } from "@/hooks/useAppTheme";
+import { useUpdates } from "@/contexts/UpdatesContext";
+import { radii } from "@/constants/theme";
+import { useSchools } from "@/hooks/useSchools";
+import useSchoolStore from "@/utils/stores/schoolStore";
 
+type IconName = React.ComponentProps<typeof Ionicons>["name"];
+
+function TabIcon({
+  focused,
+  color,
+  active,
+  outline,
+}: {
+  focused: boolean;
+  color: ColorValue;
+  active: IconName;
+  outline: IconName;
+}) {
+  return (
+    <View style={styles.iconContainer}>
+      <Ionicons name={focused ? active : outline} size={23} color={color} />
+    </View>
+  );
+}
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme() === "dark" ? "dark" : "light";
-  const currentColors = Colors[colorScheme ?? "light"];
+  const { colors } = useAppTheme();
   const { language } = useLanguage();
-  
+  const { unreadCount } = useUpdates();
+  const { schoolData, loading: schoolsLoading } = useSchools();
+  const setSchools = useSchoolStore((state) => state.setSchools);
+
+  useEffect(() => {
+    if (schoolsLoading) return;
+
+    setSchools(
+      schoolData.map((item) => ({
+        id: item.school.id,
+        name: item.school.name,
+        code: item.school.acronym || item.school.code || "",
+        logo: item.school.logo_url || undefined,
+        address: item.school.address,
+        phone: item.school.phone,
+        email: item.school.email,
+        academic_year: item.school.academic_year,
+        academic_year_id: item.school.academic_year_id,
+        status: "active" as const,
+        pivot: {
+          is_approved: Boolean(item.teacher_school.isActive),
+          created_at: item.teacher_school.created_at,
+        },
+      })),
+    );
+  }, [schoolData, schoolsLoading, setSchools]);
+
   return (
     <AuthWrapper>
       <SetupWrapper>
-      <Tabs
-        screenOptions={{
-          tabBarActiveTintColor: currentColors.tint,
-          tabBarInactiveTintColor: currentColors.tabIconDefault,
-          tabBarStyle: { 
-            marginBottom: Platform.OS === 'web' ? 50 : 0,
-            backgroundColor: 'transparent',
-            borderTopWidth: 0,
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            elevation: 0,
-            height: 85,
-            paddingTop: 8,
-          },
-          tabBarBackground: () => (
-            <BlurView 
-              intensity={Platform.OS === 'ios' ? 100 : 140}
-              tint={colorScheme === 'dark' ? 'dark' : 'light'}
-              style={StyleSheet.absoluteFill}
-            />
-          ), 
-          tabBarLabelStyle: {
-            fontSize: 11,
-            fontWeight: "600",
-            marginBottom: Platform.OS === 'ios' ? 0 : 8,
-          },
-          headerShown: false,
-        }}
-      >
-          {/* Home Tab - Dashboard */}
+        <Tabs
+          screenOptions={{
+            headerShown: false,
+            tabBarActiveTintColor: colors.primary,
+            tabBarInactiveTintColor: colors.textMuted,
+            tabBarHideOnKeyboard: true,
+            tabBarStyle: {
+              height: Platform.OS === "ios" ? 84 : 70,
+              paddingTop: 7,
+              paddingBottom: Platform.OS === "ios" ? 22 : 9,
+              backgroundColor: colors.tabBar,
+              borderTopColor: colors.border,
+              borderTopWidth: StyleSheet.hairlineWidth,
+              elevation: 8,
+            },
+            tabBarLabelStyle: {
+              fontSize: 11,
+              lineHeight: 15,
+              fontWeight: "600",
+            },
+            tabBarItemStyle: { minHeight: 52 },
+            sceneStyle: { backgroundColor: colors.background },
+          }}
+        >
           <Tabs.Screen
             name="home"
             options={{
-              title: language === 'fr' ? 'Accueil' : 'Home',
-              tabBarIcon: ({ color, focused }) => (
-                <View style={styles.iconContainer}>
-                  <Ionicons 
-                    name={focused ? "home" : "home-outline"} 
-                    size={24} 
-                    color={color} 
-                  />
-                  {focused && <View style={[styles.activeIndicator, { backgroundColor: color }]} />}
-                </View>
+              title: language === "fr" ? "Accueil" : "Home",
+              tabBarIcon: (props) => (
+                <TabIcon
+                  {...props}
+                  active="home"
+                  outline="home-outline"
+                />
               ),
             }}
           />
-
-          {/* Marks Tab */}
           <Tabs.Screen
-            name="subjects"
+            name="classes"
             options={{
-              title: language === 'fr' ? 'Notes' : 'Marks',
-              tabBarIcon: ({ color, focused }) => (
-                <View style={styles.iconContainer}>
-                  <Feather 
-                    name="edit-3" 
-                    size={22} 
-                    color={color} 
-                  />
-                  {focused && <View style={[styles.activeIndicator, { backgroundColor: color }]} />}
-                </View>
+              title: language === "fr" ? "Classes" : "Classes",
+              tabBarIcon: (props) => (
+                <TabIcon
+                  {...props}
+                  active="people"
+                  outline="people-outline"
+                />
               ),
             }}
           />
-
-          {/* Attendance Tab */}
           <Tabs.Screen
-            name="attendance"
+            name="updates"
             options={{
-              title: language === 'fr' ? 'Présences' : 'Attendance',
-              tabBarIcon: ({ color, focused }) => (
-                <View style={styles.iconContainer}>
-                  <Ionicons 
-                    name={focused ? "checkmark-circle" : "checkmark-circle-outline"} 
-                    size={24} 
-                    color={color} 
-                  />
-                  {focused && <View style={[styles.activeIndicator, { backgroundColor: color }]} />}
-                </View>
+              title: language === "fr" ? "Actualités" : "Updates",
+              tabBarBadge: unreadCount > 0 ? Math.min(unreadCount, 99) : undefined,
+              tabBarBadgeStyle: {
+                backgroundColor: colors.error,
+                color: "#FFFFFF",
+                fontSize: 10,
+                minWidth: 18,
+                height: 18,
+                borderRadius: radii.pill,
+              },
+              tabBarIcon: (props) => (
+                <TabIcon
+                  {...props}
+                  active="notifications"
+                  outline="notifications-outline"
+                />
               ),
             }}
           />
-
-          {/* Profile Tab */}
           <Tabs.Screen
             name="profile"
             options={{
-              title: language === 'fr' ? 'Profil' : 'Profile',
-              tabBarIcon: ({ color, focused }) => (
-                <View style={styles.iconContainer}>
-                  <Ionicons 
-                    name={focused ? "person" : "person-outline"} 
-                    size={24} 
-                    color={color} 
-                  />
-                  {focused && <View style={[styles.activeIndicator, { backgroundColor: color }]} />}
-                </View>
+              title: language === "fr" ? "Profil" : "Profile",
+              tabBarIcon: (props) => (
+                <TabIcon
+                  {...props}
+                  active="person"
+                  outline="person-outline"
+                />
               ),
             }}
           />
-      </Tabs>
+          <Tabs.Screen name="subjects" options={{ href: null }} />
+          <Tabs.Screen name="attendance" options={{ href: null }} />
+        </Tabs>
       </SetupWrapper>
     </AuthWrapper>
   );
@@ -127,14 +159,9 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   iconContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 4,
-  },
-  activeIndicator: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    marginTop: 4,
+    minWidth: 40,
+    minHeight: 28,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

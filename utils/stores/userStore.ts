@@ -25,6 +25,7 @@ interface UserStoreState {
   user: User | null;
   teacher: Teacher | null;
   setUser: (user: User) => void;
+  updateUser: (updatedUser: Partial<User>) => void;
   setTeacher: (teacher: Teacher) => void;
   updateTeacher: (updatedTeacher: Partial<Teacher>) => void;
   loadUserData: () => Promise<void>;
@@ -36,6 +37,10 @@ const useUserStore = create<UserStoreState>((set) => ({
   teacher: null,
 
   setUser: (user) => set({ user }),
+  updateUser: (updatedUser) =>
+    set((state) => ({
+      user: state.user ? { ...state.user, ...updatedUser } : null,
+    })),
   setTeacher: (teacher) => set({ teacher }),
   
   // New method to update teacher data

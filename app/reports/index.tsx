@@ -23,6 +23,7 @@ import Config from '@/constants/Config';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLanguage } from "@/contexts/LanguageContext";
 import SkeletonLoader from '@/components/SkeletonLoader';
+import { authFetch } from '@/services/authFetch';
 
 const { width } = Dimensions.get("window");
 
@@ -86,7 +87,7 @@ export default function ReportsScreen() {
     
     try {
       setLoading(true);
-      const response = await fetch(
+      const response = await authFetch(
         `${Config.apiBaseUrl}/teacher/performance-report?school_id=${activeSchool.id}&teacher_id=${teacher.id}`
       );
       

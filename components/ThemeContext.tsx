@@ -3,23 +3,26 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { useColorScheme as useSystemColorScheme } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-type ThemeType = "light" | "dark" | "system";
+export type ThemeType = "light" | "dark" | "system";
 
 interface ThemeContextType {
   theme: ThemeType;
-  setTheme: (theme: ThemeType) => void;
+  setTheme: (theme: ThemeType) => Promise<void>;
   resolvedTheme: "light" | "dark";
+  isReady: boolean;
 }
 
 const ThemeContext = createContext<ThemeContextType>({
   theme: "system",
-  setTheme: () => {},
+  setTheme: async () => {},
   resolvedTheme: "light",
+  isReady: false,
 });
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const systemTheme = useSystemColorScheme() === "dark" ? "dark" : "light";
   const [theme, setTheme] = useState<ThemeType>("system");
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     const loadTheme = async () => {
@@ -34,6 +37,8 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
         }
       } catch (error) {
         console.error("Failed to load theme", error);
+      } finally {
+        setIsReady(true);
       }
     };
 
@@ -57,6 +62,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
         theme,
         setTheme: handleSetTheme,
         resolvedTheme,
+        isReady,
       }}
     >
       {children}

@@ -659,7 +659,9 @@ export default function ChangePasswordScreen() {
                   {otpCode.map((digit, index) => (
                     <TextInput
                       key={index}
-                      ref={(ref) => (otpInputRefs.current[index] = ref)}
+                      ref={(ref) => {
+                        otpInputRefs.current[index] = ref;
+                      }}
                       style={[
                         styles.otpInput,
                         { 

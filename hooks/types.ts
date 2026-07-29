@@ -9,6 +9,8 @@ export interface School {
   phone: string;
   code?: string;
   status?: string;
+  academic_year?: string;
+  academic_year_id?: number;
 }
 
 // Teacher-school relationship object

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { SchoolResponse } from './types';
 import { getUserAndTeacherData } from '@/utils/storage/getUserAndTeacher';
 import Config from '@/constants/Config';
+import { authFetch } from '@/services/authFetch';
 
 export const useSchools = (teacherId?: number) => {
   const [schoolData, setSchoolData] = useState<SchoolResponse[]>([]);
@@ -18,7 +19,7 @@ export const useSchools = (teacherId?: number) => {
         return;
       }
       
-      const response = await fetch(`${Config.apiBaseUrl}/teacher-schools?teacher_id=${teacher.id}`, {
+      const response = await authFetch(`${Config.apiBaseUrl}/teacher-schools?teacher_id=${teacher.id}`, {
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
@@ -36,7 +37,7 @@ export const useSchools = (teacherId?: number) => {
       
 
       if (data.success) {
-        setSchoolData(data.data as SchoolResponse[]);
+        setSchoolData(Array.isArray(data.data) ? data.data as SchoolResponse[] : []);
       } else {
         setError(data.message || 'Failed to fetch schools');
       }

@@ -12,6 +12,7 @@ export interface School {
   email?: string;
   status: 'active' | 'pending' | 'inactive';
   academic_year?: string;
+  academic_year_id?: number;
   pivot?: {
     is_approved: boolean;
     created_at: string;
@@ -60,19 +61,33 @@ const useSchoolStore = create<SchoolStoreState>()(
 
       setSchools: (schools) => {
         const current = get();
+        const refreshedActive = current.activeSchool
+          ? schools.find((school) => school.id === current.activeSchool?.id) ?? null
+          : null;
+        const refreshedRecent = current.recentSchools
+          .map((recent) => schools.find((school) => school.id === recent.id))
+          .filter((school): school is School => Boolean(school));
+
         // If no active school and we have schools, set the first active one
-        if (!current.activeSchool && schools.length > 0) {
+        if (!refreshedActive && schools.length > 0) {
           const firstActive = schools.find(s => s.status === 'active' && s.pivot?.is_approved);
           if (firstActive) {
             set({ 
               schools, 
               activeSchool: firstActive,
-              recentSchools: [firstActive]
+              recentSchools: [
+                firstActive,
+                ...refreshedRecent.filter((school) => school.id !== firstActive.id),
+              ].slice(0, 3),
             });
             return;
           }
         }
-        set({ schools });
+        set({
+          schools,
+          activeSchool: refreshedActive,
+          recentSchools: refreshedRecent,
+        });
       },
 
       addSchool: (school) => {

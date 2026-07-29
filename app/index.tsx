@@ -69,6 +69,8 @@ export default function SchoolsScreen() {
         address: item.school.address,
         phone: item.school.phone,
         email: item.school.email,
+        academic_year: item.school.academic_year,
+        academic_year_id: item.school.academic_year_id,
         status: 'active' as const,
         pivot: {
           is_approved: !!item.teacher_school.isActive,
@@ -97,6 +99,8 @@ export default function SchoolsScreen() {
       address: item.school.address,
       phone: item.school.phone,
       email: item.school.email,
+      academic_year: item.school.academic_year,
+      academic_year_id: item.school.academic_year_id,
       status: 'active' as const,
       pivot: {
         is_approved: !!item.teacher_school.isActive,

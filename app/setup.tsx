@@ -1,1048 +1,363 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TextInput, 
-  TouchableOpacity, 
-  ImageBackground, 
-  ScrollView,
+import React, { useMemo, useState } from "react";
+import {
   Alert,
-  ActivityIndicator,
+  KeyboardAvoidingView,
   Platform,
-  Dimensions,
-  Animated,
-  Image,
-  useColorScheme,
-} from 'react-native'; 
-import { TouchableWithoutFeedback, Keyboard } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { Ionicons } from '@expo/vector-icons';
-// import { useColorScheme } from '@/components/useColorScheme';
-import Colors from '@/constants/Colors';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import AuthWrapper from '@/components/AuthWrapper';
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import Config from '@/constants/Config';
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { Feather } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
+import { useRouter } from "expo-router";
+import AuthWrapper from "@/components/AuthWrapper";
+import { Button, Card, FilterChips, FormField } from "@/components/ui";
+import Config from "@/constants/Config";
+import { useAppTheme } from "@/hooks/useAppTheme";
+import { useLanguage } from "@/contexts/LanguageContext";
+import useUserStore from "@/utils/stores/userStore";
+import { radii, spacing, typography } from "@/constants/theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-// Platform-specific slider import
-let SliderComponent;
-if (Platform.OS === 'web') {
-  SliderComponent = require('rc-slider').default;
-  require('rc-slider/assets/index.css');
-} else {
-  SliderComponent = require('@react-native-community/slider').default;
+interface SetupForm {
+  qualifications: string;
+  specialization: string;
+  bio: string;
+  phone: string;
+  address: string;
+  experience: number;
 }
 
-const showAlert = (title, message) => {
-    if (Platform.OS === 'web') {
-      window.alert(`${title}\n${message}`);
-    } else {
-      Alert.alert(title, message);
-    }
-  };
+type TextField = Exclude<keyof SetupForm, "experience">;
 
-const { width } = Dimensions.get('window');
-const SETUP_STEPS = ['qualifications', 'specialization', 'bio', 'contact', 'experience'];
-
-// Field validation requirements
-const FIELD_REQUIREMENTS = {
-  qualifications: { required: true, message: 'Please enter your qualifications' },
-  specialization: { required: true, message: 'Please enter your specialization' },
-  bio: { required: true, message: 'Please enter your bio' },
-  phone: { required: true, message: 'Please enter your phone number' },
-  address: { required: true, message: 'Please enter your address' },
-  experience: { required: true, message: 'Please select your experience level' }
-};
-
-// Enhanced PlatformTextInput with proper web style handling
-const PlatformTextInput = ({ 
-  style = {}, 
-  multiline = false, 
-  numberOfLines = 1, 
-  placeholderTextColor, 
-  onChangeText,
-  value,
-  placeholder,
-  inputMode,
-  error,
-  required,
-  ...props 
-}) => {
-  if (Platform.OS === 'web') {
-    const webStyles = {
-      width: '100%',
-      maxWidth: '100%',
-      boxSizing: 'border-box',
-      borderWidth: style.borderWidth || 1,
-      borderRadius: style.borderRadius || 12,
-      padding: style.padding || 16,
-      fontSize: style.fontSize || 16,
-      marginBottom: style.marginBottom || 16,
-      borderStyle: 'solid',
-      color: style.color || 'inherit',
-      borderColor: error ? '#ff4444' : style.borderColor || '#ccc',
-      backgroundColor: style.backgroundColor || 'transparent',
-      outline: 'none',
-      ...(multiline ? {
-        height: numberOfLines ? `${numberOfLines * 24}px` : '120px',
-        minHeight: '120px',
-        resize: 'vertical'
-      } : {}),
-      '::placeholder': {
-        color: placeholderTextColor || '#999'
-      }
-    };
-
-    const handleChange = (e) => {
-      if (onChangeText) {
-        onChangeText(e.target.value);
-      }
-    };
-
-    if (multiline) {
-      return (
-        <div style={{ width: '100%' }}>
-          <textarea
-            style={webStyles}
-            placeholder={placeholder}
-            value={value}
-            onChange={handleChange}
-            rows={numberOfLines}
-          />
-          {error && <div style={styles.errorText}>{error}</div>}
-        </div>
-      );
-    }
-    
-    return (
-      <div style={{ width: '100%' }}>
-        <input
-          type={inputMode === 'tel' ? 'tel' : 'text'}
-          style={webStyles}
-          placeholder={placeholder}
-          value={value}
-          onChange={handleChange}
-        />
-        {error && <div style={styles.errorText}>{error}</div>}
-      </div>
-    );
-  }
-  
-  return (
-    <View style={{ width: '100%' }}>
-      <TextInput 
-        style={[
-          styles.input, 
-          style,
-          multiline && { height: 120, textAlignVertical: 'top' },
-          error && { borderColor: '#ff4444' }
-        ]}
-        multiline={multiline}
-        numberOfLines={numberOfLines}
-        placeholderTextColor={placeholderTextColor}
-        onChangeText={onChangeText}
-        value={value}
-        placeholder={placeholder}
-        inputMode={inputMode}
-        {...props}
-      />
-      {error && <Text style={styles.errorText}>{error}</Text>}
-      {required && !error && (
-        <Text style={[styles.requiredText, { color: Colors[useColorScheme()?.textSecondary || 'light'].textSecondary }]}>
-          * Required
-        </Text>
-      )}
-    </View>
-  );
-};
-
-export default function TeacherSetupScreen() {
-  const router = useRouter();
-  const colorScheme = useColorScheme() === "dark" ? "dark" : "light";
-  const colors = Colors[colorScheme ?? 'light'];
-  const [currentStep, setCurrentStep] = useState(0);
-  const [formData, setFormData] = useState({
-    qualifications: '',
-    specialization: '',
-    bio: '',
-    phone: '',
-    address: '',
-    experience: 1
-  });
-  const [errors, setErrors] = useState({});
-  const [isLoading, setIsLoading] = useState(false);
-  const slideAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.9)).current;
-  const iconAnim = useRef(new Animated.Value(0)).current;
-
-  // Web file input ref
-  const fileInputRef = useRef(null);
-
-  // Initial entrance animation
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        friction: 8,
-        tension: 40,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
-
-  // Icon animation on step change
-  useEffect(() => {
-    iconAnim.setValue(0);
-    Animated.sequence([
-      Animated.spring(iconAnim, {
-        toValue: 1,
-        friction: 6,
-        tension: 40,
-        useNativeDriver: true,
-      }),
-      Animated.spring(iconAnim, {
-        toValue: 0.95,
-        friction: 8,
-        useNativeDriver: true,
-      }),
-      Animated.spring(iconAnim, {
-        toValue: 1,
-        friction: 8,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [currentStep]);
-
-  const animateSlide = (direction: 'left' | 'right') => {
-    slideAnim.setValue(direction === 'left' ? -50 : 50);
-    fadeAnim.setValue(0);
-    
-    Animated.parallel([
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  };
-
-const validateCurrentStep = () => {
-  const currentStepKey = SETUP_STEPS[currentStep];
-  const fieldRequirements = FIELD_REQUIREMENTS[currentStepKey];
-  
-  if (!fieldRequirements?.required) return true;
-
-  let isValid = true;
-  const newErrors = { ...errors };
-
-  if (currentStepKey === 'profilePhoto') {
-    if (!formData.profilePhoto) {
-      newErrors.profilePhoto = fieldRequirements.message;
-      isValid = false;
-    } else {
-      delete newErrors.profilePhoto;
-    }
-  } else if (currentStepKey === 'experience') {
-    // Special handling for numeric experience field
-    if (formData.experience === null || formData.experience === undefined) {
-      newErrors.experience = 'Please select your experience level';
-      isValid = false;
-    } else {
-      delete newErrors.experience;
-    }
-  } else {
-    // Handle string fields
-    if (!formData[currentStepKey]?.toString().trim()) {
-      newErrors[currentStepKey] = fieldRequirements.message;
-      isValid = false;
-    } else {
-      delete newErrors[currentStepKey];
-    }
-  }
-
-  setErrors(newErrors);
-  return isValid;
-};
-
-
-
-  const handleNext = () => {
-    if (!validateCurrentStep()) return;
-
-    if (currentStep < SETUP_STEPS.length - 1) {
-      animateSlide('left');
-      setCurrentStep(currentStep + 1);
-    } else {
-      handleSubmit();
-    }
-  };
-
-  const handleBack = () => {
-    if (currentStep > 0) {
-      animateSlide('right');
-      setCurrentStep(currentStep - 1);
-    }
-  };
-
-  const prepareFormData = () => {
-    const formDataToSubmit = new FormData();
-    const userId = AsyncStorage.getItem('user_id');
-    
-    userId.then(resolvedId => {
-      const userIdInt = parseInt(resolvedId);
-      formDataToSubmit.append('user_id', userIdInt);
-      formDataToSubmit.append('qualifications', formData.qualifications);
-      formDataToSubmit.append('specialization', formData.specialization);
-      formDataToSubmit.append('bio', formData.bio);
-      formDataToSubmit.append('phone', formData.phone);
-      formDataToSubmit.append('address', formData.address);
-      formDataToSubmit.append('experience', formData.experience.toString());
-    });
-    
-    return formDataToSubmit;
-  };
-
-  const handleSubmit = async () => {
-    setIsLoading(true);
-    try {
-      const userId = await AsyncStorage.getItem('user_id');
-      if (!userId){
-        router.push('/auth/');
-        throw new Error('User ID not found. Please log in again.');
-        return;
-      } 
-
-      // Validate all required fields
-      const validationErrors = {};
-      let hasErrors = false;
-
-      Object.keys(FIELD_REQUIREMENTS).forEach(key => {
-        if (FIELD_REQUIREMENTS[key].required) {
-          if (!formData[key] || (typeof formData[key] === 'string' && !formData[key].trim())) {
-            validationErrors[key] = FIELD_REQUIREMENTS[key].message;
-            hasErrors = true;
-          }
-        }
-      });
-
-      if (hasErrors) {
-        setErrors(validationErrors);
-        setIsLoading(false);
-        
-        // Find the first step with error and go to it
-        const errorStep = SETUP_STEPS.findIndex(step => validationErrors[step]);
-        if (errorStep >= 0) {
-          setCurrentStep(errorStep);
-        }
-        
-        return;
-      }
-
-      const formDataToSubmit = prepareFormData();
-      console.log(formDataToSubmit);
-      
-      const response = await axios.post(`${Config.apiBaseUrl}/teacher/setup`, formDataToSubmit, {
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${await AsyncStorage.getItem('auth_token')}`,
-          "Content-Type": "multipart/form-data",
-        },
-      });
-      
-      await AsyncStorage.setItem('teacher', JSON.stringify(response.data.teacher));
-      router.push('/');
-    } catch (error) {
-      console.error('Submission error:', error);
-      showAlert(
-        'Error', 
-        error.response?.data?.message || 'Failed to save setup information. Please try again.'
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const renderStep = () => {
-    const stepContent = () => {
-      const currentStepKey = SETUP_STEPS[currentStep];
-      const isRequired = FIELD_REQUIREMENTS[currentStepKey]?.required;
-
-      const withOpacity = (hex: string, alpha: number) => {
-        const clean = hex.replace('#', '');
-        const r = parseInt(clean.substring(0, 2), 16);
-        const g = parseInt(clean.substring(2, 4), 16);
-        const b = parseInt(clean.substring(4, 6), 16);
-        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-      };
-
-      switch(currentStepKey) {
-        case 'qualifications':
-          return (
-            <>
-              <Animated.View style={{ 
-                transform: [{ scale: iconAnim }],
-                marginBottom: 16,
-              }}>
-                <View style={[styles.iconCircle, { 
-                  backgroundColor: withOpacity(colors.primary, 0.15),
-                }]}>
-                  <Ionicons name="school-outline" size={56} color={colors.primary} />
-                </View>
-              </Animated.View>
-              <Text style={[styles.stepTitle, { color: colors.text }]}>
-                Your Qualifications
-              </Text>
-              <Text style={[styles.stepSubtitle, { color: colors.textSecondary }]}>
-                List your degrees, certifications, and credentials
-              </Text>
-              <BlurView
-                intensity={Platform.OS === 'ios' ? 12 : 6}
-                tint={colorScheme === 'dark' ? 'dark' : 'light'}
-                style={[styles.inputCard, {
-                  backgroundColor: colorScheme === 'dark'
-                    ? withOpacity(colors.card, 0.65)
-                    : withOpacity(colors.card, 0.85),
-                  borderColor: withOpacity(colors.border, 0.3),
-                }]}
-              >
-                <PlatformTextInput
-                  style={[styles.input, { 
-                    color: colors.text, 
-                    borderColor: 'transparent',
-                    backgroundColor: 'transparent',
-                  }]}
-                  placeholder="PhD in Mathematics, Teaching Certificate..."
-                  placeholderTextColor={withOpacity(colors.textSecondary, 0.6)}
-                  value={formData.qualifications}
-                  onChangeText={(text) => setFormData({...formData, qualifications: text})}
-                  error={errors.qualifications}
-                  required={isRequired}
-                />
-              </BlurView>
-            </>
-          );
-        case 'specialization':
-          return (
-            <>
-              <Animated.View style={{ 
-                transform: [{ scale: iconAnim }],
-                marginBottom: 16,
-              }}>
-                <View style={[styles.iconCircle, { 
-                  backgroundColor: withOpacity(colors.primary, 0.15),
-                }]}>
-                  <Ionicons name="ribbon-outline" size={56} color={colors.primary} />
-                </View>
-              </Animated.View>
-              <Text style={[styles.stepTitle, { color: colors.text }]}>
-                Your Specialization
-              </Text>
-              <Text style={[styles.stepSubtitle, { color: colors.textSecondary }]}>
-                What subjects or areas do you specialize in?
-              </Text>
-              <BlurView
-                intensity={Platform.OS === 'ios' ? 12 : 6}
-                tint={colorScheme === 'dark' ? 'dark' : 'light'}
-                style={[styles.inputCard, {
-                  backgroundColor: colorScheme === 'dark'
-                    ? withOpacity(colors.card, 0.65)
-                    : withOpacity(colors.card, 0.85),
-                  borderColor: withOpacity(colors.border, 0.3),
-                }]}
-              >
-                <PlatformTextInput
-                  style={[styles.input, { 
-                    color: colors.text, 
-                    borderColor: 'transparent',
-                    backgroundColor: 'transparent',
-                  }]}
-                  placeholder="Mathematics, Physics, Elementary Education..."
-                  placeholderTextColor={withOpacity(colors.textSecondary, 0.6)}
-                  value={formData.specialization}
-                  onChangeText={(text) => setFormData({...formData, specialization: text})}
-                  error={errors.specialization}
-                  required={isRequired}
-                />
-              </BlurView>
-            </>
-          );
-        case 'bio':
-          return (
-            <>
-              <Animated.View style={{ 
-                transform: [{ scale: iconAnim }],
-                marginBottom: 16,
-              }}>
-                <View style={[styles.iconCircle, { 
-                  backgroundColor: withOpacity(colors.primary, 0.15),
-                }]}>
-                  <Ionicons name="document-text-outline" size={56} color={colors.primary} />
-                </View>
-              </Animated.View>
-              <Text style={[styles.stepTitle, { color: colors.text }]}>
-                Your Teaching Bio
-              </Text>
-              <Text style={[styles.stepSubtitle, { color: colors.textSecondary }]}>
-                Describe your teaching philosophy and what makes you unique
-              </Text>
-              <BlurView
-                intensity={Platform.OS === 'ios' ? 12 : 6}
-                tint={colorScheme === 'dark' ? 'dark' : 'light'}
-                style={[styles.inputCard, {
-                  backgroundColor: colorScheme === 'dark'
-                    ? withOpacity(colors.card, 0.65)
-                    : withOpacity(colors.card, 0.85),
-                  borderColor: withOpacity(colors.border, 0.3),
-                }]}
-              >
-                <PlatformTextInput
-                  style={[styles.input, { 
-                    color: colors.text, 
-                    borderColor: 'transparent',
-                    backgroundColor: 'transparent',
-                    minHeight: 120,
-                  }]}
-                  placeholder="I have 10 years experience teaching with a focus on..."
-                  placeholderTextColor={withOpacity(colors.textSecondary, 0.6)}
-                  multiline
-                  numberOfLines={5}
-                  value={formData.bio}
-                  onChangeText={(text) => setFormData({...formData, bio: text})}
-                  error={errors.bio}
-                  required={isRequired}
-                />
-              </BlurView>
-            </>
-          );
-        case 'contact':
-          return (
-            <>
-              <Animated.View style={{ 
-                transform: [{ scale: iconAnim }],
-                marginBottom: 16,
-              }}>
-                <View style={[styles.iconCircle, { 
-                  backgroundColor: withOpacity(colors.primary, 0.15),
-                }]}>
-                  <Ionicons name="call-outline" size={56} color={colors.primary} />
-                </View>
-              </Animated.View>
-              <Text style={[styles.stepTitle, { color: colors.text }]}>
-                Contact Information
-              </Text>
-              <Text style={[styles.stepSubtitle, { color: colors.textSecondary }]}>
-                How can students reach you?
-              </Text>
-              <BlurView
-                intensity={Platform.OS === 'ios' ? 12 : 6}
-                tint={colorScheme === 'dark' ? 'dark' : 'light'}
-                style={[styles.inputCard, {
-                  backgroundColor: colorScheme === 'dark'
-                    ? withOpacity(colors.card, 0.65)
-                    : withOpacity(colors.card, 0.85),
-                  borderColor: withOpacity(colors.border, 0.3),
-                }]}
-              >
-                <PlatformTextInput
-                  style={[styles.input, { 
-                    color: colors.text, 
-                    borderColor: 'transparent',
-                    backgroundColor: 'transparent',
-                  }]}
-                  placeholder="Phone number"
-                  placeholderTextColor={withOpacity(colors.textSecondary, 0.6)}
-                  inputMode="tel"
-                  value={formData.phone}
-                  onChangeText={(text) => setFormData({...formData, phone: text})}
-                  error={errors.phone}
-                  required={isRequired}
-                />
-                <PlatformTextInput
-                  style={[styles.input, { 
-                    color: colors.text, 
-                    borderColor: 'transparent',
-                    backgroundColor: 'transparent',
-                    marginTop: 12,
-                  }]}
-                  placeholder="Address (City, Country)"
-                  placeholderTextColor={withOpacity(colors.textSecondary, 0.6)}
-                  value={formData.address}
-                  onChangeText={(text) => setFormData({...formData, address: text})}
-                  error={errors.address}
-                  required={isRequired}
-                />
-              </BlurView>
-            </>
-          );
-       case 'experience':
-          return (
-            <>
-              <Animated.View style={{ 
-                transform: [{ scale: iconAnim }],
-                marginBottom: 16,
-              }}>
-                <View style={[styles.iconCircle, { 
-                  backgroundColor: withOpacity(colors.primary, 0.15),
-                }]}>
-                  <Ionicons name="briefcase-outline" size={56} color={colors.primary} />
-                </View>
-              </Animated.View>
-              <Text style={[styles.stepTitle, { color: colors.text }]}>
-                Teaching Experience
-              </Text>
-              <Text style={[styles.stepSubtitle, { color: colors.textSecondary }]}>
-                How many years have you been teaching?
-              </Text>
-              <BlurView
-                intensity={Platform.OS === 'ios' ? 12 : 6}
-                tint={colorScheme === 'dark' ? 'dark' : 'light'}
-                style={[styles.inputCard, {
-                  backgroundColor: colorScheme === 'dark'
-                    ? withOpacity(colors.card, 0.65)
-                    : withOpacity(colors.card, 0.85),
-                  borderColor: withOpacity(colors.border, 0.3),
-                  padding: 24,
-                }]}
-              >
-                <View style={styles.sliderContainer}>
-                  <View style={[styles.valueDisplay, {
-                    backgroundColor: withOpacity(colors.primary, 0.1),
-                  }]}>
-                    <Text style={[styles.sliderValue, { color: colors.primary }]}>
-                      {formData.experience}
-                    </Text>
-                    <Text style={[styles.sliderValueLabel, { color: colors.primary }]}>
-                      {formData.experience === 1 ? 'year' : 'years'}
-                    </Text>
-                  </View>
-                  {Platform.OS === 'web' ? (
-                    <SliderComponent
-                      min={0}
-                      max={30}
-                      step={1}
-                      value={formData.experience}
-                      onChange={(value) => setFormData({...formData, experience: value})}
-                      trackStyle={{ backgroundColor: colors.primary }}
-                      railStyle={{ backgroundColor: withOpacity(colors.border, 0.3) }}
-                      handleStyle={{ 
-                        backgroundColor: colors.primary,
-                        borderColor: colors.primary 
-                      }}
-                    />
-                  ) : (
-                    <SliderComponent
-                      style={styles.slider}
-                      minimumValue={0}
-                      maximumValue={30}
-                      step={1}
-                      minimumTrackTintColor={colors.primary}
-                      maximumTrackTintColor={withOpacity(colors.border, 0.3)}
-                      thumbTintColor={colors.primary}
-                      value={formData.experience}
-                      onValueChange={(value) => setFormData({...formData, experience: value})}
-                    />
-                  )}
-                  <View style={styles.sliderLabels}>
-                    <Text style={[styles.sliderLabel, { color: colors.textSecondary }]}>0</Text>
-                    <Text style={[styles.sliderLabel, { color: colors.textSecondary }]}>5</Text>
-                    <Text style={[styles.sliderLabel, { color: colors.textSecondary }]}>10</Text>
-                    <Text style={[styles.sliderLabel, { color: colors.textSecondary }]}>15</Text>
-                    <Text style={[styles.sliderLabel, { color: colors.textSecondary }]}>20+</Text>
-                  </View>
-                </View>
-              </BlurView>
-              {errors.experience && (
-                <Text style={[styles.errorText, { textAlign: 'center' }]}>
-                  {errors.experience}
-                </Text>
-              )}
-            </>
-          );
-
-        default:
-          return null;
-      }
-    };
-
-    return (
-      <Animated.View
-        style={{
-          transform: [
-            { translateX: slideAnim },
-            { scale: scaleAnim },
-          ],
-          opacity: fadeAnim,
-        }}
-      >
-        <View style={styles.stepContainer}>
-          {stepContent()}
-        </View>
-      </Animated.View>
-    );
-  };
-
+export default function SetupRoute() {
   return (
     <AuthWrapper>
-      <ImageBackground 
-        source={require('@/assets/images/auth-bg2.jpg')} 
-        style={styles.container}
-        blurRadius={10}
-      >
-        <BlurView 
-          intensity={Platform.OS === 'ios' ? 330 : 100} 
-          style={StyleSheet.absoluteFill} 
-          tint={colorScheme === 'dark' ? 'dark' : 'light'} 
-        />
-        
-        {/* Header gradient overlay */}
-        <LinearGradient
-          colors={
-            colorScheme === 'dark'
-              ? ['rgba(0,0,0,0.6)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0)']
-              : ['rgba(255,255,255,0.6)', 'rgba(255,255,255,0.3)', 'rgba(255,255,255,0)']
-          }
-          style={styles.headerGradient}
-        />
-        
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.innerContainer}>
-            {/* Progress Header */}
-            <BlurView
-              intensity={Platform.OS === 'ios' ? 20 : 10}
-              tint={colorScheme === 'dark' ? 'dark' : 'light'}
-              style={[styles.progressHeader, {
-                backgroundColor: colorScheme === 'dark'
-                  ? 'rgba(0,0,0,0.3)'
-                  : 'rgba(255,255,255,0.5)',
-              }]}
-            >
-              <Text style={[styles.progressText, { color: colors.textSecondary }]}>
-                Step {currentStep + 1} of {SETUP_STEPS.length}
-              </Text>
-              <View style={styles.progressContainer}>
-                {SETUP_STEPS.map((_, i) => (
-                  <Animated.View
-                    key={i}
-                    style={[
-                      styles.progressDot,
-                      { 
-                        backgroundColor: i === currentStep ? colors.primary : colors.border,
-                        width: i === currentStep ? 32 : 8,
-                        opacity: i <= currentStep ? 1 : 0.4,
-                      }
-                    ]}
-                  />
-                ))}
-              </View>
-            </BlurView>
-
-            <View style={styles.contentContainer}>
-              <ScrollView 
-                contentContainerStyle={styles.scrollContent}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-              >
-                {renderStep()}
-              </ScrollView>
-            </View>
-
-            {/* Button Container with gradient */}
-            <LinearGradient
-              colors={
-                colorScheme === 'dark'
-                  ? ['rgba(0,0,0,0)', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.7)']
-                  : ['rgba(255,255,255,0)', 'rgba(255,255,255,0.6)', 'rgba(255,255,255,0.9)']
-              }
-              style={styles.buttonGradient}
-            >
-              <View style={styles.buttonContainer}>
-                {currentStep > 0 && (
-                  <TouchableOpacity 
-                    style={[styles.secondaryButton, { 
-                      borderColor: colors.border,
-                      backgroundColor: colorScheme === 'dark'
-                        ? 'rgba(255,255,255,0.1)'
-                        : 'rgba(0,0,0,0.05)',
-                    }]}
-                    onPress={handleBack}
-                  >
-                    <Ionicons name="arrow-back" size={20} color={colors.text} />
-                    <Text style={[styles.secondaryButtonText, { color: colors.text }]}>
-                      Back
-                    </Text>
-                  </TouchableOpacity>
-                )}
-                
-                <TouchableOpacity 
-                  style={[
-                    styles.primaryButton, 
-                    { 
-                      backgroundColor: colors.primary,
-                      opacity: isLoading ? 0.8 : 1,
-                      flex: currentStep === 0 ? 1 : undefined,
-                    }
-                  ]}
-                  onPress={handleNext}
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <ActivityIndicator color="white" />
-                  ) : (
-                    <View style={styles.buttonContent}>
-                      <Text style={styles.buttonText}>
-                        {currentStep === SETUP_STEPS.length - 1 ? 'Complete Profile' : 'Continue'}
-                      </Text>
-                      {currentStep < SETUP_STEPS.length - 1 && (
-                        <Ionicons name="arrow-forward" size={20} color="white" />
-                      )}
-                      {currentStep === SETUP_STEPS.length - 1 && (
-                        <Ionicons name="checkmark-circle" size={20} color="white" />
-                      )}
-                    </View>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </LinearGradient>
-          </View>
-        </TouchableWithoutFeedback>
-      </ImageBackground>
+      <TeacherSetupScreen />
     </AuthWrapper>
   );
 }
 
+function TeacherSetupScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { colors } = useAppTheme();
+  const { language } = useLanguage();
+  const setTeacher = useUserStore((store) => store.setTeacher);
+  const [step, setStep] = useState(0);
+  const [form, setForm] = useState<SetupForm>({
+    qualifications: "",
+    specialization: "",
+    bio: "",
+    phone: "",
+    address: "",
+    experience: 1,
+  });
+  const [errors, setErrors] = useState<Partial<Record<keyof SetupForm, string>>>(
+    {},
+  );
+  const [submitting, setSubmitting] = useState(false);
+
+  const copy =
+    language === "fr"
+      ? {
+          welcome: "Configurons votre profil enseignant",
+          subtitle:
+            "Ces informations sont requises par le compte existant. Vous pourrez développer votre profil professionnel ensuite.",
+          next: "Continuer",
+          back: "Retour",
+          finish: "Terminer",
+          required: "Ce champ est requis.",
+          errorTitle: "Configuration impossible",
+        }
+      : {
+          welcome: "Let’s set up your teacher profile",
+          subtitle:
+            "These details are required by the existing account. You can expand your professional profile later.",
+          next: "Continue",
+          back: "Back",
+          finish: "Finish setup",
+          required: "This field is required.",
+          errorTitle: "Unable to complete setup",
+        };
+
+  const steps = useMemo(
+    () =>
+      language === "fr"
+        ? [
+            {
+              title: "Parcours professionnel",
+              description: "Résumez vos qualifications et votre domaine principal.",
+              icon: "award" as const,
+              fields: ["qualifications", "specialization"] as TextField[],
+            },
+            {
+              title: "À propos de vous",
+              description: "Présentez brièvement votre approche de l’enseignement.",
+              icon: "file-text" as const,
+              fields: ["bio"] as TextField[],
+            },
+            {
+              title: "Coordonnées privées",
+              description:
+                "Ces informations restent privées et ne figurent pas sur le profil partagé.",
+              icon: "shield" as const,
+              fields: ["phone", "address"] as TextField[],
+            },
+            {
+              title: "Expérience",
+              description: "Indiquez votre nombre total d’années d’enseignement.",
+              icon: "briefcase" as const,
+              fields: [] as TextField[],
+            },
+          ]
+        : [
+            {
+              title: "Professional background",
+              description: "Summarize your qualifications and primary field.",
+              icon: "award" as const,
+              fields: ["qualifications", "specialization"] as TextField[],
+            },
+            {
+              title: "About you",
+              description: "Briefly describe your approach to teaching.",
+              icon: "file-text" as const,
+              fields: ["bio"] as TextField[],
+            },
+            {
+              title: "Private contact details",
+              description:
+                "These details stay private and are not shown on the shared profile.",
+              icon: "shield" as const,
+              fields: ["phone", "address"] as TextField[],
+            },
+            {
+              title: "Experience",
+              description: "Select your total years of teaching experience.",
+              icon: "briefcase" as const,
+              fields: [] as TextField[],
+            },
+          ],
+    [language],
+  );
+
+  const labels: Record<TextField, { en: string; fr: string }> = {
+    qualifications: { en: "Qualifications", fr: "Qualifications" },
+    specialization: { en: "Primary specialization", fr: "Spécialisation principale" },
+    bio: { en: "Professional biography", fr: "Biographie professionnelle" },
+    phone: { en: "Phone number", fr: "Numéro de téléphone" },
+    address: { en: "Private address", fr: "Adresse privée" },
+  };
+
+  const validateStep = () => {
+    const nextErrors: Partial<Record<keyof SetupForm, string>> = {};
+    steps[step].fields.forEach((field) => {
+      if (!form[field].trim()) nextErrors[field] = copy.required;
+    });
+    setErrors((current) => ({ ...current, ...nextErrors }));
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const submit = async () => {
+    setSubmitting(true);
+    try {
+      const userId = await AsyncStorage.getItem("user_id");
+      const token = await AsyncStorage.getItem("auth_token");
+      if (!userId || !token) {
+        throw new Error(
+          language === "fr"
+            ? "Votre session a expiré. Veuillez vous reconnecter."
+            : "Your session expired. Please sign in again.",
+        );
+      }
+      const payload = new FormData();
+      payload.append("user_id", userId);
+      payload.append("qualifications", form.qualifications.trim());
+      payload.append("specialization", form.specialization.trim());
+      payload.append("bio", form.bio.trim());
+      payload.append("phone", form.phone.trim());
+      payload.append("address", form.address.trim());
+      payload.append("experience", String(form.experience));
+      const response = await axios.post(
+        `${Config.apiBaseUrl}/teacher/setup`,
+        payload,
+        {
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+        },
+      );
+      await AsyncStorage.setItem("teacher", JSON.stringify(response.data.teacher));
+      setTeacher(response.data.teacher);
+      router.replace("/");
+    } catch (submitError) {
+      const message = axios.isAxiosError(submitError)
+        ? submitError.response?.data?.message ?? submitError.message
+        : submitError instanceof Error
+          ? submitError.message
+          : language === "fr"
+            ? "Veuillez réessayer."
+            : "Please try again.";
+      Alert.alert(copy.errorTitle, message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const next = () => {
+    if (!validateStep()) return;
+    if (step === steps.length - 1) {
+      void submit();
+    } else {
+      setStep((current) => current + 1);
+    }
+  };
+
+  return (
+    <KeyboardAvoidingView
+      style={[styles.root, { backgroundColor: colors.background }]}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + spacing.xl, paddingBottom: insets.bottom + spacing.xl },
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.brand}>
+          <View style={[styles.logo, { backgroundColor: colors.primary }]}>
+            <Text style={[typography.heading, { color: colors.onPrimary }]}>F</Text>
+          </View>
+          <Text style={[typography.label, { color: colors.primary }]}>
+            FobsSMS Teacher
+          </Text>
+        </View>
+        <Text style={[typography.title, { color: colors.text }]}>
+          {copy.welcome}
+        </Text>
+        <Text style={[typography.body, { color: colors.textSecondary }]}>
+          {copy.subtitle}
+        </Text>
+        <View
+          accessibilityLabel={`Step ${step + 1} of ${steps.length}`}
+          style={styles.progressRow}
+        >
+          {steps.map((_, index) => (
+            <View
+              key={index}
+              style={[
+                styles.progress,
+                {
+                  backgroundColor:
+                    index <= step ? colors.primary : colors.surfaceMuted,
+                },
+              ]}
+            />
+          ))}
+        </View>
+        <Card style={styles.formCard}>
+          <View
+            style={[styles.stepIcon, { backgroundColor: colors.primarySoft }]}
+          >
+            <Feather name={steps[step].icon} size={25} color={colors.primary} />
+          </View>
+          <Text style={[typography.heading, { color: colors.text }]}>
+            {steps[step].title}
+          </Text>
+          <Text style={[typography.body, { color: colors.textSecondary }]}>
+            {steps[step].description}
+          </Text>
+          {steps[step].fields.map((field) => (
+            <FormField
+              key={field}
+              label={labels[field][language]}
+              value={form[field]}
+              onChangeText={(value) => {
+                setForm((current) => ({ ...current, [field]: value }));
+                setErrors((current) => ({ ...current, [field]: undefined }));
+              }}
+              multiline={field === "bio" || field === "address"}
+              keyboardType={field === "phone" ? "phone-pad" : "default"}
+              error={errors[field]}
+            />
+          ))}
+          {step === steps.length - 1 ? (
+            <>
+              <Text style={[typography.label, { color: colors.text }]}>
+                {language === "fr" ? "Années d’expérience" : "Years of experience"}
+              </Text>
+              <FilterChips
+                options={[1, 2, 3, 5, 8, 10, 15, 20].map((value) => ({
+                  value: String(value),
+                  label: `${value}${value === 20 ? "+" : ""}`,
+                }))}
+                selected={String(form.experience)}
+                onSelect={(value) =>
+                  setForm((current) => ({
+                    ...current,
+                    experience: Number(value),
+                  }))
+                }
+              />
+            </>
+          ) : null}
+        </Card>
+        <View style={styles.actions}>
+          {step > 0 ? (
+            <View style={{ flex: 1 }}>
+              <Button
+                label={copy.back}
+                variant="secondary"
+                onPress={() => setStep((current) => current - 1)}
+              />
+            </View>
+          ) : null}
+          <View style={{ flex: 1 }}>
+            <Button
+              label={step === steps.length - 1 ? copy.finish : copy.next}
+              icon={step === steps.length - 1 ? "check" : "arrow-right"}
+              loading={submitting}
+              onPress={next}
+            />
+          </View>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  innerContainer: {
-    flex: 1,
-  },
-  headerGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 200,
-    zIndex: 1,
-  },
-  progressHeader: {
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingBottom: 20,
-    paddingHorizontal: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
-    zIndex: 2,
-  },
-  progressText: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 12,
-    textAlign: 'center',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  progressContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-  },
-  progressDot: {
-    height: 8,
-    borderRadius: 4,
-  },
-  contentContainer: {
-    flex: 1,
-    paddingHorizontal: 24,
-  },
-  scrollContent: {
+  root: { flex: 1 },
+  content: {
     flexGrow: 1,
-    justifyContent: 'center',
-    paddingVertical: 20,
+    width: "100%",
+    maxWidth: 620,
+    alignSelf: "center",
+    paddingHorizontal: spacing.lg,
+    gap: spacing.md,
   },
-  stepContainer: {
-    alignItems: 'center',
-    padding: 20,
-    width: '100%',
-    maxWidth: Platform.OS === 'web' ? '100%' : undefined,
+  brand: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  logo: {
+    width: 34,
+    height: 34,
+    borderRadius: radii.sm,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  iconCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 8,
+  progressRow: { flexDirection: "row", gap: spacing.xs },
+  progress: { flex: 1, height: 5, borderRadius: 3 },
+  formCard: { gap: spacing.md },
+  stepIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: radii.md,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  stepTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    marginTop: 20,
-    marginBottom: 8,
-    textAlign: 'center',
-    letterSpacing: 0.3,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  stepSubtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 32,
-    opacity: 0.9,
-    paddingHorizontal: 20,
-    lineHeight: 22,
-    fontWeight: '500',
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  inputCard: {
-    width: '100%',
-    maxWidth: Platform.OS === 'web' ? '100%' : undefined,
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 4,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  input: {
-    width: '100%',
-    borderWidth: 0,
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    marginBottom: 0,
-    fontWeight: '500',
-  },
-  buttonGradient: {
-    paddingTop: 20,
-    paddingBottom: Platform.OS === 'ios' ? 40 : Platform.OS === 'web' ? 0 : 20,
-    marginBottom: Platform.OS === 'web' ? 100 : 0,
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 24,
-    gap: 16,
-  },
-  primaryButton: {
-    flex: 1,
-    borderRadius: 16,
-    padding: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  secondaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderRadius: 16,
-    padding: 18,
-    borderWidth: 1.5,
-    minWidth: 100,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  secondaryButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  buttonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 17,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  sliderContainer: {
-    width: '100%',
-    marginTop: 8,
-  },
-  valueDisplay: {
-    alignSelf: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginBottom: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  sliderValue: {
-    fontSize: 32,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  sliderValueLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  slider: {
-    width: '100%',
-    height: 40,
-    marginVertical: 8,
-  },
-  sliderLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    paddingHorizontal: 4,
-    marginTop: 8,
-  },
-  sliderLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  errorText: {
-    color: '#ff4444',
-    fontSize: 14,
-    marginTop: 8,
-    marginBottom: 8,
-    fontWeight: '600',
-    textShadowColor: 'rgba(255, 68, 68, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  requiredText: {
-    fontSize: 12,
-    marginTop: 8,
-    marginBottom: 8,
-    fontWeight: '500',
-  },
+  actions: { flexDirection: "row", gap: spacing.sm },
 });
