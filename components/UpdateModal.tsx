@@ -41,16 +41,14 @@ export default function UpdateModal({ onUpdateChecked }: UpdateModalProps) {
 
   const currentVersion = Config.appVersion;
 
-  // Don't show update modal on web - always up to date
-  if (Platform.OS === 'web') {
-    useEffect(() => {
-      onUpdateChecked?.(false);
-    }, []);
-    return null;
-  }
-
   useEffect(() => {
-    checkForUpdates();
+    // Don't show update modal on web - the native update contract does not apply.
+    if (Platform.OS === 'web') {
+      onUpdateChecked?.(false);
+      setLoading(false);
+      return;
+    }
+    void checkForUpdates();
   }, []);
 
   useEffect(() => {
@@ -71,7 +69,7 @@ export default function UpdateModal({ onUpdateChecked }: UpdateModalProps) {
     }
   }, [updateInfo]);
 
-  const checkForUpdates = async () => {
+  async function checkForUpdates() {
     try {
       const response = await fetch(`${Config.apiBaseUrl}/app/check-update`, {
         method: 'GET',
@@ -101,7 +99,7 @@ export default function UpdateModal({ onUpdateChecked }: UpdateModalProps) {
         onUpdateChecked(false);
       }
     }
-  };
+  }
 
   const handleDownload = async () => {
     if (!updateInfo?.download_url) return;
@@ -130,7 +128,7 @@ export default function UpdateModal({ onUpdateChecked }: UpdateModalProps) {
   };
 
   // Don't show modal if loading or no update available
-  if (loading || !updateInfo?.update_available) {
+  if (Platform.OS === 'web' || loading || !updateInfo?.update_available) {
     return null;
   }
 

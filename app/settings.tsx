@@ -51,6 +51,8 @@ function SettingsScreen() {
           passwordHelp: "Sécurité du compte",
           notifications: "Notifications",
           notificationsHelp: "Consulter les alertes et informations",
+          blocked: "Comptes bloqués",
+          blockedHelp: "Gérer les enseignants que vous avez bloqués",
           support: "Assistance",
           help: "Aide et FAQ",
           about: "À propos de FobsSMS",
@@ -75,6 +77,8 @@ function SettingsScreen() {
           passwordHelp: "Account security",
           notifications: "Notifications",
           notificationsHelp: "View alerts and information",
+          blocked: "Blocked accounts",
+          blockedHelp: "Manage teachers you have blocked",
           support: "Support",
           help: "Help and FAQ",
           about: "About FobsSMS",
@@ -191,7 +195,13 @@ function SettingsScreen() {
         icon="notifications-outline"
         title={copy.notifications}
         subtitle={copy.notificationsHelp}
-        onPress={() => router.push("/(tabs)/updates?tab=notifications")}
+        onPress={() => router.push("/social/notifications")}
+      />
+      <SettingLink
+        icon="ban-outline"
+        title={copy.blocked}
+        subtitle={copy.blockedHelp}
+        onPress={() => router.push("/social/blocked")}
       />
 
       <SectionHeader title={copy.support} />

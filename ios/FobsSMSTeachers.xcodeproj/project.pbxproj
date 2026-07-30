@@ -9,10 +9,10 @@
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
-		84CC37ADB448E829E0F5ED18 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = EEF2F5129F15B25BB1452F18 /* PrivacyInfo.xcprivacy */; };
-		B0EB9F794A623DDF04E3BA01 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE3909E952B79FB4ED346C84 /* ExpoModulesProvider.swift */; };
+		4F0228999DF6149B225BB7B0 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2311065B2EB541154A9635E /* ExpoModulesProvider.swift */; };
+		656F5E1BD8A2148BCE43D8B8 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 1A696DC3D3E7B89501EF2561 /* PrivacyInfo.xcprivacy */; };
+		875107489FE46DC9358477B4 /* libPods-FobsSMSTeachers.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BF8B0CB5EEE635F3B5C56026 /* libPods-FobsSMSTeachers.a */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
-		EBCBAE075D2E2FDDC325F7B4 /* libPods-FobsSMSTeachers.a in Frameworks */ = {isa = PBXBuildFile; fileRef = F3279FC5C38030CB99A02262 /* libPods-FobsSMSTeachers.a */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
@@ -20,16 +20,16 @@
 		13B07F961A680F5B00A75B9A /* FobsSMSTeachers.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FobsSMSTeachers.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = FobsSMSTeachers/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = FobsSMSTeachers/Info.plist; sourceTree = "<group>"; };
-		68FFD21E23175C72B1E37EFE /* Pods-FobsSMSTeachers.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-FobsSMSTeachers.release.xcconfig"; path = "Target Support Files/Pods-FobsSMSTeachers/Pods-FobsSMSTeachers.release.xcconfig"; sourceTree = "<group>"; };
+		1A696DC3D3E7B89501EF2561 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = FobsSMSTeachers/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		2BFE5471551853BDBB8767DF /* Pods-FobsSMSTeachers.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-FobsSMSTeachers.debug.xcconfig"; path = "Target Support Files/Pods-FobsSMSTeachers/Pods-FobsSMSTeachers.debug.xcconfig"; sourceTree = "<group>"; };
+		A8B64196FC8AE286710C45D6 /* Pods-FobsSMSTeachers.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-FobsSMSTeachers.release.xcconfig"; path = "Target Support Files/Pods-FobsSMSTeachers/Pods-FobsSMSTeachers.release.xcconfig"; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = FobsSMSTeachers/SplashScreen.storyboard; sourceTree = "<group>"; };
+		B2311065B2EB541154A9635E /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-FobsSMSTeachers/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
+		BF8B0CB5EEE635F3B5C56026 /* libPods-FobsSMSTeachers.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-FobsSMSTeachers.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
-		EE3909E952B79FB4ED346C84 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-FobsSMSTeachers/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
-		EEF2F5129F15B25BB1452F18 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = FobsSMSTeachers/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = FobsSMSTeachers/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* FobsSMSTeachers-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "FobsSMSTeachers-Bridging-Header.h"; path = "FobsSMSTeachers/FobsSMSTeachers-Bridging-Header.h"; sourceTree = "<group>"; };
-		F3279FC5C38030CB99A02262 /* libPods-FobsSMSTeachers.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-FobsSMSTeachers.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		FECC05575D7DEDD8FB2A7943 /* Pods-FobsSMSTeachers.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-FobsSMSTeachers.debug.xcconfig"; path = "Target Support Files/Pods-FobsSMSTeachers/Pods-FobsSMSTeachers.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -37,7 +37,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				EBCBAE075D2E2FDDC325F7B4 /* libPods-FobsSMSTeachers.a in Frameworks */,
+				875107489FE46DC9358477B4 /* libPods-FobsSMSTeachers.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -53,7 +53,7 @@
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-				EEF2F5129F15B25BB1452F18 /* PrivacyInfo.xcprivacy */,
+				1A696DC3D3E7B89501EF2561 /* PrivacyInfo.xcprivacy */,
 			);
 			name = FobsSMSTeachers;
 			sourceTree = "<group>";
@@ -62,16 +62,24 @@
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				F3279FC5C38030CB99A02262 /* libPods-FobsSMSTeachers.a */,
+				BF8B0CB5EEE635F3B5C56026 /* libPods-FobsSMSTeachers.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		5F402A53622880128906DD3D /* Pods */ = {
+		302B0C495FB0C8D030FAADED /* ExpoModulesProviders */ = {
 			isa = PBXGroup;
 			children = (
-				FECC05575D7DEDD8FB2A7943 /* Pods-FobsSMSTeachers.debug.xcconfig */,
-				68FFD21E23175C72B1E37EFE /* Pods-FobsSMSTeachers.release.xcconfig */,
+				C7BC621551CEE842CB4F5FE1 /* FobsSMSTeachers */,
+			);
+			name = ExpoModulesProviders;
+			sourceTree = "<group>";
+		};
+		68B6509FD7BBCD8E3F9E6713 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				2BFE5471551853BDBB8767DF /* Pods-FobsSMSTeachers.debug.xcconfig */,
+				A8B64196FC8AE286710C45D6 /* Pods-FobsSMSTeachers.release.xcconfig */,
 			);
 			name = Pods;
 			path = Pods;
@@ -91,8 +99,8 @@
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
-				5F402A53622880128906DD3D /* Pods */,
-				9CC496ACFF0C81CD544FA1E9 /* ExpoModulesProviders */,
+				68B6509FD7BBCD8E3F9E6713 /* Pods */,
+				302B0C495FB0C8D030FAADED /* ExpoModulesProviders */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -107,22 +115,6 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		9CC496ACFF0C81CD544FA1E9 /* ExpoModulesProviders */ = {
-			isa = PBXGroup;
-			children = (
-				A2351FB049F66C18251DCB05 /* FobsSMSTeachers */,
-			);
-			name = ExpoModulesProviders;
-			sourceTree = "<group>";
-		};
-		A2351FB049F66C18251DCB05 /* FobsSMSTeachers */ = {
-			isa = PBXGroup;
-			children = (
-				EE3909E952B79FB4ED346C84 /* ExpoModulesProvider.swift */,
-			);
-			name = FobsSMSTeachers;
-			sourceTree = "<group>";
-		};
 		BB2F792B24A3F905000567C9 /* Supporting */ = {
 			isa = PBXGroup;
 			children = (
@@ -130,6 +122,14 @@
 			);
 			name = Supporting;
 			path = FobsSMSTeachers/Supporting;
+			sourceTree = "<group>";
+		};
+		C7BC621551CEE842CB4F5FE1 /* FobsSMSTeachers */ = {
+			isa = PBXGroup;
+			children = (
+				B2311065B2EB541154A9635E /* ExpoModulesProvider.swift */,
+			);
+			name = FobsSMSTeachers;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -140,14 +140,14 @@
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "FobsSMSTeachers" */;
 			buildPhases = (
 				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
-				A0C138F63774AC7F08D8219E /* [Expo] Configure project */,
+				80FFE18E4C46205E8F480C6C /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
-				38069928F27C48B3861FA80C /* [Expo Dev Launcher] Strip Local Network Keys for Release */,
-				FE0D61866F11A4BED4FC3BB7 /* [CP] Embed Pods Frameworks */,
+				6E715744F7AA4267B2A8F52B /* [Expo Dev Launcher] Strip Local Network Keys for Release */,
+				C14ECB61AEB7B854C426B365 /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -197,7 +197,7 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				84CC37ADB448E829E0F5ED18 /* PrivacyInfo.xcprivacy in Resources */,
+				656F5E1BD8A2148BCE43D8B8 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -243,7 +243,7 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		38069928F27C48B3861FA80C /* [Expo Dev Launcher] Strip Local Network Keys for Release */ = {
+		6E715744F7AA4267B2A8F52B /* [Expo Dev Launcher] Strip Local Network Keys for Release */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -297,7 +297,7 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-FobsSMSTeachers/Pods-FobsSMSTeachers-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		A0C138F63774AC7F08D8219E /* [Expo] Configure project */ = {
+		80FFE18E4C46205E8F480C6C /* [Expo] Configure project */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -321,7 +321,7 @@
 			shellPath = /bin/sh;
 			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-FobsSMSTeachers/expo-configure-project.sh\"\n";
 		};
-		FE0D61866F11A4BED4FC3BB7 /* [CP] Embed Pods Frameworks */ = {
+		C14ECB61AEB7B854C426B365 /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -353,7 +353,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
-				B0EB9F794A623DDF04E3BA01 /* ExpoModulesProvider.swift in Sources */,
+				4F0228999DF6149B225BB7B0 /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -362,7 +362,7 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = FECC05575D7DEDD8FB2A7943 /* Pods-FobsSMSTeachers.debug.xcconfig */;
+			baseConfigurationReference = 2BFE5471551853BDBB8767DF /* Pods-FobsSMSTeachers.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -399,7 +399,7 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 68FFD21E23175C72B1E37EFE /* Pods-FobsSMSTeachers.release.xcconfig */;
+			baseConfigurationReference = A8B64196FC8AE286710C45D6 /* Pods-FobsSMSTeachers.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;

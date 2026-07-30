@@ -5,9 +5,12 @@ export default {
     version: "1.1.2",
     orientation: "portrait",
     icon: "./assets/icon.png",
+    scheme: "fobssmsteachermobile",
+    newArchEnabled: true,
     userInterfaceStyle: "automatic", // This follows the system theme
     // SDK 57 removed the top-level `splash` key; it is configured via the plugin below.
     plugins: [
+      "expo-router",
       [
         "expo-splash-screen",
         {
@@ -35,7 +38,12 @@ export default {
       },
     },
     web: {
+      bundler: "metro",
+      output: "static",
       favicon: "./assets/images/favicon.png"
+    },
+    experiments: {
+      typedRoutes: true
     },
     extra: {
       apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL || 'https://fobssms.com/api',

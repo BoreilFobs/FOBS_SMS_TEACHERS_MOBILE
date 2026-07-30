@@ -20,17 +20,23 @@ import { radii, spacing, typography } from "@/constants/theme";
 import useUserStore from "@/utils/stores/userStore";
 import useSchoolStore from "@/utils/stores/schoolStore";
 import Config from "@/constants/Config";
+import { useSocial } from "@/social/hooks/useSocial";
+import { CURRENT_TEACHER_ID } from "@/social/models";
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { colors } = useAppTheme();
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const user = useUserStore((store) => store.user);
   const teacher = useUserStore((store) => store.teacher);
   const schools = useSchoolStore((store) => store.schools);
   const activeSchools = schools.filter(
     (school) =>
       school.status === "active" && school.pivot?.is_approved !== false,
+  );
+  const { snapshot } = useSocial();
+  const socialProfile = snapshot.teachers.find(
+    (candidate) => candidate.id === CURRENT_TEACHER_ID,
   );
   const {
     profile,
@@ -186,6 +192,71 @@ export default function ProfileScreen() {
         </View>
       </Card>
 
+      <View style={styles.socialStats}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push({ pathname: "/social/connections", params: { type: "followers" } })}
+          style={styles.socialStat}
+        >
+          <Text style={[typography.heading, { color: colors.text }]}>
+            {socialProfile?.followerCount ?? 0}
+          </Text>
+          <Text style={[typography.caption, { color: colors.textSecondary }]}>
+            {t("followers")}
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push({ pathname: "/social/connections", params: { type: "following" } })}
+          style={styles.socialStat}
+        >
+          <Text style={[typography.heading, { color: colors.text }]}>
+            {socialProfile?.followingCount ?? 0}
+          </Text>
+          <Text style={[typography.caption, { color: colors.textSecondary }]}>
+            {t("following")}
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push({ pathname: "/social/profile/[id]", params: { id: CURRENT_TEACHER_ID } })}
+          style={styles.socialStat}
+        >
+          <Text style={[typography.heading, { color: colors.text }]}>
+            {snapshot.posts.filter((post) => post.authorId === CURRENT_TEACHER_ID).length}
+          </Text>
+          <Text style={[typography.caption, { color: colors.textSecondary }]}>
+            {t("posts")}
+          </Text>
+        </Pressable>
+      </View>
+
+      <SectionHeader title={t("social_feed")} />
+      <ProfileLink
+        icon="document-text-outline"
+        title={t("profile_posts")}
+        subtitle={t("professional_profile")}
+        onPress={() => router.push({ pathname: "/social/profile/[id]", params: { id: CURRENT_TEACHER_ID } })}
+      />
+      <ProfileLink
+        icon="bookmark-outline"
+        title={t("saved_posts")}
+        subtitle={t("saved")}
+        onPress={() => router.push("/social/saved")}
+      />
+      <ProfileLink
+        icon="briefcase-outline"
+        title={t("my_applications")}
+        subtitle={t("jobs")}
+        onPress={() => router.push("/social/applications")}
+      />
+      <ProfileLink
+        icon="ban-outline"
+        title={t("blocked_accounts")}
+        subtitle={t("account_settings")}
+        onPress={() => router.push("/social/blocked")}
+      />
+
       <SectionHeader title={copy.overview} />
       <Card>
         <Text style={[typography.body, { color: colors.textSecondary }]}>
@@ -325,6 +396,18 @@ const styles = StyleSheet.create({
   chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginTop: spacing.md },
   list: { gap: spacing.sm },
   assignment: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  socialStats: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    paddingVertical: spacing.xs,
+  },
+  socialStat: {
+    minWidth: 88,
+    minHeight: 54,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   schoolIcon: {
     width: 44,
     height: 44,

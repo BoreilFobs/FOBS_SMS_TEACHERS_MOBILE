@@ -1,0 +1,157 @@
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  FlatList,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { Feather } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAppTheme } from "@/hooks/useAppTheme";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { EmptyState, FilterChips, SearchInput } from "@/components/ui";
+import { spacing, typography } from "@/constants/theme";
+import { useSocial } from "@/social/hooks/useSocial";
+import { TeacherCard } from "@/social/components/TeacherCard";
+import { CURRENT_TEACHER_ID, SocialTeacher } from "@/social/models";
+
+type ViewKey = "suggested" | "trending" | "following" | "followers";
+
+export default function NetworkScreen() {
+  const insets = useSafeAreaInsets();
+  const { colors } = useAppTheme();
+  const { t } = useLanguage();
+  const { repository, snapshot } = useSocial();
+  const [view, setView] = useState<ViewKey>("suggested");
+  const [subject, setSubject] = useState("all");
+  const [query, setQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SocialTeacher[] | null>(null);
+  const [searching, setSearching] = useState(false);
+
+  useEffect(() => {
+    if (!query.trim()) {
+      setSearchResults(null);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    const timer = setTimeout(() => {
+      void repository
+        .search(query)
+        .then((result) => setSearchResults(result.teachers))
+        .finally(() => setSearching(false));
+    }, 280);
+    return () => clearTimeout(timer);
+  }, [query, repository]);
+
+  const subjects = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          snapshot.teachers
+            .filter((teacher) => teacher.id !== CURRENT_TEACHER_ID && !teacher.blocked)
+            .flatMap((teacher) => teacher.subjects),
+        ),
+      ).slice(0, 8),
+    [snapshot.teachers],
+  );
+
+  const teachers = useMemo(() => {
+    if (searchResults) return searchResults;
+    let result = snapshot.teachers.filter(
+      (teacher) => teacher.id !== CURRENT_TEACHER_ID && !teacher.blocked,
+    );
+    if (view === "trending") {
+      result = [...result].sort(
+        (a, b) => b.engagementScore - a.engagementScore || b.followerCount - a.followerCount,
+      );
+    } else if (view === "following") {
+      result = result.filter((teacher) => teacher.followedByCurrentUser);
+    } else if (view === "followers") {
+      result = result.filter((teacher) => teacher.followsCurrentUser);
+    } else {
+      result = [...result].sort((a, b) => {
+        const relevance = (teacher: SocialTeacher) =>
+          teacher.subjects.some((item) =>
+            snapshot.teachers
+              .find((candidate) => candidate.id === CURRENT_TEACHER_ID)
+              ?.subjects.includes(item),
+          )
+            ? 100
+            : 0;
+        return relevance(b) + b.engagementScore - relevance(a) - a.engagementScore;
+      });
+    }
+    if (subject !== "all") result = result.filter((teacher) => teacher.subjects.includes(subject));
+    return result;
+  }, [searchResults, snapshot.teachers, subject, view]);
+
+  return (
+    <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      <View style={styles.header}>
+        <View>
+          <Text style={[typography.title, { color: colors.text }]}>{t("network")}</Text>
+          <Text style={[typography.body, { color: colors.textSecondary }]}>
+            {t("suggested_teachers")}
+          </Text>
+        </View>
+        <Feather name="users" size={27} color={colors.primary} />
+      </View>
+      <View style={styles.controls}>
+        <SearchInput value={query} onChangeText={setQuery} placeholder={t("search")} />
+        <FilterChips
+          selected={view}
+          onSelect={setView}
+          options={[
+            { value: "suggested", label: t("suggested_teachers") },
+            { value: "trending", label: t("trending_teachers") },
+            { value: "following", label: t("following") },
+            { value: "followers", label: t("followers") },
+          ]}
+        />
+        <Text style={[typography.label, { color: colors.textSecondary }]}>
+          {t("subject_categories")}
+        </Text>
+        <FilterChips
+          selected={subject}
+          onSelect={setSubject}
+          options={[
+            { value: "all", label: t("all") },
+            ...subjects.map((item) => ({ value: item, label: item })),
+          ]}
+        />
+      </View>
+      {searching ? (
+        <ActivityIndicator color={colors.primary} style={styles.loading} />
+      ) : (
+        <FlatList
+          data={teachers}
+          keyExtractor={(teacher) => teacher.id}
+          renderItem={({ item }) => <TeacherCard teacher={item} />}
+          contentContainerStyle={styles.list}
+          ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+          initialNumToRender={7}
+          windowSize={7}
+          ListEmptyComponent={
+            <EmptyState icon="users" title={t("no_teachers")} message={t("try_again")} />
+          }
+        />
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1 },
+  header: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  controls: { gap: spacing.xs, paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
+  list: { paddingHorizontal: spacing.md, paddingBottom: 110 },
+  loading: { marginTop: spacing.xxl },
+});

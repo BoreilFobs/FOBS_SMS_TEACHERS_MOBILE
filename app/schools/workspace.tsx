@@ -135,6 +135,7 @@ export default function SchoolWorkspaceScreen() {
           noSchoolMessage:
             "Choisissez votre école actuelle pour séparer correctement classes, présences et notes.",
           liveUnavailable: "Les données scolaires en direct ne sont pas disponibles.",
+          social: "Retour au réseau",
         }
       : {
           title: "Home",
@@ -160,6 +161,7 @@ export default function SchoolWorkspaceScreen() {
           noSchoolMessage:
             "Choose your current school so classes, attendance, and marks stay safely separated.",
           liveUnavailable: "Live school data is currently unavailable.",
+          social: "Back to social",
         };
 
   const greeting = getGreeting(language);
@@ -202,30 +204,43 @@ export default function SchoolWorkspaceScreen() {
             { weekday: "long", day: "numeric", month: "long" },
           ).format(new Date())}
           action={
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={copy.notifications}
-              onPress={() => router.push("/(tabs)/updates?tab=notifications")}
-              style={[
-                styles.notificationButton,
-                { backgroundColor: colors.surface },
-              ]}
-            >
-              <Ionicons
-                name="notifications-outline"
-                size={22}
-                color={colors.text}
-              />
-              {updates.unreadCount > 0 ? (
-                <View
-                  style={[styles.notificationDot, { backgroundColor: colors.error }]}
-                >
-                  <Text style={styles.notificationCount}>
-                    {Math.min(updates.unreadCount, 9)}
-                  </Text>
-                </View>
-              ) : null}
-            </Pressable>
+            <View style={styles.headerActions}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={copy.social}
+                onPress={() => router.replace("/(tabs)/home")}
+                style={[
+                  styles.notificationButton,
+                  { backgroundColor: colors.primarySoft },
+                ]}
+              >
+                <Feather name="users" size={21} color={colors.primary} />
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={copy.notifications}
+                onPress={() => router.push("/(tabs)/updates?tab=notifications")}
+                style={[
+                  styles.notificationButton,
+                  { backgroundColor: colors.surface },
+                ]}
+              >
+                <Ionicons
+                  name="notifications-outline"
+                  size={22}
+                  color={colors.text}
+                />
+                {updates.unreadCount > 0 ? (
+                  <View
+                    style={[styles.notificationDot, { backgroundColor: colors.error }]}
+                  >
+                    <Text style={styles.notificationCount}>
+                      {Math.min(updates.unreadCount, 9)}
+                    </Text>
+                  </View>
+                ) : null}
+              </Pressable>
+            </View>
           }
         />
 
@@ -511,6 +526,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   notificationDot: {
     position: "absolute",
     top: 5,

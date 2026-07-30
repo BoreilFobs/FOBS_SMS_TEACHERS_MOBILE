@@ -209,6 +209,7 @@ export function SearchInput({
   placeholder: string;
 }) {
   const { colors } = useAppTheme();
+  const { t } = useLanguage();
   return (
     <View
       style={[
@@ -229,7 +230,7 @@ export function SearchInput({
       {value ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Clear search"
+          accessibilityLabel={t("clear_search")}
           onPress={() => onChangeText("")}
           hitSlop={10}
         >
@@ -291,10 +292,14 @@ export function EmptyState({
   icon = "inbox",
   title,
   message,
+  actionLabel,
+  onAction,
 }: {
   icon?: React.ComponentProps<typeof Feather>["name"];
   title: string;
-  message: string;
+  message?: string;
+  actionLabel?: string;
+  onAction?: () => void;
 }) {
   const { colors } = useAppTheme();
   return (
@@ -303,14 +308,19 @@ export function EmptyState({
         <Feather name={icon} size={28} color={colors.textMuted} />
       </View>
       <Text style={[typography.heading, { color: colors.text }]}>{title}</Text>
-      <Text
-        style={[
-          typography.body,
-          { color: colors.textSecondary, textAlign: "center" },
-        ]}
-      >
-        {message}
-      </Text>
+      {message ? (
+        <Text
+          style={[
+            typography.body,
+            { color: colors.textSecondary, textAlign: "center" },
+          ]}
+        >
+          {message}
+        </Text>
+      ) : null}
+      {actionLabel && onAction ? (
+        <Button label={actionLabel} onPress={onAction} variant="secondary" />
+      ) : null}
     </View>
   );
 }

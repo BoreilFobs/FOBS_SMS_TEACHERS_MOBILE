@@ -15,6 +15,7 @@ import { ThemeProvider as AppThemeProvider } from "@/components/ThemeContext";
 import { useAppTheme } from "@/hooks/useAppTheme";
 import { UpdatesProvider } from "@/contexts/UpdatesContext";
 import { ProfessionalProfileProvider } from "@/contexts/ProfessionalProfileContext";
+import { SocialProvider } from "@/social/hooks/useSocial";
 export { ErrorBoundary } from "expo-router";
 
 export const unstable_settings = {
@@ -48,7 +49,9 @@ export default function RootLayout() {
       <LanguageProvider>
         <UpdatesProvider>
           <ProfessionalProfileProvider>
-            <RootLayoutNav />
+            <SocialProvider>
+              <RootLayoutNav />
+            </SocialProvider>
           </ProfessionalProfileProvider>
         </UpdatesProvider>
       </LanguageProvider>

@@ -1,13 +1,12 @@
 import React, { useEffect } from "react";
-import { Tabs } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { ColorValue, Platform, StyleSheet, View } from "react-native";
+import { ColorValue, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import AuthWrapper from "@/components/AuthWrapper";
 import SetupWrapper from "@/components/SetupWrapper";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAppTheme } from "@/hooks/useAppTheme";
-import { useUpdates } from "@/contexts/UpdatesContext";
-import { radii } from "@/constants/theme";
+import { spacing } from "@/constants/theme";
 import { useSchools } from "@/hooks/useSchools";
 import useSchoolStore from "@/utils/stores/schoolStore";
 
@@ -32,15 +31,14 @@ function TabIcon({
 }
 
 export default function TabLayout() {
+  const router = useRouter();
   const { colors } = useAppTheme();
-  const { language } = useLanguage();
-  const { unreadCount } = useUpdates();
+  const { t } = useLanguage();
   const { schoolData, loading: schoolsLoading } = useSchools();
   const setSchools = useSchoolStore((state) => state.setSchools);
 
   useEffect(() => {
     if (schoolsLoading) return;
-
     setSchools(
       schoolData.map((item) => ({
         id: item.school.id,
@@ -79,11 +77,7 @@ export default function TabLayout() {
               borderTopWidth: StyleSheet.hairlineWidth,
               elevation: 8,
             },
-            tabBarLabelStyle: {
-              fontSize: 11,
-              lineHeight: 15,
-              fontWeight: "600",
-            },
+            tabBarLabelStyle: { fontSize: 11, lineHeight: 15, fontWeight: "600" },
             tabBarItemStyle: { minHeight: 52 },
             sceneStyle: { backgroundColor: colors.background },
           }}
@@ -91,64 +85,75 @@ export default function TabLayout() {
           <Tabs.Screen
             name="home"
             options={{
-              title: language === "fr" ? "Accueil" : "Home",
+              title: t("home"),
+              tabBarAccessibilityLabel: t("home"),
               tabBarIcon: (props) => (
-                <TabIcon
-                  {...props}
-                  active="home"
-                  outline="home-outline"
-                />
+                <TabIcon {...props} active="home" outline="home-outline" />
               ),
             }}
           />
           <Tabs.Screen
-            name="classes"
+            name="network"
             options={{
-              title: language === "fr" ? "Classes" : "Classes",
+              title: t("network"),
+              tabBarAccessibilityLabel: t("network"),
               tabBarIcon: (props) => (
-                <TabIcon
-                  {...props}
-                  active="people"
-                  outline="people-outline"
-                />
+                <TabIcon {...props} active="people" outline="people-outline" />
               ),
             }}
           />
           <Tabs.Screen
-            name="updates"
+            name="create"
             options={{
-              title: language === "fr" ? "Actualités" : "Updates",
-              tabBarBadge: unreadCount > 0 ? Math.min(unreadCount, 99) : undefined,
-              tabBarBadgeStyle: {
-                backgroundColor: colors.error,
-                color: "#FFFFFF",
-                fontSize: 10,
-                minWidth: 18,
-                height: 18,
-                borderRadius: radii.pill,
-              },
+              title: t("create"),
+              tabBarAccessibilityLabel: t("create"),
+              tabBarButton: () => (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t("create")}
+                  onPress={() => router.push("/social/compose")}
+                  style={styles.createWrap}
+                >
+                  <View
+                    style={[
+                      styles.createButton,
+                      {
+                        backgroundColor: colors.primary,
+                        borderColor: colors.tabBar,
+                      },
+                    ]}
+                  >
+                    <Ionicons name="add" size={30} color={colors.onPrimary} />
+                  </View>
+                  <Text style={[styles.createLabel, { color: colors.textMuted }]}>
+                    {t("create")}
+                  </Text>
+                </Pressable>
+              ),
+            }}
+          />
+          <Tabs.Screen
+            name="jobs"
+            options={{
+              title: t("jobs"),
+              tabBarAccessibilityLabel: t("jobs"),
               tabBarIcon: (props) => (
-                <TabIcon
-                  {...props}
-                  active="notifications"
-                  outline="notifications-outline"
-                />
+                <TabIcon {...props} active="briefcase" outline="briefcase-outline" />
               ),
             }}
           />
           <Tabs.Screen
             name="profile"
             options={{
-              title: language === "fr" ? "Profil" : "Profile",
+              title: t("profile"),
+              tabBarAccessibilityLabel: t("profile"),
               tabBarIcon: (props) => (
-                <TabIcon
-                  {...props}
-                  active="person"
-                  outline="person-outline"
-                />
+                <TabIcon {...props} active="person" outline="person-outline" />
               ),
             }}
           />
+          <Tabs.Screen name="classes" options={{ href: null }} />
+          <Tabs.Screen name="updates" options={{ href: null }} />
           <Tabs.Screen name="subjects" options={{ href: null }} />
           <Tabs.Screen name="attendance" options={{ href: null }} />
         </Tabs>
@@ -164,4 +169,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  createWrap: {
+    flex: 1,
+    minWidth: 64,
+    alignItems: "center",
+    justifyContent: "flex-start",
+    marginTop: -19,
+  },
+  createButton: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    borderWidth: 4,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  createLabel: { fontSize: 11, fontWeight: "600", marginTop: spacing.xxs },
 });
