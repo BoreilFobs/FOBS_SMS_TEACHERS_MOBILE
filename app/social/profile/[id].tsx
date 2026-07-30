@@ -12,9 +12,10 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/hooks/useAppTheme";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Button, EmptyState, StatusChip } from "@/components/ui";
+import { Button, EmptyState, ErrorState, LoadingState, StatusChip } from "@/components/ui";
 import { CURRENT_TEACHER_ID } from "@/social/models";
 import { useSocial } from "@/social/hooks/useSocial";
+import { useSocialResource } from "@/social/hooks/useSocialResource";
 import { Avatar } from "@/social/components/Avatar";
 import { PostCard } from "@/social/components/PostCard";
 import { radii, spacing, typography } from "@/constants/theme";
@@ -31,6 +32,17 @@ export default function SocialProfileScreen() {
   const [feed, setFeed] = useState<ProfileFeed>("posts");
   const teacher = snapshot.teachers.find((candidate) => candidate.id === id);
   const isOwn = id === CURRENT_TEACHER_ID;
+
+  // The profile and its posts are both server-side now. The posts endpoint is
+  // per-tab, so switching between posts and reshares refetches.
+  const { loading, error, retry } = useSocialResource(
+    async () => {
+      await repository.getTeacher(id);
+      await repository.getTeacherPosts(id, feed);
+    },
+    { enabled: Boolean(id) },
+  );
+
   const mutual = teacher?.followedByCurrentUser && teacher.followsCurrentUser;
   const posts = useMemo(
     () =>
@@ -43,6 +55,24 @@ export default function SocialProfileScreen() {
       ),
     [feed, id, snapshot.posts],
   );
+
+  if (loading && !teacher) {
+    return (
+      <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+        <ProfileHeader onBack={() => router.back()} />
+        <LoadingState rows={3} />
+      </View>
+    );
+  }
+
+  if (error && !teacher) {
+    return (
+      <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+        <ProfileHeader onBack={() => router.back()} />
+        <ErrorState message={error.message} onRetry={() => void retry()} />
+      </View>
+    );
+  }
 
   if (!teacher || (teacher.blocked && !isOwn)) {
     return (

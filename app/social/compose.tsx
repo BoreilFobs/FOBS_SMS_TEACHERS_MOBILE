@@ -21,6 +21,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { Button, FilterChips } from "@/components/ui";
 import { PostDraft, PostType } from "@/social/models";
 import { useSocial } from "@/social/hooks/useSocial";
+import { describeSocialError } from "@/social/api/describeError";
 import { Avatar } from "@/social/components/Avatar";
 import useSchoolStore from "@/utils/stores/schoolStore";
 import { radii, spacing, typography } from "@/constants/theme";
@@ -178,8 +179,10 @@ export default function ComposerScreen() {
       Alert.alert(t("success"), params.edit ? t("post_updated") : t("post_published"), [
         { text: t("done"), onPress: () => router.back() },
       ]);
-    } catch {
-      Alert.alert(t("error"), t("operation_failed"));
+    } catch (cause) {
+      // Real reasons now: an image that failed to upload, a school the teacher is
+      // not assigned to, a duplicate poll option, a post that is too long.
+      Alert.alert(t("error"), describeSocialError(cause, t("operation_failed")));
     } finally {
       setPublishing(false);
     }

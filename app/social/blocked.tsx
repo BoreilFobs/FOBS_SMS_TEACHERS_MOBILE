@@ -1,12 +1,14 @@
 import React from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/hooks/useAppTheme";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { EmptyState } from "@/components/ui";
+import { EmptyState, ErrorState, LoadingState } from "@/components/ui";
 import { SocialScreenHeader } from "@/social/components/ScreenHeader";
 import { Avatar } from "@/social/components/Avatar";
 import { useSocial } from "@/social/hooks/useSocial";
+import { useSocialResource } from "@/social/hooks/useSocialResource";
+import { describeSocialError } from "@/social/api/describeError";
 import { radii, spacing, typography } from "@/constants/theme";
 
 export default function BlockedAccountsScreen() {
@@ -14,7 +16,29 @@ export default function BlockedAccountsScreen() {
   const { colors } = useAppTheme();
   const { t } = useLanguage();
   const { snapshot, repository } = useSocial();
+  const { loading, refreshing, error, refresh, retry } = useSocialResource(
+    () => repository.getBlockedTeachers(),
+  );
   const teachers = snapshot.teachers.filter((teacher) => teacher.blocked);
+
+  if (loading && teachers.length === 0) {
+    return (
+      <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+        <SocialScreenHeader title={t("blocked_accounts")} />
+        <LoadingState rows={3} />
+      </View>
+    );
+  }
+
+  if (error && teachers.length === 0) {
+    return (
+      <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+        <SocialScreenHeader title={t("blocked_accounts")} />
+        <ErrorState message={error.message} onRetry={() => void retry()} />
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       <SocialScreenHeader title={t("blocked_accounts")} />
@@ -22,6 +46,8 @@ export default function BlockedAccountsScreen() {
         data={teachers}
         keyExtractor={(teacher) => teacher.id}
         contentContainerStyle={styles.list}
+        refreshing={refreshing}
+        onRefresh={() => void refresh()}
         ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
         renderItem={({ item }) => (
           <View style={[styles.row, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -32,7 +58,11 @@ export default function BlockedAccountsScreen() {
             </View>
             <Pressable
               accessibilityRole="button"
-              onPress={() => void repository.unblock(item.id)}
+              onPress={() => {
+                void repository.unblock(item.id).catch((cause) => {
+                  Alert.alert(t("error"), describeSocialError(cause, t("error")));
+                });
+              }}
               style={[styles.unblock, { borderColor: colors.primary }]}
             >
               <Text style={[typography.label, { color: colors.primary }]}>{t("unblock")}</Text>

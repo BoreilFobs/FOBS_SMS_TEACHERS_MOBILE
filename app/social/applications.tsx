@@ -14,9 +14,11 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/hooks/useAppTheme";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Button, EmptyState, StatusChip } from "@/components/ui";
+import { Button, EmptyState, ErrorState, LoadingState, StatusChip } from "@/components/ui";
 import { JobApplication } from "@/social/models";
 import { useSocial } from "@/social/hooks/useSocial";
+import { useSocialResource } from "@/social/hooks/useSocialResource";
+import { describeSocialError } from "@/social/api/describeError";
 import { SocialScreenHeader } from "@/social/components/ScreenHeader";
 import { formatDate } from "@/social/utils/format";
 import { radii, spacing, typography } from "@/constants/theme";
@@ -26,8 +28,37 @@ export default function ApplicationsScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useAppTheme();
   const { language, t } = useLanguage();
-  const { snapshot } = useSocial();
+  const { repository, snapshot } = useSocial();
   const [editing, setEditing] = useState<JobApplication>();
+  // Applications and the jobs they point at both come from the server.
+  const { loading, refreshing, error, refresh, retry } = useSocialResource(async () => {
+    const applications = await repository.getApplications();
+    // The list renders each application's job, so make sure those are cached too.
+    await Promise.all(
+      applications.map((application) =>
+        repository.getJob(application.jobId).catch(() => undefined),
+      ),
+    );
+  });
+
+  if (loading && snapshot.applications.length === 0) {
+    return (
+      <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+        <SocialScreenHeader title={t("my_applications")} />
+        <LoadingState rows={3} />
+      </View>
+    );
+  }
+
+  if (error && snapshot.applications.length === 0) {
+    return (
+      <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+        <SocialScreenHeader title={t("my_applications")} />
+        <ErrorState message={error.message} onRetry={() => void retry()} />
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       <SocialScreenHeader title={t("my_applications")} />
@@ -35,10 +66,14 @@ export default function ApplicationsScreen() {
         data={[...snapshot.applications].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))}
         keyExtractor={(application) => application.id}
         contentContainerStyle={styles.list}
+        refreshing={refreshing}
+        onRefresh={() => void refresh()}
         ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
         renderItem={({ item }) => {
           const job = snapshot.jobs.find((candidate) => candidate.id === item.jobId);
           if (!job) return null;
+          // Edit-lock is decided by the server; `submitted` is the only editable
+          // state and the API rejects anything else with APPLICATION_LOCKED.
           const editable = item.status === "submitted";
           return (
             <Pressable
@@ -112,8 +147,10 @@ function EditApplicationModal({
     try {
       await repository.editApplication(application.id, motivation, availability);
       onClose();
-    } catch {
-      Alert.alert(t("error"), t("application_read_only"));
+    } catch (cause) {
+      // Surfaces the server's own reason — APPLICATION_LOCKED once the school has
+      // viewed it, or the specific field complaint on a validation failure.
+      Alert.alert(t("error"), describeSocialError(cause, t("application_read_only")));
     } finally {
       setSaving(false);
     }

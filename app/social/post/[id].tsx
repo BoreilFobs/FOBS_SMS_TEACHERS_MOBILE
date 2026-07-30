@@ -18,6 +18,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { EmptyState, LoadingState } from "@/components/ui";
 import { Comment, CURRENT_TEACHER_ID } from "@/social/models";
 import { useSocial } from "@/social/hooks/useSocial";
+import { describeSocialError } from "@/social/api/describeError";
 import { PostCard } from "@/social/components/PostCard";
 import { Avatar } from "@/social/components/Avatar";
 import { formatRelativeTime } from "@/social/utils/format";
@@ -36,9 +37,15 @@ export default function PostDetailsScreen() {
   const [sending, setSending] = useState(false);
   const post = snapshot.posts.find((candidate) => candidate.id === id);
 
+  // The mock held every post in memory, so this screen only needed comments.
+  // Now the post itself may not be cached — deep link, notification tap, cold
+  // start — so both are fetched.
   useEffect(() => {
     setLoading(true);
-    void repository.getComments(id).finally(() => setLoading(false));
+    void Promise.all([
+      repository.getPost(id).catch(() => undefined),
+      repository.getComments(id).catch(() => undefined),
+    ]).finally(() => setLoading(false));
   }, [id, repository]);
 
   const roots = useMemo(
@@ -56,8 +63,8 @@ export default function PostDetailsScreen() {
       await repository.addComment(id, text, replyTo?.id);
       setText("");
       setReplyTo(undefined);
-    } catch {
-      Alert.alert(t("error"), t("operation_failed"));
+    } catch (cause) {
+      Alert.alert(t("error"), describeSocialError(cause, t("operation_failed")));
     } finally {
       setSending(false);
     }

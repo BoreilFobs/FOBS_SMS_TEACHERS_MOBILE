@@ -12,10 +12,15 @@
     "test:ci": "jest --runInBand --watch=false",
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
-    "postinstall": "node scripts/patch-minimatch-legacy.cjs"
+    "postinstall": "node scripts/patch-minimatch-legacy.cjs",
+    "test:contract": "jest --runInBand --watch=false --config jest.contract.config.js"
   },
   "jest": {
-    "preset": "jest-expo"
+    "preset": "jest-expo",
+    "testPathIgnorePatterns": [
+      "<rootDir>/node_modules/",
+      "<rootDir>/social/contract/"
+    ]
   },
   "dependencies": {
     "@expo/metro-runtime": "~57.0.7",

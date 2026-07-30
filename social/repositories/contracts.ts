@@ -77,6 +77,20 @@ export interface SearchRepository {
   search(query: string): Promise<SearchResults>;
 }
 
+/**
+ * The binding every social screen consumes.
+ *
+ * The eight feature interfaces above are unchanged from the mock phase — the API
+ * implementation satisfies them exactly.
+ *
+ * `getSnapshot`/`subscribe` are retained because fourteen screens read the
+ * snapshot through `useSyncExternalStore`. They are now served by an
+ * API-populated cache (`social/store/socialStore.ts`) rather than by mock state.
+ *
+ * INTERFACE CHANGE (the only one in this migration): `setFailureMode` has been
+ * removed. It existed solely to make the mock throw on demand, and had no call
+ * sites outside the mock itself. Real failures now come from the network.
+ */
 export interface SocialSessionRepository
   extends SocialFeedRepository,
     PostsRepository,
@@ -90,5 +104,4 @@ export interface SocialSessionRepository
   getSnapshot(): SocialSnapshot;
   subscribe(listener: () => void): () => void;
   updateCurrentTeacher(identity: Partial<SocialTeacher>): void;
-  setFailureMode(enabled: boolean): void;
 }

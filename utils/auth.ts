@@ -26,6 +26,30 @@ export const handleLogout = () => {
   }
 };
 
+/**
+ * Signs out because the API rejected the token, not because the teacher asked.
+ *
+ * Same teardown as `handleLogout` but without the confirmation prompt — there is
+ * nothing to confirm once the session is already invalid. Guarded so several
+ * concurrent 401s (a screen firing three requests at once) cannot each trigger a
+ * redirect.
+ */
+let sessionExpiryInFlight = false;
+
+export const handleSessionExpired = async () => {
+  if (sessionExpiryInFlight) return;
+  sessionExpiryInFlight = true;
+
+  try {
+    await performLogout();
+  } finally {
+    // Released after the redirect so a later, genuinely new session can expire too.
+    setTimeout(() => {
+      sessionExpiryInFlight = false;
+    }, 5000);
+  }
+};
+
 const performLogout = async () => {
   try {
     // Clear AsyncStorage

@@ -15,9 +15,11 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/hooks/useAppTheme";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Button, EmptyState, StatusChip } from "@/components/ui";
+import { Button, EmptyState, ErrorState, LoadingState, StatusChip } from "@/components/ui";
 import { CURRENT_TEACHER_ID } from "@/social/models";
 import { useSocial } from "@/social/hooks/useSocial";
+import { useSocialResource } from "@/social/hooks/useSocialResource";
+import { describeSocialError } from "@/social/api/describeError";
 import { SocialScreenHeader } from "@/social/components/ScreenHeader";
 import { formatDate } from "@/social/utils/format";
 import { radii, spacing, typography } from "@/constants/theme";
@@ -38,6 +40,31 @@ export default function JobDetailsScreen() {
   const [motivation, setMotivation] = useState("");
   const [availability, setAvailability] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // Job details are fetched: only verified, published postings are returned, and a
+  // deep link may arrive with nothing cached.
+  const { loading, error, retry } = useSocialResource(
+    () => repository.getJob(id),
+    { enabled: Boolean(id) },
+  );
+
+  if (loading && !job) {
+    return (
+      <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+        <SocialScreenHeader title={t("jobs")} />
+        <LoadingState rows={3} />
+      </View>
+    );
+  }
+
+  if (error && !job) {
+    return (
+      <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+        <SocialScreenHeader title={t("jobs")} />
+        <ErrorState message={error.message} onRetry={() => void retry()} />
+      </View>
+    );
+  }
 
   if (!job) {
     return (
@@ -62,12 +89,9 @@ export default function JobDetailsScreen() {
               Alert.alert(t("success"), t("application_submitted"));
             })
             .catch((cause) =>
-              Alert.alert(
-                t("error"),
-                cause instanceof Error && cause.message === "ALREADY_APPLIED"
-                  ? t("already_applied")
-                  : t("validation_required"),
-              ),
+              // The server states the rule that blocked it: ALREADY_APPLIED,
+              // JOB_CLOSED, or a field-level validation complaint.
+              Alert.alert(t("error"), describeSocialError(cause, t("validation_required"))),
             )
             .finally(() => setSubmitting(false));
         },

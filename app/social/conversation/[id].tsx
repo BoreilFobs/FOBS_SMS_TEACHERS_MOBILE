@@ -18,6 +18,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/hooks/useAppTheme";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { CURRENT_TEACHER_ID, Message } from "@/social/models";
+import { SOCIAL_POLLING } from "@/social/constants/network";
+import { usePolling } from "@/social/hooks/usePolling";
+import { describeSocialError } from "@/social/api/describeError";
 import { useSocial } from "@/social/hooks/useSocial";
 import { Avatar } from "@/social/components/Avatar";
 import { formatDate, formatRelativeTime } from "@/social/utils/format";
@@ -34,12 +37,38 @@ export default function ConversationScreen() {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const conversation = snapshot.conversations.find((candidate) => candidate.id === id);
+  const conversationRef = useRef(conversation);
+  conversationRef.current = conversation;
   const otherId = conversation?.participantIds.find((participantId) => participantId !== CURRENT_TEACHER_ID);
   const teacher = snapshot.teachers.find((candidate) => candidate.id === otherId);
+
+  // Conversation metadata and the thread itself are separate endpoints, so the
+  // screen loads both: the list entry (for participants) and the history.
+  useEffect(() => {
+    void repository.getConversations().catch(() => undefined);
+    void repository.getMessages(id).catch(() => undefined);
+  }, [id, repository]);
+
+  // No broadcasting yet: poll for new messages while this screen is focused, and
+  // pause on blur or when the app is backgrounded. usePolling handles both.
+  usePolling(
+    async () => {
+      await repository.getMessages(id);
+      if (conversationRef.current?.unreadCount) {
+        await repository.markConversationRead(id);
+      }
+    },
+    SOCIAL_POLLING.openConversationMs,
+    { immediate: false },
+  );
 
   useEffect(() => {
     if (conversation?.unreadCount) void repository.markConversationRead(id);
   }, [conversation?.unreadCount, id, repository]);
+
+  // Server-evaluated: false once a follow is revoked or a block appears. Kept as a
+  // UX guard only — the send call is still the authority and reports the reason.
+  const canSend = repository.canSend(id);
 
   if (!conversation || !teacher) return null;
 
@@ -50,9 +79,11 @@ export default function ConversationScreen() {
     setSending(true);
     try {
       await repository.sendMessage(id, outgoing);
-    } catch {
+    } catch (cause) {
       setText(outgoing);
-      Alert.alert(t("error"), t("operation_failed"));
+      // Says which rule stopped it — a revoked follow reports
+      // MUTUAL_FOLLOW_REQUIRED, a block reports BLOCK_CONFLICT.
+      Alert.alert(t("error"), describeSocialError(cause, t("operation_failed")));
     } finally {
       setSending(false);
     }
@@ -65,8 +96,8 @@ export default function ConversationScreen() {
         quality: 0.82,
       });
       if (!result.canceled) await repository.sendImage(id, result.assets[0].uri);
-    } catch {
-      Alert.alert(t("error"), t("operation_failed"));
+    } catch (cause) {
+      Alert.alert(t("error"), describeSocialError(cause, t("operation_failed")));
     }
   };
 
@@ -86,7 +117,14 @@ export default function ConversationScreen() {
         <Avatar name={teacher.name} uri={teacher.photoUrl} size={40} />
         <View style={{ flex: 1 }}>
           <Text style={[typography.bodyStrong, { color: colors.text }]}>{teacher.name}</Text>
-          <Text style={[typography.caption, { color: colors.success }]}>{t("mutual_follow")}</Text>
+          <Text
+            style={[
+              typography.caption,
+              { color: canSend ? colors.success : colors.textMuted },
+            ]}
+          >
+            {canSend ? t("mutual_follow") : t("mutual_follow_required")}
+          </Text>
         </View>
       </Pressable>
       <FlatList
@@ -122,14 +160,22 @@ export default function ConversationScreen() {
           },
         ]}
       >
-        <Pressable accessibilityRole="button" accessibilityLabel={t("add_images")} onPress={pickImage} style={styles.iconButton}>
-          <Feather name="image" size={21} color={colors.primary} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("add_images")}
+          accessibilityState={{ disabled: !canSend }}
+          disabled={!canSend}
+          onPress={pickImage}
+          style={styles.iconButton}
+        >
+          <Feather name="image" size={21} color={canSend ? colors.primary : colors.disabledText} />
         </Pressable>
         <TextInput
           accessibilityLabel={t("type_message")}
+          editable={canSend}
           value={text}
           onChangeText={setText}
-          placeholder={t("type_message")}
+          placeholder={canSend ? t("type_message") : t("mutual_follow_required")}
           placeholderTextColor={colors.textMuted}
           multiline
           style={[styles.input, { color: colors.text, backgroundColor: colors.surfaceMuted }]}
@@ -137,12 +183,12 @@ export default function ConversationScreen() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t("message")}
-          accessibilityState={{ disabled: !text.trim() || sending }}
-          disabled={!text.trim() || sending}
+          accessibilityState={{ disabled: !text.trim() || sending || !canSend }}
+          disabled={!text.trim() || sending || !canSend}
           onPress={send}
-          style={[styles.send, { backgroundColor: text.trim() ? colors.primary : colors.disabled }]}
+          style={[styles.send, { backgroundColor: text.trim() && canSend ? colors.primary : colors.disabled }]}
         >
-          <Feather name="send" size={19} color={text.trim() ? colors.onPrimary : colors.disabledText} />
+          <Feather name="send" size={19} color={text.trim() && canSend ? colors.onPrimary : colors.disabledText} />
         </Pressable>
       </View>
     </KeyboardAvoidingView>

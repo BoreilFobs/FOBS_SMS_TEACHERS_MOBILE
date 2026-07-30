@@ -1,13 +1,17 @@
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
+  useState,
   useSyncExternalStore,
 } from "react";
-import Config from "@/constants/Config";
 import { socialRepositories } from "@/social/services/repositories";
-import useSchoolStore from "@/utils/stores/schoolStore";
+import { onSocialUnauthorized } from "@/social/api/client";
+import { SOCIAL_POLLING } from "@/social/constants/network";
+import { useForegroundRefresh } from "@/social/hooks/usePolling";
+import { handleSessionExpired } from "@/utils/auth";
 import useUserStore from "@/utils/stores/userStore";
 
 type SocialContextValue = {
@@ -15,65 +19,94 @@ type SocialContextValue = {
   snapshot: ReturnType<typeof socialRepositories.getSnapshot>;
   unreadMessages: number;
   unreadNotifications: number;
+  /** Per-category unread counts straight from the server. */
+  unreadByCategory: { social: number; jobs: number; school: number };
+  refreshUnreadCounts: () => Promise<void>;
 };
 
 const SocialContext = createContext<SocialContextValue | null>(null);
 
+const emptyCounts = { social: 0, jobs: 0, school: 0, messages: 0, total: 0 };
+
 export function SocialProvider({ children }: { children: React.ReactNode }) {
   const user = useUserStore((state) => state.user);
-  const teacher = useUserStore((state) => state.teacher);
-  const schools = useSchoolStore((state) => state.schools);
   const snapshot = useSyncExternalStore(
     socialRepositories.subscribe,
     socialRepositories.getSnapshot,
     socialRepositories.getSnapshot,
   );
 
+  /**
+   * Badge counts come from `/notifications/unread-counts` rather than being
+   * derived from the cached snapshot. The snapshot only holds the pages that have
+   * been fetched, so counting it would under-report; the server knows the totals.
+   */
+  const [counts, setCounts] = useState(emptyCounts);
+
+  const refreshUnreadCounts = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      const next = await socialRepositories.getUnreadCounts();
+      setCounts({
+        social: Number(next.social ?? 0),
+        jobs: Number(next.jobs ?? 0),
+        school: Number(next.school ?? 0),
+        messages: Number(next.messages ?? 0),
+        total: Number(next.total ?? 0),
+      });
+    } catch {
+      // Badges are decoration: a failed count must never break a screen.
+    }
+  }, [user]);
+
+  // A 401 on any social call means the session is gone. Reuse the app's existing
+  // sign-out path rather than inventing a second one.
   useEffect(() => {
-    const photo = teacher?.profile_photo
-      ? teacher.profile_photo.startsWith("http")
-        ? teacher.profile_photo
-        : `${Config.webBaseUrl}/storage/${teacher.profile_photo}`
-      : undefined;
-    socialRepositories.updateCurrentTeacher({
-      name: user?.name || undefined,
-      photoUrl: photo,
-      biography: teacher?.bio || undefined,
-      qualifications: teacher?.qualifications ? [teacher.qualifications] : undefined,
-      subjects: teacher?.specialization
-        ? teacher.specialization
-            .split(",")
-            .map((subject) => subject.trim())
-            .filter(Boolean)
-        : undefined,
-      yearsExperience: Number.parseInt(teacher?.experience ?? "", 10) || undefined,
-      schoolNames: schools
-        .filter((school) => school.status === "active" && school.pivot?.is_approved !== false)
-        .map((school) => school.name),
+    onSocialUnauthorized(() => {
+      socialRepositories.reset();
+      void handleSessionExpired();
     });
-  }, [
-    schools,
-    teacher?.bio,
-    teacher?.experience,
-    teacher?.profile_photo,
-    teacher?.qualifications,
-    teacher?.specialization,
-    user?.name,
-  ]);
+
+    return () => onSocialUnauthorized(null);
+  }, []);
+
+  // Resolve the session identity once signed in, and clear it on sign-out.
+  useEffect(() => {
+    if (!user) {
+      socialRepositories.reset();
+      setCounts(emptyCounts);
+      return;
+    }
+
+    void socialRepositories.ensureIdentity().catch(() => undefined);
+    void refreshUnreadCounts();
+  }, [refreshUnreadCounts, user]);
+
+  // Badges refresh on a long interval while foregrounded, and on foreground.
+  useEffect(() => {
+    if (!user) return undefined;
+
+    const timer = setInterval(() => void refreshUnreadCounts(), SOCIAL_POLLING.notificationsMs);
+    return () => clearInterval(timer);
+  }, [refreshUnreadCounts, user]);
+
+  useForegroundRefresh(refreshUnreadCounts);
 
   const value = useMemo(
     () => ({
       repository: socialRepositories,
       snapshot,
-      unreadMessages: snapshot.conversations.reduce(
-        (total, conversation) => total + conversation.unreadCount,
-        0,
-      ),
-      unreadNotifications: snapshot.notifications.filter(
-        (notification) => !notification.read,
-      ).length,
+      unreadMessages: counts.messages,
+      unreadNotifications: counts.social + counts.jobs + counts.school,
+      unreadByCategory: {
+        social: counts.social,
+        jobs: counts.jobs,
+        school: counts.school,
+      },
+      refreshUnreadCounts,
     }),
-    [snapshot],
+    [counts, refreshUnreadCounts, snapshot],
   );
 
   return <SocialContext.Provider value={value}>{children}</SocialContext.Provider>;

@@ -10,9 +10,10 @@ import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/hooks/useAppTheme";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { EmptyState, FilterChips, SearchInput } from "@/components/ui";
+import { EmptyState, ErrorState, FilterChips, SearchInput } from "@/components/ui";
 import { spacing, typography } from "@/constants/theme";
 import { useSocial } from "@/social/hooks/useSocial";
+import { useSocialResource } from "@/social/hooks/useSocialResource";
 import { TeacherCard } from "@/social/components/TeacherCard";
 import { CURRENT_TEACHER_ID, SocialTeacher } from "@/social/models";
 
@@ -28,6 +29,16 @@ export default function NetworkScreen() {
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SocialTeacher[] | null>(null);
   const [searching, setSearching] = useState(false);
+
+  // Directory, suggestions and trending are three separately ranked server
+  // endpoints. Settled independently so one failing does not empty the screen.
+  const { loading, refreshing, error, refresh, retry } = useSocialResource(async () => {
+    await Promise.allSettled([
+      repository.getTeachers(),
+      repository.getSuggestedTeachers(),
+      repository.getTrendingTeachers(),
+    ]);
+  });
 
   useEffect(() => {
     if (!query.trim()) {
@@ -122,14 +133,18 @@ export default function NetworkScreen() {
           ]}
         />
       </View>
-      {searching ? (
+      {searching || (loading && teachers.length === 0) ? (
         <ActivityIndicator color={colors.primary} style={styles.loading} />
+      ) : error && teachers.length === 0 ? (
+        <ErrorState message={error.message} onRetry={() => void retry()} />
       ) : (
         <FlatList
           data={teachers}
           keyExtractor={(teacher) => teacher.id}
           renderItem={({ item }) => <TeacherCard teacher={item} />}
           contentContainerStyle={styles.list}
+          refreshing={refreshing}
+          onRefresh={() => void refresh()}
           ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
           initialNumToRender={7}
           windowSize={7}

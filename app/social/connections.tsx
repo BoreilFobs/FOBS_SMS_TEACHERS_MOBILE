@@ -7,6 +7,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { EmptyState, FilterChips, SearchInput } from "@/components/ui";
 import { CURRENT_TEACHER_ID } from "@/social/models";
 import { useSocial } from "@/social/hooks/useSocial";
+import { useSocialResource } from "@/social/hooks/useSocialResource";
 import { SocialScreenHeader } from "@/social/components/ScreenHeader";
 import { TeacherCard } from "@/social/components/TeacherCard";
 import { spacing } from "@/constants/theme";
@@ -16,9 +17,19 @@ export default function ConnectionsScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useAppTheme();
   const { t } = useLanguage();
-  const { snapshot } = useSocial();
+  const { repository, snapshot } = useSocial();
   const [view, setView] = useState<"following" | "followers">(type ?? "followers");
   const [query, setQuery] = useState("");
+
+  // Followers and following are separate server-paginated lists, not a filter over
+  // a cached directory.
+  useSocialResource(
+    () =>
+      view === "following"
+        ? repository.getFollowing(CURRENT_TEACHER_ID)
+        : repository.getFollowers(CURRENT_TEACHER_ID),
+  );
+
   const teachers = snapshot.teachers.filter(
     (teacher) =>
       teacher.id !== CURRENT_TEACHER_ID &&

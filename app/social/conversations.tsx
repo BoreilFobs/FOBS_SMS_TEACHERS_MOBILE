@@ -15,6 +15,8 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { EmptyState, SearchInput } from "@/components/ui";
 import { CURRENT_TEACHER_ID } from "@/social/models";
 import { useSocial } from "@/social/hooks/useSocial";
+import { SOCIAL_POLLING } from "@/social/constants/network";
+import { usePolling } from "@/social/hooks/usePolling";
 import { SocialScreenHeader } from "@/social/components/ScreenHeader";
 import { Avatar } from "@/social/components/Avatar";
 import { formatRelativeTime } from "@/social/utils/format";
@@ -30,9 +32,33 @@ export default function ConversationsScreen() {
   const [loading, setLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
 
+  // Conversation search runs server-side: filtering only the loaded page would
+  // silently miss older conversations once the list paginates.
   useEffect(() => {
-    void repository.getConversations().finally(() => setLoading(false));
-  }, [repository]);
+    const handle = setTimeout(() => {
+      void repository
+        .getConversations(query.trim() || undefined)
+        .finally(() => setLoading(false));
+    }, query ? 300 : 0);
+
+    return () => clearTimeout(handle);
+  }, [query, repository]);
+
+  // Mutual-follow eligibility is server-owned, so the "new message" list is
+  // fetched rather than derived from cached follow flags.
+  useEffect(() => {
+    if (showNew) void repository.getEligibleTeachers().catch(() => undefined);
+  }, [repository, showNew]);
+
+  // Longer interval than an open thread: this only needs to keep unread badges
+  // and ordering roughly current.
+  usePolling(
+    async () => {
+      await repository.getConversations(query.trim() || undefined);
+    },
+    SOCIAL_POLLING.conversationListMs,
+    { immediate: false },
+  );
 
   const conversations = useMemo(
     () =>
@@ -40,6 +66,8 @@ export default function ConversationsScreen() {
         .filter((conversation) => {
           const otherId = conversation.participantIds.find((id) => id !== CURRENT_TEACHER_ID);
           const teacher = snapshot.teachers.find((candidate) => candidate.id === otherId);
+          // The server has already applied the query; this narrows the cached copy
+          // while a debounced request is still in flight.
           return teacher && !teacher.blocked && teacher.name.toLowerCase().includes(query.toLowerCase());
         })
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),

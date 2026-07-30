@@ -12,10 +12,12 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/hooks/useAppTheme";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useUpdates } from "@/contexts/UpdatesContext";
-import { EmptyState, FilterChips } from "@/components/ui";
+import { EmptyState, ErrorState, FilterChips } from "@/components/ui";
 import { NotificationCategory } from "@/social/models";
 import { useSocial } from "@/social/hooks/useSocial";
+import { SOCIAL_POLLING } from "@/social/constants/network";
+import { usePolling } from "@/social/hooks/usePolling";
+import { useSocialResource } from "@/social/hooks/useSocialResource";
 import { SocialScreenHeader } from "@/social/components/ScreenHeader";
 import { formatDate, formatRelativeTime } from "@/social/utils/format";
 import { radii, spacing, typography } from "@/constants/theme";
@@ -27,7 +29,6 @@ interface NotificationItem {
   createdAt: string;
   read: boolean;
   destination: string;
-  schoolSource?: boolean;
 }
 
 export default function NotificationsScreen() {
@@ -35,55 +36,52 @@ export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useAppTheme();
   const { language, t } = useLanguage();
-  const { repository, snapshot } = useSocial();
-  const schoolUpdates = useUpdates();
+  const { repository, snapshot, unreadByCategory, refreshUnreadCounts } = useSocial();
   const [category, setCategory] = useState<NotificationCategory>("social");
-  const [loading, setLoading] = useState(true);
 
+  // All three categories come from the same endpoint. The backend serves `school`
+  // by projecting the existing `activities` table read-only, so there is no
+  // client-side school-notification logic left here.
+  const { loading, refreshing, error, refresh, retry } = useSocialResource(
+    () => repository.getNotifications(category),
+  );
+
+  // Badge counts are server-owned; refresh them whenever the list changes.
   useEffect(() => {
-    setLoading(true);
-    if (category === "school") {
-      if (schoolUpdates.state === "idle") void schoolUpdates.reload();
-      setLoading(schoolUpdates.state === "idle" || schoolUpdates.state === "loading");
-    } else {
-      void repository.getNotifications(category).finally(() => setLoading(false));
-    }
-  }, [category, repository, schoolUpdates]);
+    void refreshUnreadCounts();
+  }, [refreshUnreadCounts, snapshot.notifications.length]);
+
+  usePolling(
+    async () => {
+      await repository.getNotifications(category);
+      await refreshUnreadCounts();
+    },
+    SOCIAL_POLLING.notificationsMs,
+    { immediate: false },
+  );
 
   const items = useMemo<NotificationItem[]>(
     () =>
-      category === "school"
-        ? schoolUpdates.notifications.map((item) => ({
-            id: item.id,
-            title: item.title,
-            body: item.body,
-            createdAt: item.createdAt,
-            read: item.isRead,
-            destination: item.destination,
-            schoolSource: true,
-          }))
-        : snapshot.notifications
-            .filter((item) => item.category === category)
-            .map((item) => ({
-              id: item.id,
-              title: item.title,
-              body: item.body,
-              createdAt: item.createdAt,
-              read: item.read,
-              destination: item.destination,
-            })),
-    [category, schoolUpdates.notifications, snapshot.notifications],
+      snapshot.notifications
+        .filter((item) => item.category === category)
+        .map((item) => ({
+          id: item.id,
+          title: item.title,
+          body: item.body,
+          createdAt: item.createdAt,
+          read: item.read,
+          destination: item.destination,
+        })),
+    [category, snapshot.notifications],
   );
 
-  const counts = {
-    social: snapshot.notifications.filter((item) => item.category === "social" && !item.read).length,
-    jobs: snapshot.notifications.filter((item) => item.category === "jobs" && !item.read).length,
-    school: schoolUpdates.notifications.filter((item) => !item.isRead).length,
+  // Totals come from /notifications/unread-counts rather than the cached page, so
+  // the tab badges are right even before a category has been opened.
+  const counts = unreadByCategory;
+
+  const markAll = () => {
+    void repository.markCategoryRead(category).then(refreshUnreadCounts);
   };
-  const markAll = () =>
-    category === "school"
-      ? void schoolUpdates.markAllNotificationsRead()
-      : void repository.markCategoryRead(category);
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
@@ -106,15 +104,17 @@ export default function NotificationsScreen() {
           ]}
         />
       </View>
-      {loading ? (
+      {loading && items.length === 0 ? (
         <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xxl }} />
-      ) : category === "school" && schoolUpdates.state === "error" ? (
-        <EmptyState icon="alert-circle" title={t("operation_failed")} message={t("retry")} />
+      ) : error && items.length === 0 ? (
+        <ErrorState message={error.message} onRetry={() => void retry()} />
       ) : (
         <FlatList
           data={[...items].sort((a, b) => b.createdAt.localeCompare(a.createdAt))}
           keyExtractor={(item) => `${category}-${item.id}`}
           contentContainerStyle={styles.list}
+          refreshing={refreshing}
+          onRefresh={() => void refresh()}
           renderItem={({ item, index }) => {
             const previous = index ? [...items].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[index - 1] : undefined;
             const showDate = !previous || formatDate(previous.createdAt, language) !== formatDate(item.createdAt, language);
@@ -128,8 +128,12 @@ export default function NotificationsScreen() {
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => {
-                    if (item.schoolSource) void schoolUpdates.openNotification(item.id);
-                    else void repository.markRead(item.id);
+                    // Server-side read state for every category, including the
+                    // projected school ones (their ids are source-prefixed so the
+                    // API routes the call to the right store).
+                    void repository.markRead(item.id).then(refreshUnreadCounts);
+                    // `destination` was mapped from the server's typed destination,
+                    // never from a server-supplied URL.
                     router.push(item.destination as never);
                   }}
                   style={[
