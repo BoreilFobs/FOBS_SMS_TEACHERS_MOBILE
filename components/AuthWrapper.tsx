@@ -23,7 +23,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
     );
   }
   if (!isAuthenticated) {
-    return <Redirect href="/auth/" />;
+    return <Redirect href="/auth" />;
   }
 
   return <>{children}</>;

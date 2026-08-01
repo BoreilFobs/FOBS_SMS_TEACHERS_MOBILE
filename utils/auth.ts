@@ -67,9 +67,9 @@ const performLogout = async () => {
     // Redirect
     if (Platform.OS === 'web') {
       // Full page reload to reset app state
-      window.location.replace('/auth/');
+      window.location.replace('/auth');
     } else {
-      router.push('/auth/');
+      router.push('/auth');
     }
   } catch (error) {
     console.error('Logout failed:', error);

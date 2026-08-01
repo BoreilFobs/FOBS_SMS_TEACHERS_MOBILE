@@ -19,9 +19,15 @@ import {
   Card,
   FilterChips,
   FormField,
-  StatusChip,
 } from "@/components/ui";
 import Config from "@/constants/Config";
+import {
+  findSimilarAccounts,
+  persistSession,
+  requestPasswordReset,
+  resetPassword as submitPasswordReset,
+  type IdentityError,
+} from "@/services/identity";
 import { useAppTheme } from "@/hooks/useAppTheme";
 import { useLanguage } from "@/contexts/LanguageContext";
 import useUserStore from "@/utils/stores/userStore";
@@ -60,8 +66,6 @@ export default function AuthenticationScreen() {
   const [showReset, setShowReset] = useState(false);
   const [resetStep, setResetStep] = useState<ResetStep>("email");
   const [resetEmail, setResetEmail] = useState("");
-  const [resetPhone, setResetPhone] = useState("");
-  const [maskedPhone, setMaskedPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -96,10 +100,11 @@ export default function AuthenticationScreen() {
           secure: "Connexion sécurisée à votre compte FobsSMS",
           resetTitle: "Réinitialiser le mot de passe",
           resetDescription:
-            "Un code sera envoyé au numéro WhatsApp enregistré sur votre compte.",
+            "Un code à 6 chiffres et un lien de réinitialisation seront envoyés à votre adresse e-mail.",
           continue: "Continuer",
           code: "Code de vérification",
           codeHelp: "Saisissez le code à 6 chiffres envoyé à",
+          linkNote: "Le même e-mail contient aussi un lien — l’un ou l’autre suffit.",
           verify: "Vérifier",
           resend: "Renvoyer le code",
           newPassword: "Nouveau mot de passe",
@@ -138,10 +143,11 @@ export default function AuthenticationScreen() {
           secure: "Secure access to your FobsSMS account",
           resetTitle: "Reset password",
           resetDescription:
-            "A verification code will be sent to the WhatsApp number registered on your account.",
+            "A 6-digit code and a reset link will be sent to your email address.",
           continue: "Continue",
           code: "Verification code",
           codeHelp: "Enter the 6-digit code sent to",
+          linkNote: "The same email also contains a link — either one is enough.",
           verify: "Verify code",
           resend: "Resend code",
           newPassword: "New password",
@@ -195,8 +201,19 @@ export default function AuthenticationScreen() {
       const response = await axios.post(`${Config.apiBaseUrl}${endpoint}`, payload, {
         headers: { Accept: "application/json", "Content-Type": "application/json" },
       });
-      const { token, user, teacher } = response.data;
-      if (!token || !user) throw new Error("Authentication response is incomplete.");
+      const { token, user, teacher, requires_verification: requiresVerification } = response.data;
+
+      // Registration now creates an unverified account and issues no token: the
+      // user confirms the emailed code or link first.
+      if (requiresVerification || !token) {
+        router.push({
+          pathname: "/auth/verify-email",
+          params: { email: (user?.email ?? form.email).trim() },
+        });
+        return;
+      }
+
+      if (!user) throw new Error("Authentication response is incomplete.");
       await AsyncStorage.multiSet([
         ["auth_token", String(token)],
         ["user", JSON.stringify(user)],
@@ -213,6 +230,31 @@ export default function AuthenticationScreen() {
     } catch (authError) {
       const next: AuthErrors = {};
       if (axios.isAxiosError(authError) && authError.response) {
+        // An unverified account is not a failed sign-in: send them to confirm.
+        if (authError.response.data?.requires_verification) {
+          router.push({
+            pathname: "/auth/verify-email",
+            params: { email: (authError.response.data?.email ?? form.email).trim() },
+          });
+          setLoading(false);
+          return;
+        }
+
+        // No account with that exact address — offer close matches rather than
+        // a dead "not found", which is what drove people to make duplicates.
+        if (authError.response.status === 401 && mode === "login") {
+          void findSimilarAccounts(form.email.trim(), "login")
+            .then((matches) => {
+              if (!matches.exact_match && matches.has_similar) {
+                router.push({
+                  pathname: "/auth/account-help",
+                  params: { email: form.email.trim(), from: "login" },
+                });
+              }
+            })
+            .catch(() => undefined);
+        }
+
         const serverErrors = authError.response.data?.errors ?? {};
         const first = (value: unknown) =>
           Array.isArray(value) ? String(value[0]) : value ? String(value) : undefined;
@@ -243,8 +285,6 @@ export default function AuthenticationScreen() {
   const resetResetFlow = () => {
     setResetStep("email");
     setResetEmail("");
-    setResetPhone("");
-    setMaskedPhone("");
     setOtp("");
     setNewPassword("");
     setConfirmPassword("");
@@ -256,44 +296,50 @@ export default function AuthenticationScreen() {
     resetResetFlow();
   };
 
+  /**
+   * Requests a reset by email.
+   *
+   * The backend answers identically whether or not the address exists, so this
+   * always advances to the code screen. If the address had no exact match we
+   * additionally offer the duplicate-account picker — the one deliberate,
+   * throttled place where near-miss accounts are surfaced.
+   */
   const findAccountAndSendCode = async () => {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resetEmail.trim())) {
+    const email = resetEmail.trim();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setResetError(copy.invalidEmail);
       return;
     }
+
     setResetLoading(true);
     setResetError("");
+
     try {
-      const accountResponse = await fetch(
-        `${Config.apiBaseUrl}/forgot-password/find-phone`,
-        {
-          method: "POST",
-          headers: { Accept: "application/json", "Content-Type": "application/json" },
-          body: JSON.stringify({ email: resetEmail.trim() }),
-        },
-      );
-      const account = await accountResponse.json();
-      if (!accountResponse.ok || !account.success) {
-        throw new Error(account.message ?? "No account found with this email.");
+      await requestPasswordReset(email);
+
+      // Offer the picker only when there is genuinely no exact match, so the
+      // common case stays a plain "check your email".
+      try {
+        const matches = await findSimilarAccounts(email, "password_reset");
+
+        if (!matches.exact_match && matches.has_similar) {
+          closeReset();
+          router.push({
+            pathname: "/auth/account-help",
+            params: { email, from: "password_reset" },
+          });
+          return;
+        }
+      } catch {
+        // The picker is a convenience; if it is rate-limited or fails, the
+        // normal code flow below still works.
       }
-      setMaskedPhone(account.masked_phone ?? "");
-      const otpResponse = await fetch(
-        `${Config.apiBaseUrl}/forgot-password/send-otp`,
-        {
-          method: "POST",
-          headers: { Accept: "application/json", "Content-Type": "application/json" },
-          body: JSON.stringify({ email: resetEmail.trim() }),
-        },
-      );
-      const otpPayload = await otpResponse.json();
-      if (!otpResponse.ok || !otpPayload.success) {
-        throw new Error(otpPayload.message ?? "Unable to send verification code.");
-      }
-      setResetPhone(otpPayload.phone ?? "");
+
       setResetStep("otp");
     } catch (resetFailure) {
       setResetError(
-        resetFailure instanceof Error ? resetFailure.message : copy.network,
+        (resetFailure as IdentityError)?.message ?? copy.network,
       );
     } finally {
       setResetLoading(false);
@@ -303,28 +349,20 @@ export default function AuthenticationScreen() {
   const resendCode = async () => {
     setResetLoading(true);
     setResetError("");
+
     try {
-      const response = await fetch(
-        `${Config.apiBaseUrl}/forgot-password/send-otp`,
-        {
-          method: "POST",
-          headers: { Accept: "application/json", "Content-Type": "application/json" },
-          body: JSON.stringify({ email: resetEmail.trim() }),
-        },
-      );
-      const payload = await response.json();
-      if (!response.ok || !payload.success) {
-        throw new Error(payload.message ?? "Unable to resend the code.");
-      }
+      await requestPasswordReset(resetEmail.trim());
     } catch (resetFailure) {
-      setResetError(
-        resetFailure instanceof Error ? resetFailure.message : copy.network,
-      );
+      setResetError((resetFailure as IdentityError)?.message ?? copy.network);
     } finally {
       setResetLoading(false);
     }
   };
 
+  /**
+   * Local shape check only. The code itself is validated by the server on the
+   * next step, which owns expiry and the attempt limit.
+   */
   const verifyCode = () => {
     if (!/^\d{6}$/.test(otp)) {
       setResetError(
@@ -338,6 +376,7 @@ export default function AuthenticationScreen() {
     setResetStep("password");
   };
 
+  /** Sends code + new password together; the server signs the user back in. */
   const resetPassword = async () => {
     if (newPassword.length < 8) {
       setResetError(
@@ -347,38 +386,32 @@ export default function AuthenticationScreen() {
       );
       return;
     }
+
     if (newPassword !== confirmPassword) {
       setResetError(copy.mismatch);
       return;
     }
+
     setResetLoading(true);
     setResetError("");
+
     try {
-      const response = await fetch(
-        `${Config.apiBaseUrl}/forgot-password/reset`,
-        {
-          method: "POST",
-          headers: { Accept: "application/json", "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: resetEmail.trim(),
-            phone: resetPhone,
-            code: otp,
-            new_password: newPassword,
-            new_password_confirmation: confirmPassword,
-          }),
-        },
-      );
-      const payload = await response.json();
-      if (!response.ok || !payload.success) {
-        throw new Error(payload.message ?? "Unable to reset password.");
-      }
+      const session = await submitPasswordReset(resetEmail.trim(), otp, newPassword);
+      await persistSession(session);
+
       Alert.alert(copy.success, copy.successMessage, [
         { text: "OK", onPress: closeReset },
       ]);
     } catch (resetFailure) {
-      setResetError(
-        resetFailure instanceof Error ? resetFailure.message : copy.network,
-      );
+      const identityError = resetFailure as IdentityError;
+      setResetError(identityError?.message ?? copy.network);
+
+      // A burned or expired code cannot be retried; send the user back to
+      // request a fresh one rather than leaving them on a dead form.
+      if (identityError?.reason === "locked" || identityError?.reason === "expired") {
+        setOtp("");
+        setResetStep("email");
+      }
     } finally {
       setResetLoading(false);
     }
@@ -553,7 +586,7 @@ export default function AuthenticationScreen() {
                   {resetStep === "email"
                     ? copy.resetDescription
                     : resetStep === "otp"
-                      ? `${copy.codeHelp} ${maskedPhone}`
+                      ? `${copy.codeHelp} ${resetEmail.trim()}`
                       : copy.resetDescription}
                 </Text>
               </View>
