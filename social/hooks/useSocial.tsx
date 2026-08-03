@@ -13,6 +13,7 @@ import { SOCIAL_POLLING } from "@/social/constants/network";
 import { useForegroundRefresh } from "@/social/hooks/usePolling";
 import { handleSessionExpired } from "@/utils/auth";
 import useUserStore from "@/utils/stores/userStore";
+import { cacheKeys, readCache, writeCache } from "@/utils/offline/cache";
 
 type SocialContextValue = {
   repository: typeof socialRepositories;
@@ -26,7 +27,15 @@ type SocialContextValue = {
 
 const SocialContext = createContext<SocialContextValue | null>(null);
 
-const emptyCounts = { social: 0, jobs: 0, school: 0, messages: 0, total: 0 };
+interface UnreadCounts {
+  social: number;
+  jobs: number;
+  school: number;
+  messages: number;
+  total: number;
+}
+
+const emptyCounts: UnreadCounts = { social: 0, jobs: 0, school: 0, messages: 0, total: 0 };
 
 export function SocialProvider({ children }: { children: React.ReactNode }) {
   const user = useUserStore((state) => state.user);
@@ -42,21 +51,45 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
    * been fetched, so counting it would under-report; the server knows the totals.
    */
   const [counts, setCounts] = useState(emptyCounts);
+  // False until the server (or the cache of a previous server reply) has given
+  // us real totals. Until then the badges fall back to what is locally known.
+  const [hasServerCounts, setHasServerCounts] = useState(false);
+
+  // Restore the last known totals before the network answers, so a cold start
+  // — or a start with no connection — shows real numbers instead of zeros.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    void (async () => {
+      const cached = await readCache<UnreadCounts>(cacheKeys.unreadCounts(user.id));
+      if (cancelled || !cached) return;
+      setCounts((current) => (current === emptyCounts ? cached : current));
+      setHasServerCounts(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   const refreshUnreadCounts = useCallback(async () => {
     if (!user) return;
 
     try {
       const next = await socialRepositories.getUnreadCounts();
-      setCounts({
+      const resolved = {
         social: Number(next.social ?? 0),
         jobs: Number(next.jobs ?? 0),
         school: Number(next.school ?? 0),
         messages: Number(next.messages ?? 0),
         total: Number(next.total ?? 0),
-      });
+      };
+      setCounts(resolved);
+      setHasServerCounts(true);
+      void writeCache(cacheKeys.unreadCounts(user.id), resolved);
     } catch {
-      // Badges are decoration: a failed count must never break a screen.
+      // Offline or the endpoint is unreachable. The badges keep whatever was
+      // last known rather than dropping to zero, and the fallback below covers
+      // a first run that never reached the server at all.
     }
   }, [user]);
 
@@ -76,6 +109,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     if (!user) {
       socialRepositories.reset();
       setCounts(emptyCounts);
+      setHasServerCounts(false);
       return;
     }
 
@@ -93,20 +127,42 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
 
   useForegroundRefresh(refreshUnreadCounts);
 
+  /**
+   * What is provably unread from the data already on the device.
+   *
+   * Only a floor — the snapshot holds the pages that have been fetched, so it
+   * under-reports — but it is real, which beats showing nothing when the server
+   * has never been reachable.
+   */
+  const derived = useMemo(() => {
+    const unread = snapshot.notifications.filter((item) => !item.read);
+    return {
+      social: unread.filter((item) => item.category === "social").length,
+      jobs: unread.filter((item) => item.category === "jobs").length,
+      school: unread.filter((item) => item.category === "school").length,
+      messages: snapshot.conversations.reduce(
+        (total, conversation) => total + conversation.unreadCount,
+        0,
+      ),
+    };
+  }, [snapshot.conversations, snapshot.notifications]);
+
+  const effective = hasServerCounts ? counts : derived;
+
   const value = useMemo(
     () => ({
       repository: socialRepositories,
       snapshot,
-      unreadMessages: counts.messages,
-      unreadNotifications: counts.social + counts.jobs + counts.school,
+      unreadMessages: effective.messages,
+      unreadNotifications: effective.social + effective.jobs + effective.school,
       unreadByCategory: {
-        social: counts.social,
-        jobs: counts.jobs,
-        school: counts.school,
+        social: effective.social,
+        jobs: effective.jobs,
+        school: effective.school,
       },
       refreshUnreadCounts,
     }),
-    [counts, refreshUnreadCounts, snapshot],
+    [effective, refreshUnreadCounts, snapshot],
   );
 
   return <SocialContext.Provider value={value}>{children}</SocialContext.Provider>;

@@ -87,8 +87,11 @@ export class PostsApiRepository implements SocialFeedRepository, PostsRepository
     }
   }
 
-  async createPost(draft: PostDraft): Promise<SocialPost> {
-    const mediaIds = await this.resolveDraftMedia(draft);
+  async createPost(
+    draft: PostDraft,
+    onProgress?: (fraction: number) => void,
+  ): Promise<SocialPost> {
+    const mediaIds = await this.resolveDraftMedia(draft, onProgress);
 
     const dto = await socialApi.post<PostDto>("/social/posts", {
       body: this.draftToBody(draft, mediaIds),
@@ -97,8 +100,12 @@ export class PostsApiRepository implements SocialFeedRepository, PostsRepository
     return this.absorbOne(dto);
   }
 
-  async editPost(id: string, draft: PostDraft): Promise<SocialPost> {
-    const mediaIds = await this.resolveDraftMedia(draft);
+  async editPost(
+    id: string,
+    draft: PostDraft,
+    onProgress?: (fraction: number) => void,
+  ): Promise<SocialPost> {
+    const mediaIds = await this.resolveDraftMedia(draft, onProgress);
 
     const dto = await socialApi.patch<PostDto>(`/social/posts/${id}`, {
       body: this.draftToBody(draft, mediaIds),
@@ -273,7 +280,10 @@ export class PostsApiRepository implements SocialFeedRepository, PostsRepository
    * Only the former need uploading; the latter are resolved back to their media
    * ids from the cached post so editing does not re-upload or drop them.
    */
-  private async resolveDraftMedia(draft: PostDraft): Promise<number[]> {
+  private async resolveDraftMedia(
+    draft: PostDraft,
+    onProgress?: (fraction: number) => void,
+  ): Promise<number[]> {
     const local: LocalImage[] = [];
     const keptUrls: string[] = [];
 
@@ -289,9 +299,12 @@ export class PostsApiRepository implements SocialFeedRepository, PostsRepository
       .map((url) => mediaIdForUrl(url))
       .filter((id): id is number => id !== null);
 
-    if (local.length === 0) return keptIds;
+    if (local.length === 0) {
+      onProgress?.(1);
+      return keptIds;
+    }
 
-    const { uploaded, failures } = await uploadImages(local);
+    const { uploaded, failures } = await uploadImages(local, { onProgress });
 
     if (failures.length > 0) {
       // Surface the first failure with its real reason so the composer can offer

@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -22,6 +21,9 @@ import { Button, FilterChips } from "@/components/ui";
 import { PostDraft, PostType } from "@/social/models";
 import { useSocial } from "@/social/hooks/useSocial";
 import { describeSocialError } from "@/social/api/describeError";
+import { uploadQueue } from "@/social/store/uploadQueue";
+import { runUploadJob } from "@/social/hooks/useUploadQueue";
+import { confirmAction, notify } from "@/utils/dialog";
 import { Avatar } from "@/social/components/Avatar";
 import useSchoolStore from "@/utils/stores/schoolStore";
 import { radii, spacing, typography } from "@/constants/theme";
@@ -100,17 +102,17 @@ export default function ComposerScreen() {
     const unsubscribe = navigation.addListener("beforeRemove", (event) => {
       if (!hasChanges || bypassProtection.current || publishing) return;
       event.preventDefault();
-      Alert.alert(t("cancel"), t("delete_post_confirm"), [
-        { text: t("back"), style: "cancel" },
-        {
-          text: t("delete"),
-          style: "destructive",
-          onPress: () => {
-            bypassProtection.current = true;
-            navigation.dispatch(event.data.action);
-          },
+      confirmAction({
+        title: t("cancel"),
+        message: t("delete_post_confirm"),
+        confirmLabel: t("delete"),
+        cancelLabel: t("back"),
+        destructive: true,
+        onConfirm: () => {
+          bypassProtection.current = true;
+          navigation.dispatch(event.data.action);
         },
-      ]);
+      });
     });
     return unsubscribe;
   }, [hasChanges, navigation, publishing, t]);
@@ -144,48 +146,59 @@ export default function ComposerScreen() {
         if (type === "text") setType("image");
       }
     } catch {
-      Alert.alert(t("error"), t("operation_failed"));
+      notify(t("error"), t("operation_failed"));
     }
   };
 
   const publish = async () => {
     if (!valid) {
-      Alert.alert(t("error"), t("validation_required"));
+      notify(t("error"), t("validation_required"));
       return;
     }
-    setPublishing(true);
-    try {
-      if (params.quote) {
+
+    // A reshare carries no media, so it is quick enough to await here.
+    if (params.quote) {
+      setPublishing(true);
+      try {
         await repository.reshare(params.quote, text);
-      } else {
-        const draft: PostDraft = {
-          type,
-          text,
-          images,
-          category: category || undefined,
-          schoolAffiliation: school || undefined,
-          location: location || undefined,
-          taggedTeacherIds: taggedIds,
-          questionTitle: type === "question" ? questionTitle : undefined,
-          poll:
-            type === "poll"
-              ? { question: pollQuestion, multiple, options: pollOptions }
-              : undefined,
-        };
-        if (params.edit) await repository.editPost(params.edit, draft);
-        else await repository.createPost(draft);
+        bypassProtection.current = true;
+        router.replace("/(tabs)/home");
+      } catch (cause) {
+        notify(t("error"), describeSocialError(cause, t("operation_failed")));
+      } finally {
+        setPublishing(false);
       }
-      bypassProtection.current = true;
-      Alert.alert(t("success"), params.edit ? t("post_updated") : t("post_published"), [
-        { text: t("done"), onPress: () => router.back() },
-      ]);
-    } catch (cause) {
-      // Real reasons now: an image that failed to upload, a school the teacher is
-      // not assigned to, a duplicate poll option, a post that is too long.
-      Alert.alert(t("error"), describeSocialError(cause, t("operation_failed")));
-    } finally {
-      setPublishing(false);
+      return;
     }
+
+    const draft: PostDraft = {
+      type,
+      text,
+      images,
+      category: category || undefined,
+      schoolAffiliation: school || undefined,
+      location: location || undefined,
+      taggedTeacherIds: taggedIds,
+      questionTitle: type === "question" ? questionTitle : undefined,
+      poll:
+        type === "poll"
+          ? { question: pollQuestion, multiple, options: pollOptions }
+          : undefined,
+    };
+
+    // Hand the upload to the background queue and return to the feed straight
+    // away; the banner there reports progress, failure and retry.
+    const job = {
+      id: `upload-${Date.now()}`,
+      kind: params.edit ? ("edit" as const) : ("create" as const),
+      postId: params.edit,
+      draft,
+      previewUri: images[0],
+    };
+    uploadQueue.enqueue(job);
+    bypassProtection.current = true;
+    router.replace("/(tabs)/home");
+    void runUploadJob(repository, job);
   };
 
   const taggedTeachers = snapshot.teachers.filter(
@@ -195,7 +208,7 @@ export default function ComposerScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={[styles.screen, { backgroundColor: colors.background }]}
+      style={[styles.screen, { backgroundColor: colors.feedBackground }]}
     >
       <View
         style={[

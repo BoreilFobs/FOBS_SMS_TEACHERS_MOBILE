@@ -1,10 +1,14 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   Modal,
   Platform,
   Pressable,
+  PressableProps,
   ScrollView,
+  StyleProp,
   StyleSheet,
   Text,
   TextInput,
@@ -13,11 +17,212 @@ import {
   ViewStyle,
 } from "react-native";
 import { Feather, Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/hooks/useAppTheme";
-import { elevation, radii, spacing, touchTarget, typography } from "@/constants/theme";
+import {
+  elevation,
+  layout,
+  motion,
+  radii,
+  spacing,
+  touchTarget,
+  typography,
+} from "@/constants/theme";
 import useSchoolStore, { School } from "@/utils/stores/schoolStore";
 import { useLanguage } from "@/contexts/LanguageContext";
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+/**
+ * Pressable with a subtle scale response. Used app-wide so every tappable
+ * surface answers the finger the same way.
+ */
+export function PressableScale({
+  children,
+  style,
+  scaleTo = 0.97,
+  ...props
+}: Omit<PressableProps, "children" | "style"> & {
+  children?: React.ReactNode;
+  scaleTo?: number;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const animate = (toValue: number) =>
+    Animated.timing(scale, {
+      toValue,
+      duration: motion.fast,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+
+  return (
+    // The style must land on the Pressable itself: it is the flex child of the
+    // surrounding row, so putting `flex: 1` on an inner wrapper would let the
+    // Pressable collapse to its content width and bunch rows to one side.
+    <AnimatedPressable
+      {...props}
+      onPressIn={(event) => {
+        animate(scaleTo);
+        props.onPressIn?.(event);
+      }}
+      onPressOut={(event) => {
+        animate(1);
+        props.onPressOut?.(event);
+      }}
+      style={[style, { transform: [{ scale }] }]}
+    >
+      {children}
+    </AnimatedPressable>
+  );
+}
+
+export function IconButton({
+  icon,
+  label,
+  onPress,
+  badge,
+  tone = "muted",
+  size = 44,
+  loading = false,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  label: string;
+  onPress: () => void;
+  badge?: number;
+  tone?: "muted" | "primary" | "plain";
+  size?: number;
+  loading?: boolean;
+}) {
+  const { colors } = useAppTheme();
+  const background =
+    tone === "primary"
+      ? colors.primarySoft
+      : tone === "plain"
+        ? "transparent"
+        : colors.surfaceMuted;
+  const foreground = tone === "primary" ? colors.primary : colors.text;
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ busy: loading, disabled: loading }}
+      disabled={loading}
+      onPress={onPress}
+      style={[
+        styles.iconCircle,
+        { width: size, height: size, borderRadius: size / 2, backgroundColor: background },
+      ]}
+    >
+      {loading ? (
+        <ActivityIndicator size="small" color={foreground} />
+      ) : (
+        <Ionicons name={icon} size={Math.round(size * 0.48)} color={foreground} />
+      )}
+      {badge ? (
+        <View style={[styles.countBadge, { backgroundColor: colors.error, borderColor: background }]}>
+          <Text style={styles.countBadgeText}>{badge > 99 ? "99+" : badge}</Text>
+        </View>
+      ) : null}
+    </PressableScale>
+  );
+}
+
+export function Chip({
+  label,
+  icon,
+  tone = "neutral",
+}: {
+  label: string;
+  icon?: React.ComponentProps<typeof Feather>["name"];
+  tone?: "neutral" | "primary" | "success" | "warning" | "error" | "info" | "accent";
+}) {
+  const { colors } = useAppTheme();
+  const map = {
+    neutral: [colors.textSecondary, colors.surfaceMuted],
+    primary: [colors.primary, colors.primarySoft],
+    success: [colors.success, colors.successSoft],
+    warning: [colors.warning, colors.warningSoft],
+    error: [colors.error, colors.errorSoft],
+    info: [colors.info, colors.infoSoft],
+    accent: [colors.accent, colors.accentSoft],
+  } as const;
+  const [foreground, background] = map[tone];
+  return (
+    <View style={[styles.softChip, { backgroundColor: background }]}>
+      {icon ? <Feather name={icon} size={12} color={foreground} /> : null}
+      <Text style={[typography.micro, { color: foreground }]}>{label}</Text>
+    </View>
+  );
+}
+
+export function Divider({ inset = 0 }: { inset?: number }) {
+  const { colors } = useAppTheme();
+  return (
+    <View
+      style={{
+        height: StyleSheet.hairlineWidth,
+        backgroundColor: colors.divider,
+        marginLeft: inset,
+      }}
+    />
+  );
+}
+
+/** Pulsing placeholder block, shaped like the content it stands in for. */
+export function Skeleton({
+  width = "100%",
+  height = 12,
+  radius = radii.pill,
+  style,
+}: {
+  width?: number | `${number}%`;
+  height?: number;
+  radius?: number;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const { colors } = useAppTheme();
+  const pulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 780,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: false,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0,
+          duration: 780,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: false,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+
+  return (
+    <Animated.View
+      style={[
+        {
+          width,
+          height,
+          borderRadius: radius,
+          backgroundColor: pulse.interpolate({
+            inputRange: [0, 1],
+            outputRange: [colors.skeleton, colors.skeletonHighlight],
+          }),
+        },
+        style,
+      ]}
+    />
+  );
+}
 
 export function Screen({
   children,
@@ -28,7 +233,7 @@ export function Screen({
   children: React.ReactNode;
   scroll?: boolean;
   bottomInset?: boolean;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }) {
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
@@ -62,42 +267,123 @@ export function AppHeader({
   title,
   subtitle,
   onBack,
+  back,
   action,
+  compact,
 }: {
   title: string;
   subtitle?: string;
+  /** Explicit handler. Prefer `back` unless you need custom navigation. */
   onBack?: () => void;
+  /** Shows a back button wired to `router.back()`. */
+  back?: boolean;
   action?: React.ReactNode;
+  compact?: boolean;
 }) {
   const { colors } = useAppTheme();
+  const router = useRouter();
+  const handleBack = onBack ?? (back ? () => router.back() : undefined);
   return (
     <View style={styles.header}>
-      {onBack ? (
-        <Pressable
+      {handleBack ? (
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel="Back"
-          onPress={onBack}
-          style={({ pressed }) => [
-            styles.iconButton,
-            {
-              backgroundColor: colors.surfaceMuted,
-              opacity: pressed ? 0.7 : 1,
-            },
-          ]}
+          onPress={handleBack}
+          style={[styles.iconButton, { backgroundColor: colors.surfaceMuted }]}
         >
           <Feather name="arrow-left" size={22} color={colors.text} />
-        </Pressable>
+        </PressableScale>
       ) : null}
       <View style={styles.headerText}>
-        <Text style={[typography.title, { color: colors.text }]}>{title}</Text>
+        <Text
+          numberOfLines={compact ? 1 : 2}
+          style={[compact ? typography.heading : typography.title, { color: colors.text }]}
+        >
+          {title}
+        </Text>
         {subtitle ? (
-          <Text style={[typography.body, { color: colors.textSecondary }]}>
+          <Text
+            numberOfLines={2}
+            style={[
+              compact ? typography.caption : typography.body,
+              { color: colors.textSecondary },
+            ]}
+          >
             {subtitle}
           </Text>
         ) : null}
       </View>
       {action ? <View>{action}</View> : null}
     </View>
+  );
+}
+
+/**
+ * Low-emphasis school switcher for the management section. The working school
+ * is context, not a call to action, so it sits quietly in a header row instead
+ * of occupying a full card. Tapping it opens the same picker as SchoolSelector.
+ */
+export function SchoolPill({
+  align = "left",
+}: {
+  align?: "left" | "right" | "center";
+}) {
+  const { colors } = useAppTheme();
+  const { language } = useLanguage();
+  const { activeSchool, schools, setActiveSchool } = useSchoolStore();
+  const [visible, setVisible] = useState(false);
+  const available = schools.filter(
+    (school) => school.status === "active" && school.pivot?.is_approved !== false,
+  );
+  const label =
+    activeSchool?.code ||
+    activeSchool?.name ||
+    (language === "fr" ? "École" : "School");
+
+  return (
+    <>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={
+          language === "fr" ? "Changer d’école" : "Change current school"
+        }
+        onPress={() => setVisible(true)}
+        hitSlop={8}
+        style={({ pressed }) => [
+          styles.schoolPill,
+          {
+            borderColor: colors.border,
+            alignSelf:
+              align === "right"
+                ? "flex-end"
+                : align === "center"
+                  ? "center"
+                  : "flex-start",
+            opacity: pressed ? 0.6 : 1,
+          },
+        ]}
+      >
+        <Feather name="home" size={13} color={colors.textMuted} />
+        <Text
+          numberOfLines={1}
+          style={[typography.micro, { color: colors.textSecondary, maxWidth: 132 }]}
+        >
+          {label}
+        </Text>
+        <Feather name="chevron-down" size={13} color={colors.textMuted} />
+      </Pressable>
+      <SchoolPickerSheet
+        visible={visible}
+        schools={available}
+        activeId={activeSchool?.id}
+        onSelect={(school) => {
+          setActiveSchool(school);
+          setVisible(false);
+        }}
+        onClose={() => setVisible(false)}
+      />
+    </>
   );
 }
 
@@ -130,34 +416,33 @@ export function Card({
   onPress,
   style,
   accessibilityLabel,
+  variant = "default",
 }: {
   children: React.ReactNode;
   onPress?: () => void;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
+  /** `raised` lifts further off the background; `flat` drops the shadow. */
+  variant?: "default" | "raised" | "flat";
 }) {
   const { colors } = useAppTheme();
-  const content = (
-    <View
-      style={[
-        styles.card,
-        { backgroundColor: colors.surface, borderColor: colors.border },
-        style,
-      ]}
-    >
-      {children}
-    </View>
-  );
-  if (!onPress) return content;
+  const cardStyle = [
+    styles.card,
+    { backgroundColor: colors.surface, borderColor: colors.border },
+    variant === "raised" && elevation.raised,
+    variant === "flat" && styles.cardFlat,
+    style,
+  ];
+  if (!onPress) return <View style={cardStyle}>{children}</View>;
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
-      style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1 })}
+      style={cardStyle}
     >
-      {content}
-    </Pressable>
+      {children}
+    </PressableScale>
   );
 }
 
@@ -288,6 +573,62 @@ export function FilterChips<T extends string>({
   );
 }
 
+/**
+ * Segmented control for a small, fixed set of mutually exclusive views.
+ * Preferred over FilterChips when the options are the primary way to navigate
+ * a screen rather than an optional refinement.
+ */
+export function Segmented<T extends string>({
+  options,
+  selected,
+  onSelect,
+}: {
+  options: Array<{ value: T; label: string; badge?: number }>;
+  selected: T;
+  onSelect: (value: T) => void;
+}) {
+  const { colors } = useAppTheme();
+  return (
+    <View
+      accessibilityRole="tablist"
+      style={[styles.segmentTrack, { backgroundColor: colors.surfaceMuted }]}
+    >
+      {options.map((option) => {
+        const active = selected === option.value;
+        return (
+          <Pressable
+            key={option.value}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: active }}
+            onPress={() => onSelect(option.value)}
+            style={[
+              styles.segment,
+              active && { backgroundColor: colors.surface, ...elevation.card },
+            ]}
+          >
+            <Text
+              numberOfLines={1}
+              style={[
+                typography.label,
+                { color: active ? colors.primary : colors.textSecondary },
+              ]}
+            >
+              {option.label}
+            </Text>
+            {option.badge ? (
+              <View style={[styles.segmentBadge, { backgroundColor: colors.error }]}>
+                <Text style={styles.countBadgeText}>
+                  {option.badge > 99 ? "99+" : option.badge}
+                </Text>
+              </View>
+            ) : null}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 export function EmptyState({
   icon = "inbox",
   title,
@@ -304,8 +645,10 @@ export function EmptyState({
   const { colors } = useAppTheme();
   return (
     <View style={styles.stateContainer}>
-      <View style={[styles.stateIcon, { backgroundColor: colors.surfaceMuted }]}>
-        <Feather name={icon} size={28} color={colors.textMuted} />
+      <View style={[styles.stateRing, { borderColor: colors.border }]}>
+        <View style={[styles.stateIcon, { backgroundColor: colors.surfaceMuted }]}>
+          <Feather name={icon} size={28} color={colors.textMuted} />
+        </View>
       </View>
       <Text style={[typography.heading, { color: colors.text }]}>{title}</Text>
       {message ? (
@@ -363,7 +706,14 @@ export function ErrorState({
   );
 }
 
-export function LoadingState({ rows = 4 }: { rows?: number }) {
+export function LoadingState({
+  rows = 4,
+  variant = "list",
+}: {
+  rows?: number;
+  /** `post` mirrors the feed card silhouette so the swap-in is seamless. */
+  variant?: "list" | "post";
+}) {
   const { colors } = useAppTheme();
   return (
     <View style={styles.loadingList} accessibilityLabel="Loading">
@@ -371,27 +721,24 @@ export function LoadingState({ rows = 4 }: { rows?: number }) {
         <View
           key={index}
           style={[
-            styles.loadingRow,
+            variant === "post" ? styles.loadingPost : styles.loadingRow,
             { backgroundColor: colors.surface, borderColor: colors.border },
           ]}
         >
-          <View
-            style={[styles.loadingAvatar, { backgroundColor: colors.surfaceMuted }]}
-          />
-          <View style={styles.loadingLines}>
-            <View
-              style={[
-                styles.loadingLine,
-                { backgroundColor: colors.surfaceMuted, width: "72%" },
-              ]}
-            />
-            <View
-              style={[
-                styles.loadingLine,
-                { backgroundColor: colors.surfaceMuted, width: "46%" },
-              ]}
-            />
+          <View style={styles.loadingHead}>
+            <Skeleton width={44} height={44} radius={22} />
+            <View style={styles.loadingLines}>
+              <Skeleton width="62%" height={12} />
+              <Skeleton width="40%" height={10} />
+            </View>
           </View>
+          {variant === "post" ? (
+            <>
+              <Skeleton width="94%" height={11} />
+              <Skeleton width="78%" height={11} />
+              <Skeleton width="100%" height={148} radius={radii.md} />
+            </>
+          ) : null}
         </View>
       ))}
     </View>
@@ -460,14 +807,41 @@ export function FormField({
   error,
   optional,
   multiline,
+  secureToggle,
   ...props
 }: TextInputProps & {
   label: string;
   error?: string;
   optional?: boolean;
+  /** Renders a show/hide eye and manages `secureTextEntry` internally. */
+  secureToggle?: boolean;
 }) {
   const { colors } = useAppTheme();
   const { language } = useLanguage();
+  const [revealed, setRevealed] = useState(false);
+  const borderColor = error ? colors.error : colors.border;
+
+  const input = (
+    <TextInput
+      {...props}
+      multiline={multiline}
+      secureTextEntry={secureToggle ? !revealed : props.secureTextEntry}
+      placeholderTextColor={colors.textMuted}
+      style={[
+        styles.input,
+        multiline && styles.multiline,
+        secureToggle && styles.inputBare,
+        {
+          color: colors.text,
+          backgroundColor: secureToggle ? "transparent" : colors.surface,
+          borderColor: secureToggle ? "transparent" : borderColor,
+        },
+        props.style,
+      ]}
+      accessibilityHint={error}
+    />
+  );
+
   return (
     <View style={styles.field}>
       <Text style={[typography.label, { color: colors.text }]}>
@@ -479,22 +853,39 @@ export function FormField({
           </Text>
         ) : null}
       </Text>
-      <TextInput
-        {...props}
-        multiline={multiline}
-        placeholderTextColor={colors.textMuted}
-        style={[
-          styles.input,
-          multiline && styles.multiline,
-          {
-            color: colors.text,
-            backgroundColor: colors.surface,
-            borderColor: error ? colors.error : colors.border,
-          },
-          props.style,
-        ]}
-        accessibilityHint={error}
-      />
+      {secureToggle ? (
+        <View
+          style={[
+            styles.inputRow,
+            { backgroundColor: colors.surface, borderColor },
+          ]}
+        >
+          {input}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              revealed
+                ? language === "fr"
+                  ? "Masquer le mot de passe"
+                  : "Hide password"
+                : language === "fr"
+                  ? "Afficher le mot de passe"
+                  : "Show password"
+            }
+            onPress={() => setRevealed((current) => !current)}
+            hitSlop={8}
+            style={styles.revealButton}
+          >
+            <Feather
+              name={revealed ? "eye-off" : "eye"}
+              size={19}
+              color={colors.textMuted}
+            />
+          </Pressable>
+        </View>
+      ) : (
+        input
+      )}
       {error ? (
         <Text style={[typography.caption, { color: colors.error }]}>{error}</Text>
       ) : null}
@@ -575,88 +966,155 @@ export function SchoolSelector() {
         </View>
         <Feather name="chevron-down" size={20} color={colors.textMuted} />
       </Pressable>
-      <Modal
-        transparent
+      <SchoolPickerSheet
         visible={visible}
-        animationType="slide"
-        onRequestClose={() => setVisible(false)}
-      >
-        <View style={styles.modalRoot}>
-          <Pressable
-            style={[StyleSheet.absoluteFill, { backgroundColor: colors.overlay }]}
-            onPress={() => setVisible(false)}
-          />
-          <View
+        schools={availableSchools}
+        activeId={activeSchool?.id}
+        onSelect={select}
+        onClose={() => setVisible(false)}
+      />
+    </>
+  );
+}
+
+function SchoolPickerSheet({
+  visible,
+  schools,
+  activeId,
+  onSelect,
+  onClose,
+}: {
+  visible: boolean;
+  schools: School[];
+  activeId?: School["id"];
+  onSelect: (school: School) => void;
+  onClose: () => void;
+}) {
+  const { colors } = useAppTheme();
+  const { language } = useLanguage();
+  const router = useRouter();
+  return (
+    <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
+      <View style={styles.modalRoot}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={language === "fr" ? "Fermer" : "Close"}
+          style={[StyleSheet.absoluteFill, { backgroundColor: colors.overlay }]}
+          onPress={onClose}
+        />
+        <View
+          style={[
+            styles.sheet,
+            { backgroundColor: colors.surfaceElevated },
+            elevation.overlay,
+          ]}
+        >
+          <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
+          <Text style={[typography.heading, { color: colors.text }]}>
+            {language === "fr" ? "Choisir une école" : "Choose a school"}
+          </Text>
+          <Text
             style={[
-              styles.sheet,
-              { backgroundColor: colors.surfaceElevated },
+              typography.body,
+              { color: colors.textSecondary, marginBottom: spacing.md },
             ]}
           >
-            <View
-              style={[styles.sheetHandle, { backgroundColor: colors.border }]}
+            {language === "fr"
+              ? "Les présences et les notes resteront séparées par école."
+              : "Attendance and marks stay separated by school."}
+          </Text>
+          {schools.map((school) => {
+            const selected = activeId === school.id;
+            return (
+              <PressableScale
+                key={school.id}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                onPress={() => onSelect(school)}
+                style={[
+                  styles.schoolOption,
+                  {
+                    borderColor: selected ? colors.primary : colors.border,
+                    backgroundColor: selected ? colors.primarySoft : colors.surface,
+                  },
+                ]}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={[typography.bodyStrong, { color: colors.text }]}>
+                    {school.name}
+                  </Text>
+                  <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                    {school.code}
+                  </Text>
+                </View>
+                {selected ? (
+                  <Feather name="check-circle" size={21} color={colors.primary} />
+                ) : null}
+              </PressableScale>
+            );
+          })}
+          {schools.length === 0 ? (
+            <EmptyState
+              icon="home"
+              title={language === "fr" ? "Aucune école" : "No schools"}
+              message={
+                language === "fr"
+                  ? "Envoyez une demande avec le code de votre école."
+                  : "Send a request using your school code."
+              }
             />
-            <Text style={[typography.heading, { color: colors.text }]}>
-              {language === "fr" ? "Choisir une école" : "Choose a school"}
-            </Text>
-            <Text
-              style={[
-                typography.body,
-                { color: colors.textSecondary, marginBottom: spacing.md },
-              ]}
+          ) : null}
+
+          {/* Joining another school belongs with the list of schools, not
+              buried in the profile tab. */}
+          <Divider />
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel={
+              language === "fr" ? "Ajouter une école" : "Add a school"
+            }
+            onPress={() => {
+              onClose();
+              router.push("/schools/add");
+            }}
+            style={[styles.schoolOption, { borderColor: colors.border }]}
+          >
+            <View
+              style={[styles.addSchoolIcon, { backgroundColor: colors.primarySoft }]}
             >
-              {language === "fr"
-                ? "Les présences et les notes resteront séparées par école."
-                : "Attendance and marks stay separated by school."}
+              <Feather name="plus" size={18} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[typography.bodyStrong, { color: colors.primary }]}>
+                {language === "fr" ? "Ajouter une école" : "Add a school"}
+              </Text>
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                {language === "fr"
+                  ? "Rejoindre avec un code d’école"
+                  : "Join with a school code"}
+              </Text>
+            </View>
+            <Feather name="chevron-right" size={19} color={colors.textMuted} />
+          </PressableScale>
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel={
+              language === "fr" ? "Demandes en attente" : "Pending requests"
+            }
+            onPress={() => {
+              onClose();
+              router.push("/schools/requests");
+            }}
+            style={styles.sheetLink}
+          >
+            <Feather name="clock" size={15} color={colors.textSecondary} />
+            <Text style={[typography.label, { color: colors.textSecondary }]}>
+              {language === "fr" ? "Demandes en attente" : "Pending requests"}
             </Text>
-            {availableSchools.map((school) => {
-              const selected = activeSchool?.id === school.id;
-              return (
-                <Pressable
-                  key={school.id}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  onPress={() => select(school)}
-                  style={[
-                    styles.schoolOption,
-                    {
-                      borderColor: selected ? colors.primary : colors.border,
-                      backgroundColor: selected
-                        ? colors.primarySoft
-                        : colors.surface,
-                    },
-                  ]}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={[typography.bodyStrong, { color: colors.text }]}>
-                      {school.name}
-                    </Text>
-                    <Text
-                      style={[typography.caption, { color: colors.textSecondary }]}
-                    >
-                      {school.code}
-                    </Text>
-                  </View>
-                  {selected ? (
-                    <Feather name="check-circle" size={21} color={colors.primary} />
-                  ) : null}
-                </Pressable>
-              );
-            })}
-            {availableSchools.length === 0 ? (
-              <EmptyState
-                icon="home"
-                title={language === "fr" ? "Aucune école" : "No schools"}
-                message={
-                  language === "fr"
-                    ? "Ajoutez une école depuis votre profil."
-                    : "Add a school from your profile."
-                }
-              />
-            ) : null}
-          </View>
+          </PressableScale>
         </View>
-      </Modal>
-    </>
+      </View>
+    </Modal>
   );
 }
 
@@ -665,10 +1123,42 @@ const styles = StyleSheet.create({
   screenContent: {
     flexGrow: 1,
     width: "100%",
-    maxWidth: 760,
+    maxWidth: layout.maxContentWidth,
     alignSelf: "center",
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: layout.screenPadding,
     gap: spacing.md,
+  },
+  iconCircle: { alignItems: "center", justifyContent: "center" },
+  countBadge: {
+    position: "absolute",
+    top: -1,
+    right: -2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 3,
+  },
+  countBadgeText: { color: "#FFFFFF", fontSize: 9, fontWeight: "800" },
+  softChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: radii.pill,
+  },
+  schoolPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    minHeight: 30,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radii.pill,
+    paddingHorizontal: 10,
+    backgroundColor: "transparent",
   },
   header: {
     flexDirection: "row",
@@ -693,10 +1183,11 @@ const styles = StyleSheet.create({
   },
   card: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: radii.lg,
+    borderRadius: radii.card,
     padding: spacing.md,
     ...elevation.card,
   },
+  cardFlat: { shadowOpacity: 0, elevation: 0 },
   chip: {
     alignSelf: "flex-start",
     flexDirection: "row",
@@ -716,6 +1207,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
   },
   searchInput: { flex: 1, paddingVertical: Platform.OS === "web" ? 12 : 8 },
+  segmentTrack: { flexDirection: "row", borderRadius: radii.md, padding: 4, gap: 4 },
+  segment: {
+    flex: 1,
+    minHeight: 38,
+    borderRadius: radii.sm,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 5,
+    paddingHorizontal: 6,
+  },
+  segmentBadge: {
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
   filterRow: { gap: spacing.xs, paddingRight: spacing.lg },
   filterChip: {
     minHeight: 38,
@@ -731,13 +1241,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.xxxl,
   },
+  stateRing: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.sm,
+  },
   stateIcon: {
     width: 60,
     height: 60,
     borderRadius: 30,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: spacing.xs,
   },
   retryButton: {
     minHeight: touchTarget.minHeight,
@@ -750,16 +1268,19 @@ const styles = StyleSheet.create({
   loadingList: { gap: spacing.sm },
   loadingRow: {
     minHeight: 82,
-    borderWidth: 1,
-    borderRadius: radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radii.card,
     padding: spacing.md,
-    flexDirection: "row",
-    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingPost: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radii.card,
+    padding: spacing.md,
     gap: spacing.sm,
   },
-  loadingAvatar: { width: 44, height: 44, borderRadius: radii.md },
+  loadingHead: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   loadingLines: { flex: 1, gap: spacing.xs },
-  loadingLine: { height: 12, borderRadius: radii.pill },
   button: {
     minHeight: touchTarget.minHeight,
     borderWidth: 1,
@@ -780,6 +1301,21 @@ const styles = StyleSheet.create({
     ...typography.body,
   },
   multiline: { minHeight: 112, textAlignVertical: "top" },
+  // Inside a secure-entry row the border lives on the wrapper, not the input.
+  inputBare: { flex: 1, borderWidth: 0 },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderRadius: radii.md,
+    paddingRight: spacing.xs,
+  },
+  revealButton: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   banner: {
     flexDirection: "row",
     alignItems: "center",
@@ -827,5 +1363,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: radii.md,
     padding: spacing.sm,
+    gap: spacing.sm,
+  },
+  addSchoolIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.md,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sheetLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    minHeight: 44,
   },
 });

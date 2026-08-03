@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/hooks/useAppTheme";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { EmptyState, SearchInput } from "@/components/ui";
-import { CURRENT_TEACHER_ID } from "@/social/models";
+import { Conversation, CURRENT_TEACHER_ID } from "@/social/models";
 import { useSocial } from "@/social/hooks/useSocial";
 import { SOCIAL_POLLING } from "@/social/constants/network";
 import { usePolling } from "@/social/hooks/usePolling";
@@ -21,6 +21,9 @@ import { SocialScreenHeader } from "@/social/components/ScreenHeader";
 import { Avatar } from "@/social/components/Avatar";
 import { formatRelativeTime } from "@/social/utils/format";
 import { spacing, typography } from "@/constants/theme";
+import { confirmAction, notify } from "@/utils/dialog";
+import { socialStore } from "@/social/store/socialStore";
+import { cacheKeys, readCache, writeCache } from "@/utils/offline/cache";
 
 export default function ConversationsScreen() {
   const router = useRouter();
@@ -31,6 +34,21 @@ export default function ConversationsScreen() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
+
+  // Paint the cached list first so reopening messages never shows a spinner;
+  // the request below then refreshes it in place.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const cached = await readCache<Conversation[]>(cacheKeys.conversations);
+      if (cancelled || !cached?.length) return;
+      socialStore.upsertConversations(cached);
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Conversation search runs server-side: filtering only the loaded page would
   // silently miss older conversations once the list paginates.
@@ -46,6 +64,13 @@ export default function ConversationsScreen() {
 
   // Mutual-follow eligibility is server-owned, so the "new message" list is
   // fetched rather than derived from cached follow flags.
+  // Keep the cache in step with whatever the server last returned.
+  useEffect(() => {
+    if (snapshot.conversations.length) {
+      void writeCache(cacheKeys.conversations, snapshot.conversations.slice(0, 30));
+    }
+  }, [snapshot.conversations]);
+
   useEffect(() => {
     if (showNew) void repository.getEligibleTeachers().catch(() => undefined);
   }, [repository, showNew]);
@@ -82,7 +107,7 @@ export default function ConversationsScreen() {
   );
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <View style={[styles.screen, { backgroundColor: colors.surface, paddingTop: insets.top }]}>
       <SocialScreenHeader
         title={t("messages")}
         action={
@@ -137,7 +162,7 @@ export default function ConversationsScreen() {
           data={conversations}
           keyExtractor={(conversation) => conversation.id}
           contentContainerStyle={styles.list}
-          ItemSeparatorComponent={() => <View style={[styles.separator, { backgroundColor: colors.divider }]} />}
+          ItemSeparatorComponent={() => <View style={[styles.separator, { backgroundColor: colors.border }]} />}
           renderItem={({ item }) => {
             const otherId = item.participantIds.find((id) => id !== CURRENT_TEACHER_ID);
             const teacher = snapshot.teachers.find((candidate) => candidate.id === otherId);
@@ -148,6 +173,21 @@ export default function ConversationsScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={`${t("messages")}: ${teacher.name}`}
                 onPress={() => router.push(`/social/conversation/${item.id}`)}
+                onLongPress={() =>
+                  confirmAction({
+                    title: t("delete_chat"),
+                    message: t("delete_chat_confirm"),
+                    confirmLabel: t("delete"),
+                    cancelLabel: t("cancel"),
+                    destructive: true,
+                    onConfirm: () => {
+                      void repository
+                        .deleteConversation(item.id)
+                        .catch(() => notify(t("error"), t("operation_failed")));
+                    },
+                  })
+                }
+                delayLongPress={280}
                 style={({ pressed }) => [styles.conversation, { opacity: pressed ? 0.7 : 1 }]}
               >
                 <Avatar name={teacher.name} uri={teacher.photoUrl} size={54} />
@@ -192,6 +232,8 @@ const styles = StyleSheet.create({
   list: { paddingHorizontal: spacing.md, paddingBottom: spacing.xxl },
   conversation: { minHeight: 78, flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.sm },
   conversationTop: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  // On white rows the divider must use the border tone: `divider` is nearly
+  // invisible against the light surface and the rows ran together.
   separator: { height: StyleSheet.hairlineWidth, marginLeft: 68 },
   unread: { minWidth: 23, height: 23, borderRadius: 12, alignItems: "center", justifyContent: "center", paddingHorizontal: 5 },
   unreadText: { color: "#FFFFFF", fontSize: 11, fontWeight: "800" },

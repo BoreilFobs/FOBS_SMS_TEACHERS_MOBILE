@@ -251,12 +251,32 @@ export class ApiSocialRepository implements SocialSessionRepository {
     return this.messaging.getMessages(conversationId, cursor);
   }
 
-  sendMessage(conversationId: string, text: string): Promise<Message> {
-    return this.messaging.sendMessage(conversationId, text);
+  sendMessage(
+    conversationId: string,
+    text: string,
+    options?: { replyToId?: string; forwarded?: boolean },
+  ): Promise<Message> {
+    return this.messaging.sendMessage(conversationId, text, options);
   }
 
-  sendImage(conversationId: string, uri: string): Promise<Message> {
-    return this.messaging.sendImage(conversationId, uri);
+  editMessage(conversationId: string, messageId: string, text: string): Promise<Message> {
+    return this.messaging.editMessage(conversationId, messageId, text);
+  }
+
+  deleteMessage(conversationId: string, messageId: string): Promise<Message> {
+    return this.messaging.deleteMessage(conversationId, messageId);
+  }
+
+  deleteConversation(conversationId: string): Promise<void> {
+    return this.messaging.deleteConversation(conversationId);
+  }
+
+  sendImage(
+    conversationId: string,
+    uri: string,
+    onProgress?: (fraction: number) => void,
+  ): Promise<Message> {
+    return this.messaging.sendImage(conversationId, uri, onProgress);
   }
 
   share(conversationId: string, input: SharedMessageInput): Promise<Message> {

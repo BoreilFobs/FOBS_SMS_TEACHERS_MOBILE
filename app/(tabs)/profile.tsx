@@ -8,6 +8,7 @@ import {
   Card,
   ErrorState,
   LoadingState,
+  PressableScale,
   SchoolSelector,
   Screen,
   SectionHeader,
@@ -20,6 +21,7 @@ import { radii, spacing, typography } from "@/constants/theme";
 import useUserStore from "@/utils/stores/userStore";
 import useSchoolStore from "@/utils/stores/schoolStore";
 import Config from "@/constants/Config";
+import { resolveMediaUrl } from "@/utils/photoUri";
 import { useSocial } from "@/social/hooks/useSocial";
 import { CURRENT_TEACHER_ID } from "@/social/models";
 
@@ -100,11 +102,7 @@ export default function ProfileScreen() {
     );
   }
 
-  const imageUri = teacher?.profile_photo
-    ? teacher.profile_photo.startsWith("http")
-      ? teacher.profile_photo
-      : `${Config.webBaseUrl}/storage/${teacher.profile_photo}`
-    : null;
+  const imageUri = resolveMediaUrl(teacher?.profile_photo) ?? null;
 
   return (
     <Screen scroll>
@@ -122,18 +120,21 @@ export default function ProfileScreen() {
           </Pressable>
         }
       />
-      <Card style={styles.hero}>
+      <Card style={styles.hero} variant="raised">
+        {/* Cover band with the avatar overlapping it, so the profile reads as
+            an identity page rather than another settings row. */}
+        <View style={[styles.cover, { backgroundColor: colors.primarySoft }]} />
         <View style={styles.identity}>
-          {imageUri ? (
-            <Image source={{ uri: imageUri }} style={styles.photo} />
-          ) : (
-            <View
-              style={[styles.photo, { backgroundColor: colors.primarySoft }]}
-            >
-              <Feather name="user" size={32} color={colors.primary} />
-            </View>
-          )}
-          <View style={{ flex: 1, gap: 3 }}>
+          <View style={[styles.photoRing, { borderColor: colors.surface }]}>
+            {imageUri ? (
+              <Image source={{ uri: imageUri }} style={styles.photo} />
+            ) : (
+              <View style={[styles.photo, { backgroundColor: colors.primarySoft }]}>
+                <Feather name="user" size={30} color={colors.primary} />
+              </View>
+            )}
+          </View>
+          <View style={{ flex: 1, gap: 3, paddingTop: spacing.sm }}>
             <View style={styles.inline}>
               <Text
                 numberOfLines={2}
@@ -146,14 +147,14 @@ export default function ProfileScreen() {
               ) : null}
             </View>
             <Text
-              style={[typography.body, { color: colors.textSecondary }]}
+              style={[typography.caption, { color: colors.textSecondary }]}
               numberOfLines={3}
             >
               {profile.headline}
             </Text>
             <View style={styles.inline}>
-              <Feather name="map-pin" size={14} color={colors.textMuted} />
-              <Text style={[typography.caption, { color: colors.textMuted }]}>
+              <Feather name="map-pin" size={13} color={colors.textMuted} />
+              <Text style={[typography.micro, { color: colors.textMuted }]}>
                 {profile.city}
               </Text>
             </View>
@@ -192,44 +193,31 @@ export default function ProfileScreen() {
         </View>
       </Card>
 
-      <View style={styles.socialStats}>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => router.push({ pathname: "/social/connections", params: { type: "followers" } })}
-          style={styles.socialStat}
-        >
-          <Text style={[typography.heading, { color: colors.text }]}>
-            {socialProfile?.followerCount ?? 0}
-          </Text>
-          <Text style={[typography.caption, { color: colors.textSecondary }]}>
-            {t("followers")}
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => router.push({ pathname: "/social/connections", params: { type: "following" } })}
-          style={styles.socialStat}
-        >
-          <Text style={[typography.heading, { color: colors.text }]}>
-            {socialProfile?.followingCount ?? 0}
-          </Text>
-          <Text style={[typography.caption, { color: colors.textSecondary }]}>
-            {t("following")}
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => router.push({ pathname: "/social/profile/[id]", params: { id: CURRENT_TEACHER_ID } })}
-          style={styles.socialStat}
-        >
-          <Text style={[typography.heading, { color: colors.text }]}>
-            {snapshot.posts.filter((post) => post.authorId === CURRENT_TEACHER_ID).length}
-          </Text>
-          <Text style={[typography.caption, { color: colors.textSecondary }]}>
-            {t("posts")}
-          </Text>
-        </Pressable>
-      </View>
+      <Card style={styles.socialStats} variant="flat">
+        <SocialStat
+          value={socialProfile?.followerCount ?? 0}
+          label={t("followers")}
+          onPress={() =>
+            router.push({ pathname: "/social/connections", params: { type: "followers" } })
+          }
+        />
+        <View style={[styles.statDivider, { backgroundColor: colors.divider }]} />
+        <SocialStat
+          value={socialProfile?.followingCount ?? 0}
+          label={t("following")}
+          onPress={() =>
+            router.push({ pathname: "/social/connections", params: { type: "following" } })
+          }
+        />
+        <View style={[styles.statDivider, { backgroundColor: colors.divider }]} />
+        <SocialStat
+          value={snapshot.posts.filter((post) => post.authorId === CURRENT_TEACHER_ID).length}
+          label={t("posts")}
+          onPress={() =>
+            router.push({ pathname: "/social/profile/[id]", params: { id: CURRENT_TEACHER_ID } })
+          }
+        />
+      </Card>
 
       <SectionHeader title={t("social_feed")} />
       <ProfileLink
@@ -332,6 +320,29 @@ export default function ProfileScreen() {
   );
 }
 
+function SocialStat({
+  value,
+  label,
+  onPress,
+}: {
+  value: number;
+  label: string;
+  onPress: () => void;
+}) {
+  const { colors } = useAppTheme();
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={`${value} ${label}`}
+      onPress={onPress}
+      style={styles.socialStat}
+    >
+      <Text style={[typography.heading, { color: colors.text }]}>{value}</Text>
+      <Text style={[typography.micro, { color: colors.textSecondary }]}>{label}</Text>
+    </PressableScale>
+  );
+}
+
 function ProfileLink({
   icon,
   title,
@@ -374,12 +385,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  hero: { gap: spacing.md },
-  identity: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  hero: { gap: spacing.md, padding: 0, overflow: "hidden" },
+  cover: { height: 64 },
+  identity: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    marginTop: -34,
+  },
+  photoRing: { borderRadius: 42, borderWidth: 4 },
   photo: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -389,25 +408,35 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    marginTop: -spacing.xs,
   },
-  progressTrack: { height: 8, borderRadius: 4, overflow: "hidden" },
+  progressTrack: {
+    height: 7,
+    borderRadius: 4,
+    overflow: "hidden",
+    marginHorizontal: spacing.md,
+    marginTop: -spacing.xs,
+  },
   progressFill: { height: "100%", borderRadius: 4 },
-  buttonRow: { flexDirection: "row", gap: spacing.sm },
+  buttonRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
+    marginTop: -spacing.xs,
+  },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginTop: spacing.md },
   list: { gap: spacing.sm },
   assignment: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   socialStats: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-around",
     paddingVertical: spacing.xs,
+    paddingHorizontal: 0,
   },
-  socialStat: {
-    minWidth: 88,
-    minHeight: 54,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  socialStat: { flex: 1, minHeight: 52, alignItems: "center", justifyContent: "center", gap: 1 },
+  statDivider: { width: StyleSheet.hairlineWidth, height: 30 },
   schoolIcon: {
     width: 44,
     height: 44,

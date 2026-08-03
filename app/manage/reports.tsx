@@ -13,9 +13,9 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import Colors from "@/constants/Colors";
+import { useAppTheme } from "@/hooks/useAppTheme";
+import { ManageHeader } from "@/components/manage/ManageHeader";
 import { useRouter } from "expo-router";
-import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import useUserStore from '@/utils/stores/userStore';
 import useSchoolStore from '@/utils/stores/schoolStore';
@@ -60,8 +60,11 @@ interface ReportSummary {
 }
 
 export default function ReportsScreen() {
-  const colorScheme = useColorScheme() === "dark" ? "dark" : "light";
-  const colors = Colors[colorScheme ?? "light"];
+  const { colors: theme, isDark } = useAppTheme();
+  const colorScheme = isDark ? "dark" : "light";
+  // `card` and `tint` are the two keys this screen uses that the app theme
+  // names differently.
+  const colors = { ...theme, card: theme.surface, tint: theme.primary };
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { language } = useLanguage();
@@ -148,7 +151,7 @@ export default function ReportsScreen() {
   const SummaryCard = () => (
     <View style={[styles.summaryCard, { backgroundColor: withOpacity(colors.card, 0.9) }]}>
       <LinearGradient
-        colors={[colors.primary, colors.tint]}
+        colors={[theme.brandGradientFrom, theme.brandGradientTo]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.summaryGradient}
@@ -303,15 +306,11 @@ export default function ReportsScreen() {
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <BlurView intensity={Platform.OS === 'ios' ? 80 : 100} style={StyleSheet.absoluteFill} tint={colorScheme === 'dark' ? 'dark' : 'light'} />
         <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-          <TouchableOpacity onPress={() => router.back()} style={[styles.backButton, { backgroundColor: withOpacity(colors.card, 0.9) }]}>
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>
-            {language === 'fr' ? 'Rapports' : 'Reports'}
-          </Text>
-          <View style={{ width: 44 }} />
+          <ManageHeader
+            title={language === 'fr' ? 'Rapports' : 'Reports'}
+            subtitle={language === 'fr' ? 'Résultats et performance' : 'Results and performance'}
+          />
         </View>
         <ScrollView
           contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
@@ -327,17 +326,12 @@ export default function ReportsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <BlurView intensity={Platform.OS === 'ios' ? 80 : 100} style={StyleSheet.absoluteFill} tint={colorScheme === 'dark' ? 'dark' : 'light'} />
-      
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <TouchableOpacity onPress={() => router.back()} style={[styles.backButton, { backgroundColor: withOpacity(colors.card, 0.9) }]}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>
-          {language === 'fr' ? 'Rapports de Performance' : 'Performance Reports'}
-        </Text>
-        <View style={{ width: 44 }} />
+        <ManageHeader
+          title={language === 'fr' ? 'Rapports' : 'Reports'}
+          subtitle={language === 'fr' ? 'Résultats et performance' : 'Results and performance'}
+        />
       </View>
 
       <ScrollView
@@ -395,11 +389,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    // ManageHeader owns its own row layout; this wrapper only provides the
+    // page gutter. Making it a space-between row pushed the header right.
+    paddingHorizontal: 20,
+    paddingBottom: 12,
   },
   backButton: {
     width: 44,
@@ -413,8 +406,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   scrollContent: {
-    padding: 16,
-    paddingRight: 20,
+    paddingHorizontal: 20,
+    paddingTop: 4,
   },
   loadingContainer: {
     flex: 1,

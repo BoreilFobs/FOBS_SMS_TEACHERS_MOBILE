@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
   StyleSheet,
   Text,
@@ -10,8 +9,15 @@ import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/hooks/useAppTheme";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { EmptyState, ErrorState, FilterChips, SearchInput } from "@/components/ui";
-import { spacing, typography } from "@/constants/theme";
+import {
+  EmptyState,
+  ErrorState,
+  FilterChips,
+  LoadingState,
+  SearchInput,
+  Segmented,
+} from "@/components/ui";
+import { layout, spacing, typography } from "@/constants/theme";
 import { useSocial } from "@/social/hooks/useSocial";
 import { useSocialResource } from "@/social/hooks/useSocialResource";
 import { TeacherCard } from "@/social/components/TeacherCard";
@@ -99,31 +105,37 @@ export default function NetworkScreen() {
   }, [searchResults, snapshot.teachers, subject, view]);
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <View>
-          <Text style={[typography.title, { color: colors.text }]}>{t("network")}</Text>
-          <Text style={[typography.body, { color: colors.textSecondary }]}>
-            {t("suggested_teachers")}
+    <View
+      style={[
+        styles.screen,
+        { backgroundColor: colors.feedBackground, paddingTop: insets.top },
+      ]}
+    >
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[typography.titleLarge, { color: colors.text }]}>
+            {t("network")}
+          </Text>
+          <Text style={[typography.caption, { color: colors.textSecondary }]}>
+            {teachers.length} {t("teachers")}
           </Text>
         </View>
-        <Feather name="users" size={27} color={colors.primary} />
+        <View style={[styles.headerIcon, { backgroundColor: colors.primarySoft }]}>
+          <Feather name="users" size={20} color={colors.primary} />
+        </View>
       </View>
       <View style={styles.controls}>
         <SearchInput value={query} onChangeText={setQuery} placeholder={t("search")} />
-        <FilterChips
+        <Segmented
           selected={view}
           onSelect={setView}
           options={[
-            { value: "suggested", label: t("suggested_teachers") },
-            { value: "trending", label: t("trending_teachers") },
+            { value: "suggested", label: t("suggested") },
+            { value: "trending", label: t("trending") },
             { value: "following", label: t("following") },
             { value: "followers", label: t("followers") },
           ]}
         />
-        <Text style={[typography.label, { color: colors.textSecondary }]}>
-          {t("subject_categories")}
-        </Text>
         <FilterChips
           selected={subject}
           onSelect={setSubject}
@@ -134,7 +146,9 @@ export default function NetworkScreen() {
         />
       </View>
       {searching || (loading && teachers.length === 0) ? (
-        <ActivityIndicator color={colors.primary} style={styles.loading} />
+        <View style={styles.loadingBox}>
+          <LoadingState rows={5} />
+        </View>
       ) : error && teachers.length === 0 ? (
         <ErrorState message={error.message} onRetry={() => void retry()} />
       ) : (
@@ -145,7 +159,8 @@ export default function NetworkScreen() {
           contentContainerStyle={styles.list}
           refreshing={refreshing}
           onRefresh={() => void refresh()}
-          ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+          ItemSeparatorComponent={() => <View style={{ height: layout.cardGap }} />}
+          showsVerticalScrollIndicator={false}
           initialNumToRender={7}
           windowSize={7}
           ListEmptyComponent={
@@ -160,13 +175,21 @@ export default function NetworkScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   header: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: layout.gutter,
+    paddingBottom: spacing.xs,
+    paddingTop: spacing.xxs,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: spacing.sm,
   },
-  controls: { gap: spacing.xs, paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
-  list: { paddingHorizontal: spacing.md, paddingBottom: 110 },
-  loading: { marginTop: spacing.xxl },
+  headerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  controls: { gap: spacing.xs, paddingHorizontal: layout.gutter, paddingBottom: spacing.sm },
+  list: { paddingHorizontal: layout.gutter, paddingBottom: layout.tabBarClearance },
+  loadingBox: { paddingHorizontal: layout.gutter },
 });

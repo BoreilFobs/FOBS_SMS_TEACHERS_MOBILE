@@ -58,7 +58,7 @@ export default function SocialProfileScreen() {
 
   if (loading && !teacher) {
     return (
-      <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      <View style={[styles.screen, { backgroundColor: colors.feedBackground, paddingTop: insets.top }]}>
         <ProfileHeader onBack={() => router.back()} />
         <LoadingState rows={3} />
       </View>
@@ -67,7 +67,7 @@ export default function SocialProfileScreen() {
 
   if (error && !teacher) {
     return (
-      <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      <View style={[styles.screen, { backgroundColor: colors.feedBackground, paddingTop: insets.top }]}>
         <ProfileHeader onBack={() => router.back()} />
         <ErrorState message={error.message} onRetry={() => void retry()} />
       </View>
@@ -76,7 +76,7 @@ export default function SocialProfileScreen() {
 
   if (!teacher || (teacher.blocked && !isOwn)) {
     return (
-      <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      <View style={[styles.screen, { backgroundColor: colors.feedBackground, paddingTop: insets.top }]}>
         <ProfileHeader onBack={() => router.back()} />
         <EmptyState
           icon="slash"
@@ -109,7 +109,7 @@ export default function SocialProfileScreen() {
     ]);
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <View style={[styles.screen, { backgroundColor: colors.feedBackground, paddingTop: insets.top }]}>
       <ProfileHeader
         onBack={() => router.back()}
         onShare={() =>

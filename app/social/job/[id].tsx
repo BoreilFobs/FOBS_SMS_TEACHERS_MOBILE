@@ -50,7 +50,7 @@ export default function JobDetailsScreen() {
 
   if (loading && !job) {
     return (
-      <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      <View style={[styles.screen, { backgroundColor: colors.feedBackground, paddingTop: insets.top }]}>
         <SocialScreenHeader title={t("jobs")} />
         <LoadingState rows={3} />
       </View>
@@ -59,7 +59,7 @@ export default function JobDetailsScreen() {
 
   if (error && !job) {
     return (
-      <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      <View style={[styles.screen, { backgroundColor: colors.feedBackground, paddingTop: insets.top }]}>
         <SocialScreenHeader title={t("jobs")} />
         <ErrorState message={error.message} onRetry={() => void retry()} />
       </View>
@@ -68,7 +68,7 @@ export default function JobDetailsScreen() {
 
   if (!job) {
     return (
-      <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      <View style={[styles.screen, { backgroundColor: colors.feedBackground, paddingTop: insets.top }]}>
         <SocialScreenHeader title={t("jobs")} />
         <EmptyState icon="briefcase" title={t("no_results")} message={t("back")} />
       </View>
@@ -101,7 +101,7 @@ export default function JobDetailsScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}
+      style={[styles.screen, { backgroundColor: colors.feedBackground, paddingTop: insets.top }]}
     >
       <SocialScreenHeader
         title={t("jobs")}

@@ -5,7 +5,6 @@ import { useRouter } from "expo-router";
 import Config from "@/constants/Config";
 import { radii, spacing, typography } from "@/constants/theme";
 import {
-  AppHeader,
   Card,
   EmptyState,
   ErrorState,
@@ -14,12 +13,14 @@ import {
   SectionHeader,
   StatusChip,
 } from "@/components/ui";
+import { ManageHeader } from "@/components/manage/ManageHeader";
 import { useAppTheme } from "@/hooks/useAppTheme";
 import { useLanguage } from "@/contexts/LanguageContext";
 import useSchoolStore from "@/utils/stores/schoolStore";
 import useUserStore from "@/utils/stores/userStore";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { authFetch } from "@/services/authFetch";
+import { cacheKeys, readCache, writeCache } from "@/utils/offline/cache";
 
 interface AssignedClass {
   id: number;
@@ -41,6 +42,8 @@ export default function ClassesScreen() {
   const { colors } = useAppTheme();
   const { language } = useLanguage();
   const activeSchool = useSchoolStore((store) => store.activeSchool);
+  const schools = useSchoolStore((store) => store.schools);
+  const hasSchools = schools.length > 0;
   const teacher = useUserStore((store) => store.teacher);
   const [classes, setClasses] = useState<AssignedClass[]>([]);
   const [subjects, setSubjects] = useState<AssignedSubject[]>([]);
@@ -54,6 +57,21 @@ export default function ClassesScreen() {
       return;
     }
     setError(null);
+
+    // Classes and subjects change rarely, so the cached copy is shown first and
+    // the screen stays usable with no connection.
+    const [cachedClasses, cachedSubjects] = await Promise.all([
+      readCache<AssignedClass[]>(cacheKeys.schoolClasses(activeSchool.id)),
+      readCache<AssignedSubject[]>(
+        cacheKeys.teacherSubjects(activeSchool.id, teacher.id),
+      ),
+    ]);
+    if (cachedClasses?.length || cachedSubjects?.length) {
+      if (cachedClasses) setClasses(cachedClasses);
+      if (cachedSubjects) setSubjects(cachedSubjects);
+      setLoading(false);
+    }
+
     try {
       const [classesResponse, subjectsResponse] = await Promise.all([
         authFetch(
@@ -77,14 +95,25 @@ export default function ClassesScreen() {
           subjectsPayload.message ?? "Unable to load assigned subjects.",
         );
       }
-      setClasses(classesPayload.classes ?? []);
-      setSubjects(subjectsPayload.data ?? []);
+      const nextClasses = classesPayload.classes ?? [];
+      const nextSubjects = subjectsPayload.data ?? [];
+      setClasses(nextClasses);
+      setSubjects(nextSubjects);
+      await Promise.all([
+        writeCache(cacheKeys.schoolClasses(activeSchool.id), nextClasses),
+        writeCache(
+          cacheKeys.teacherSubjects(activeSchool.id, teacher.id),
+          nextSubjects,
+        ),
+      ]);
     } catch (loadError) {
-      setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "Network error. Check your connection and try again.",
-      );
+      if (!cachedClasses?.length && !cachedSubjects?.length) {
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "Network error. Check your connection and try again.",
+        );
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -119,6 +148,10 @@ export default function ClassesScreen() {
           noAssignments: "Aucune affectation",
           noAssignmentsMessage:
             "Cette école ne contient actuellement aucune classe assignée.",
+          noSchools: "Aucune école connectée",
+          noSchoolsMessage:
+            "Envoyez une demande à votre établissement avec son code d’école pour commencer à gérer vos classes.",
+          requestSchool: "Envoyer une demande",
         }
       : {
           title: "My classes",
@@ -136,6 +169,10 @@ export default function ClassesScreen() {
           noAssignments: "No assignments",
           noAssignmentsMessage:
             "There are currently no assigned classes for this school.",
+          noSchools: "No school connected yet",
+          noSchoolsMessage:
+            "Send a request to your school using its school code to start managing your classes.",
+          requestSchool: "Send a request",
         };
 
   return (
@@ -153,14 +190,30 @@ export default function ClassesScreen() {
           />
         }
       >
-        <AppHeader title={copy.title} subtitle={copy.subtitle} />
-        <SchoolSelector />
-        {!activeSchool ? (
+        <ManageHeader
+          title={copy.title}
+          subtitle={copy.subtitle}
+          showSchool={Boolean(activeSchool)}
+        />
+        {!hasSchools ? (
+          // A brand-new account has no school yet: the only useful next step is
+          // to request one, so that is the whole screen.
           <EmptyState
             icon="home"
-            title={copy.noSchool}
-            message={copy.noSchoolMessage}
+            title={copy.noSchools}
+            message={copy.noSchoolsMessage}
+            actionLabel={copy.requestSchool}
+            onAction={() => router.push("/schools/add")}
           />
+        ) : !activeSchool ? (
+          <>
+            <SchoolSelector />
+            <EmptyState
+              icon="home"
+              title={copy.noSchool}
+              message={copy.noSchoolMessage}
+            />
+          </>
         ) : loading ? (
           <LoadingState rows={5} />
         ) : error ? (
@@ -173,13 +226,13 @@ export default function ClassesScreen() {
                 icon="check-square"
                 title={copy.attendance}
                 description={copy.attendanceHelp}
-                onPress={() => router.push("/(tabs)/attendance")}
+                onPress={() => router.push("/manage/attendance")}
               />
               <ActionCard
                 icon="edit-3"
                 title={copy.marks}
                 description={copy.marksHelp}
-                onPress={() => router.push("/(tabs)/subjects")}
+                onPress={() => router.push("/manage/marks")}
               />
             </View>
 

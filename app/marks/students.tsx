@@ -27,6 +27,11 @@ import { useAppTheme } from "@/hooks/useAppTheme";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { radii, spacing, touchTarget, typography } from "@/constants/theme";
 import { authFetch } from "@/services/authFetch";
+import { cacheKeys, readCache, writeCache } from "@/utils/offline/cache";
+import { writeJson } from "@/utils/offline/storage";
+import { outbox } from "@/utils/offline/outbox";
+import { usePendingWrites } from "@/hooks/useOutbox";
+import { notify } from "@/utils/dialog";
 
 interface StudentMark {
   id: number;
@@ -42,6 +47,16 @@ export default function StudentMarksRoute() {
       <StudentMarksScreen />
     </AuthWrapper>
   );
+}
+
+/**
+ * Pass/fail colouring for a mark out of 20. 10 is the pass mark; the amber band
+ * flags borderline results that teachers usually double-check.
+ */
+function markColor(mark: number, colors: { success: string; warning: string; error: string }) {
+  if (mark >= 14) return colors.success;
+  if (mark >= 10) return colors.warning;
+  return colors.error;
 }
 
 function StudentMarksScreen() {
@@ -67,9 +82,43 @@ function StudentMarksScreen() {
   const [errors, setErrors] = useState<Record<number, string>>({});
   const [query, setQuery] = useState("");
   const [savedFeedback, setSavedFeedback] = useState(false);
+  const pendingMarks = usePendingWrites("marks");
+
+  const cacheKey = cacheKeys.marks(
+    params.class_id,
+    params.subject_id,
+    params.sequence_id,
+  );
+  const draftKey = cacheKeys.marksDraft(
+    params.class_id,
+    params.subject_id,
+    params.sequence_id,
+  );
+
+  const hydrate = useCallback(
+    (roster: StudentMark[], drafts: Record<number, string> | null) =>
+      roster.map((student) =>
+        drafts && drafts[student.id] !== undefined
+          ? { ...student, draft: drafts[student.id] }
+          : student,
+      ),
+    [],
+  );
 
   const load = useCallback(async () => {
     setError(null);
+
+    // Render whatever was cached before touching the network, so a class opened
+    // before works offline and opens instantly.
+    const [cached, drafts] = await Promise.all([
+      readCache<StudentMark[]>(cacheKey),
+      readCache<Record<number, string>>(draftKey),
+    ]);
+    if (cached?.length) {
+      setStudents(hydrate(cached, drafts));
+      setLoading(false);
+    }
+
     try {
       const [studentResponse, marksResponse] = await Promise.all([
         authFetch(`${Config.apiBaseUrl}/class-students?class_id=${params.class_id}`),
@@ -86,8 +135,7 @@ function StudentMarksScreen() {
       }
       const marks = marksPayload.success ? marksPayload.data ?? [] : [];
       setClassName(studentPayload.class?.name ?? params.class_name ?? "");
-      setStudents(
-        (studentPayload.students ?? []).map(
+      const roster: StudentMark[] = (studentPayload.students ?? []).map(
           (student: { id: number; name: string }) => {
             const mark = marks.find(
               (item: { student_id: number }) => item.student_id === student.id,
@@ -103,18 +151,27 @@ function StudentMarksScreen() {
               draft: value === null ? "" : String(value),
             };
           },
-        ),
-      );
+        );
+
+      await writeCache(cacheKey, roster);
+      // Unsent local edits win over the server copy until they sync.
+      setStudents(hydrate(roster, drafts));
       setErrors({});
     } catch (loadError) {
-      setError(
-        loadError instanceof Error ? loadError.message : "Network error.",
-      );
+      // Cached data already on screen is better than an error page.
+      if (!cached?.length) {
+        setError(
+          loadError instanceof Error ? loadError.message : "Network error.",
+        );
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, [
+    cacheKey,
+    draftKey,
+    hydrate,
     params.class_id,
     params.class_name,
     params.school_id,
@@ -160,6 +217,10 @@ function StudentMarksScreen() {
           refreshTitle: "Actualiser les notes ?",
           refreshMessage:
             "Les brouillons non enregistrés seront remplacés par les données du serveur.",
+          offlineSavedTitle: "Enregistré hors ligne",
+          offlineSavedMessage: (count: number) =>
+            `${count} note(s) seront synchronisées dès le retour de la connexion.`,
+          pendingSync: (count: number) => `${count} note(s) en attente de synchronisation`,
         }
       : {
           title: "Enter marks",
@@ -181,6 +242,10 @@ function StudentMarksScreen() {
           refreshTitle: "Refresh marks?",
           refreshMessage:
             "Unsaved drafts will be replaced with data from the server.",
+          offlineSavedTitle: "Saved offline",
+          offlineSavedMessage: (count: number) =>
+            `${count} mark(s) will sync automatically once you are back online.`,
+          pendingSync: (count: number) => `${count} mark(s) waiting to sync`,
         };
 
   const requestBack = () => {
@@ -205,11 +270,24 @@ function StudentMarksScreen() {
   const updateDraft = (studentId: number, draft: string) => {
     const normalized = draft.replace(",", ".");
     if (normalized && !/^\d{0,2}(\.\d{0,2})?$/.test(normalized)) return;
-    setStudents((current) =>
-      current.map((student) =>
+    setStudents((current) => {
+      const next = current.map((student) =>
         student.id === studentId ? { ...student, draft: normalized } : student,
-      ),
-    );
+      );
+      // Persist on every keystroke: a restart mid-entry must not lose marks
+      // that were never saved to the server.
+      void writeJson(
+        `cache.${draftKey}`,
+        {
+          value: next.reduce<Record<number, string>>((result, student) => {
+            result[student.id] = student.draft;
+            return result;
+          }, {}),
+          savedAt: new Date().toISOString(),
+        },
+      );
+      return next;
+    });
     setSavedFeedback(false);
     const value = Number(normalized);
     setErrors((current) => {
@@ -239,42 +317,76 @@ function StudentMarksScreen() {
       return;
     }
     setSaving(true);
+    let queuedOffline = 0;
+
     try {
       for (const student of dirtyStudents) {
         const isDelete = !student.draft.trim() && student.savedMark !== null;
-        const response = await authFetch(`${Config.apiBaseUrl}/marks`, {
-          method: isDelete ? "DELETE" : "POST",
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
-          body: JSON.stringify({
-            school_id: params.school_id,
-            student_id: student.id,
-            subject_id: params.subject_id,
-            class_id: params.class_id,
-            exam_id: params.sequence_id,
-            ...(isDelete ? {} : { mark: Number(student.draft) }),
-          }),
-        });
-        const payload = await response.json();
-        if (!response.ok || !payload.success) {
-          throw new Error(
-            payload.message ?? `Unable to save the mark for ${student.name}.`,
+        const body = {
+          school_id: params.school_id,
+          student_id: student.id,
+          subject_id: params.subject_id,
+          class_id: params.class_id,
+          exam_id: params.sequence_id,
+          ...(isDelete ? {} : { mark: Number(student.draft) }),
+        };
+
+        let response: Response | null = null;
+        try {
+          response = await authFetch(`${Config.apiBaseUrl}/marks`, {
+            method: isDelete ? "DELETE" : "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify(body),
+          });
+        } catch {
+          // Offline: keep the mark locally and replay it when back online.
+          // POST /marks upserts, so a replay cannot create duplicates.
+          await outbox.enqueue({
+            url: `${Config.apiBaseUrl}/marks`,
+            method: isDelete ? "DELETE" : "POST",
+            body,
+            kind: "marks",
+            label: `${student.name} · ${params.subject_name ?? ""}`.trim(),
+          });
+          queuedOffline += 1;
+        }
+
+        if (response) {
+          const payload = await response.json();
+          if (!response.ok || !payload.success) {
+            throw new Error(
+              payload.message ?? `Unable to save the mark for ${student.name}.`,
+            );
+          }
+          setStudents((current) =>
+            current.map((item) =>
+              item.id === student.id
+                ? {
+                    ...item,
+                    savedMark: isDelete ? null : Number(student.draft),
+                    markId: isDelete ? null : payload.data?.id ?? item.markId,
+                  }
+                : item,
+            ),
+          );
+        } else {
+          // Treat a queued mark as saved locally so the row stops reading dirty.
+          setStudents((current) =>
+            current.map((item) =>
+              item.id === student.id
+                ? { ...item, savedMark: isDelete ? null : Number(student.draft) }
+                : item,
+            ),
           );
         }
-        setStudents((current) =>
-          current.map((item) =>
-            item.id === student.id
-              ? {
-                  ...item,
-                  savedMark: isDelete ? null : Number(student.draft),
-                  markId: isDelete ? null : payload.data?.id ?? item.markId,
-                }
-              : item,
-          ),
-        );
       }
+
       setSavedFeedback(true);
+      if (queuedOffline > 0) {
+        notify(copy.offlineSavedTitle, copy.offlineSavedMessage(queuedOffline));
+      }
     } catch (saveError) {
-      Alert.alert(
+      notify(
         language === "fr" ? "Échec de l’enregistrement" : "Save failed",
         saveError instanceof Error
           ? saveError.message
@@ -370,6 +482,10 @@ function StudentMarksScreen() {
               const isDirty =
                 (!value && student.savedMark !== null) ||
                 (value && Number(value) !== student.savedMark);
+              const numeric = value ? Number(value) : null;
+              const valid =
+                numeric !== null && !Number.isNaN(numeric) && numeric >= 0 && numeric <= 20;
+              const markTone = valid ? markColor(numeric, colors) : null;
               return (
                 <Card key={student.id}>
                   <View style={styles.studentRow}>
@@ -423,13 +539,13 @@ function StudentMarksScreen() {
                         style={[
                           styles.markInput,
                           {
-                            color: colors.text,
-                            backgroundColor: colors.surfaceMuted,
+                            color: markTone ?? colors.text,
+                            backgroundColor: markTone
+                              ? `${markTone}1A`
+                              : colors.surfaceMuted,
                             borderColor: errors[student.id]
                               ? colors.error
-                              : isDirty
-                                ? colors.warning
-                                : colors.border,
+                              : markTone ?? colors.border,
                           },
                         ]}
                       />
@@ -448,6 +564,14 @@ function StudentMarksScreen() {
             })}
           </View>
         )}
+        {pendingMarks.length > 0 ? (
+          <View style={[styles.pendingBanner, { backgroundColor: colors.warningSoft }]}>
+            <Feather name="cloud-off" size={16} color={colors.warning} />
+            <Text style={[typography.caption, { color: colors.warning, flex: 1 }]}>
+              {copy.pendingSync(pendingMarks.length)}
+            </Text>
+          </View>
+        ) : null}
         {savedFeedback && dirtyStudents.length === 0 ? (
           <View
             style={[styles.feedback, { backgroundColor: colors.successSoft }]}
@@ -496,6 +620,13 @@ function Context({
 }
 
 const styles = StyleSheet.create({
+  pendingBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    borderRadius: radii.md,
+    padding: spacing.sm,
+  },
   root: { flex: 1 },
   loadingContent: {
     flex: 1,

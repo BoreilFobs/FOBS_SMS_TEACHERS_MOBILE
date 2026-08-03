@@ -38,7 +38,7 @@ export default function ConnectionsScreen() {
       `${teacher.name} ${teacher.headline}`.toLowerCase().includes(query.toLowerCase()),
   );
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <View style={[styles.screen, { backgroundColor: colors.feedBackground, paddingTop: insets.top }]}>
       <SocialScreenHeader title={view === "following" ? t("following") : t("followers")} />
       <View style={styles.controls}>
         <SearchInput value={query} onChangeText={setQuery} placeholder={t("search")} />

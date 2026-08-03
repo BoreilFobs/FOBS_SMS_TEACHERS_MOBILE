@@ -187,6 +187,22 @@ export interface Message {
   sharedId?: string;
   sentAt: string;
   status: "sending" | "sent" | "read";
+  /** Tombstone: the row is kept but its content was withheld. */
+  deleted?: boolean;
+  editedAt?: string;
+  forwarded?: boolean;
+  replyToId?: string;
+  /** Enough of the answered message to render a preview inline. */
+  replyPreview?: {
+    id: string;
+    senderId: string;
+    kind: MessageKind;
+    text?: string;
+    deleted: boolean;
+  };
+  /** Server-evaluated, so the edit window is judged by its clock not ours. */
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 export interface Conversation {

@@ -8,9 +8,9 @@ import {
   AppHeader,
   Button,
   Card,
-  FilterChips,
   Screen,
   SectionHeader,
+  Segmented,
 } from "@/components/ui";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAppTheme } from "@/hooks/useAppTheme";
@@ -129,22 +129,26 @@ function SettingsScreen() {
       />
       <SectionHeader title={copy.preferences} />
       <Card>
-        <View style={styles.preference}>
-          <View style={[styles.icon, { backgroundColor: colors.primarySoft }]}>
-            <Ionicons name="language-outline" size={21} color={colors.primary} />
+        {/* Both preference cards stack their control under the label so the
+            options span the full card width instead of hugging one edge. */}
+        <View style={styles.stack}>
+          <View style={styles.preference}>
+            <View style={[styles.icon, { backgroundColor: colors.primarySoft }]}>
+              <Ionicons name="language-outline" size={21} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[typography.bodyStrong, { color: colors.text }]}>
+                {copy.language}
+              </Text>
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                English / Français
+              </Text>
+            </View>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[typography.bodyStrong, { color: colors.text }]}>
-              {copy.language}
-            </Text>
-            <Text style={[typography.caption, { color: colors.textSecondary }]}>
-              English / Français
-            </Text>
-          </View>
-          <FilterChips
+          <Segmented
             options={[
-              { value: "en", label: "EN" },
-              { value: "fr", label: "FR" },
+              { value: "en", label: "English" },
+              { value: "fr", label: "Français" },
             ]}
             selected={language}
             onSelect={(value) => void setLanguage(value)}
@@ -166,7 +170,7 @@ function SettingsScreen() {
               </Text>
             </View>
           </View>
-          <FilterChips
+          <Segmented
             options={[
               { value: "system", label: copy.system },
               { value: "light", label: copy.light },

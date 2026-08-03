@@ -10,6 +10,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useState } from "react";
 import { Platform, View, StyleSheet } from 'react-native';
 import UpdateModal from "@/components/UpdateModal";
+import SchoolsSync from "@/components/SchoolsSync";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ThemeProvider as AppThemeProvider } from "@/components/ThemeContext";
 import { useAppTheme } from "@/hooks/useAppTheme";
@@ -82,221 +83,49 @@ function RootLayoutNav() {
       <View style={styles.root}>
         {/* Update Modal - will block navigation if update is required */}
         <UpdateModal onUpdateChecked={setUpdateRequired} />
+
+        {/* Both sections read the school store, so it is synced once here. */}
+        <SchoolsSync />
         
         {/* Web App Update Modal - only shows on web platform */}
         {/* <WebAppUpdateModal /> */}
         
-        <Stack>
-          {/* Main tabs (will appear in tab bar) */}
-          <Stack.Screen
-            name="(tabs)"
-            options={{
-              headerShown: false,
-              presentation: 'card'
-            }}
-          />
-
-          {/* Add School screen (won't appear in tab bar) */}
-          <Stack.Screen
-            name="schools/add"
-            options={{
-              title: "Add School",
-              headerBackTitle: "Back",
-              headerTintColor: modifiedTheme.colors.primary,
-              headerStyle: {
-                backgroundColor: modifiedTheme.colors.card,
-              },
-              headerTitleStyle: {
-                fontWeight: "600",
-              },
-              presentation: "modal", // Optional: makes it slide up on iOS
-              headerShown: Platform.OS === "ios" ? false : true,
-            }}
-          />
-
-          {/* Pending Requests screen (won't appear in tab bar) */}
-          <Stack.Screen
-            name="schools/requests"
-            options={{
-              title: "Pending Requests",
-              headerBackTitle: "Back",
-              headerTintColor: modifiedTheme.colors.primary,
-            }}
-          />
-
-          <Stack.Screen
-            name="subjects"
-            options={{
-              title: Platform.OS === "ios" ? "" : "Subjects",
-              headerBackTitle: "Schools",
-              headerTintColor: modifiedTheme.colors.primary,
-              presentation: 'card'
-            }}
-          />
-
-          <Stack.Screen
-            name="settings"
-            options={{
-              title: Platform.OS === "ios" ? "" : "Settings",
-              headerBackTitle: "Back",
-              headerTintColor: modifiedTheme.colors.primary,
-              headerStyle: {
-                backgroundColor: modifiedTheme.colors.card,
-              },
-              headerTitleStyle: {
-                fontWeight: "600",
-              },
-              presentation: "modal", // Optional: makes it slide up on iOS
-              headerShown: Platform.OS === "ios" ? false : true,
-            }}
-          />
-
-          <Stack.Screen
-            name="marks/exams"
-            options={{
-              title: Platform.OS === "ios" ? "" : "Exams",
-              headerBackTitle: "Classes",
-              headerTintColor: modifiedTheme.colors.primary,
-              presentation: 'card'
-            }}
-          />
-
-          <Stack.Screen
-            name="settings/edit-profile"
-            options={{
-              title: "",
-              headerBackTitle: "Classes",
-              headerTintColor: modifiedTheme.colors.primary,
-              headerShown: false,
-
-            }}
-          />
-
-          <Stack.Screen
-            name="settings/change-password"
-            options={{
-              title: "",
-              headerBackTitle: "",
-              headerTintColor: modifiedTheme.colors.primary,
-              headerShown: false,
-
-            }}
-          />
-
-          <Stack.Screen
-            name="support/help"
-            options={{
-              title: Platform.OS === "ios" ? "" : "Help",
-              headerBackTitle: "",
-              headerTintColor: modifiedTheme.colors.primary,
-              headerShown: false,
-            }}
-          />
-
-          <Stack.Screen
-            name="support/contact"
-            options={{
-              title: "",
-              headerBackTitle: "",
-              headerTintColor: modifiedTheme.colors.primary,
-              headerShown: false,
-
-            }}
-          />
-
-          <Stack.Screen
-            name="support/about"
-            options={{
-              title: "",
-              headerBackTitle: "",
-              headerTintColor: modifiedTheme.colors.primary,
-              headerShown: false,
-
-            }}
-          />
-
-          <Stack.Screen
-            name="reports/index"
-            options={{
-              title: "Reports",
-              headerBackTitle: "Back",
-              headerTintColor: modifiedTheme.colors.primary,
-              headerShown: false,
-              presentation: 'card'
-            }}
-          />
-
-          <Stack.Screen
-            name="attendance/students"
-            options={{
-              title: "Attendance",
-              headerBackTitle: "Schools",
-              headerTintColor: modifiedTheme.colors.primary,
-              presentation: 'card'
-            }}
-          />
-          
-
-          <Stack.Screen
-            name="marks/classes"
-            options={{
-              title: Platform.OS === "ios" ? "" : "Classes",
-              headerBackTitle: "subjects",
-              headerTintColor: modifiedTheme.colors.primary,
-              presentation: 'card'
-            }}
-          />
-
-          <Stack.Screen
-            name="marks/students"
-            options={{
-              title: Platform.OS === "ios" ? "" : "Students",
-              headerBackTitle: "classes",
-              headerTintColor: modifiedTheme.colors.primary,
-              presentation: 'card'
-            }}
-          />
-
-          <Stack.Screen
-            name="auth/index"
-            options={{
-              title: "login",
-              headerBackTitle: "login",
-              headerTintColor: modifiedTheme.colors.primary,
-              headerShown: false,
-              presentation: 'card'
-            }}
-          />
-
-          <Stack.Screen
-            name="setup"
-            options={{
-              title: "setup",
-              headerBackTitle: "setup",
-              headerTintColor: modifiedTheme.colors.primary,
-              headerShown: false,
-              presentation: 'card'
-            }}
-          />
-
-          <Stack.Screen
-            name="index"
-            options={{
-              title: "",
-              headerBackTitle: "",
-              headerTintColor: modifiedTheme.colors.primary,
-              headerShown: false,
-              presentation: 'card'
-            }}
-          />
-
-          {/* Other modal screens */}
-          <Stack.Screen
-            name="modal"
-            options={{
-              presentation: "modal",
-            }}
-          />
+        {/*
+          Every screen renders its own in-app header (AppHeader / ScreenHeader),
+          so the native navigation header stays off globally. Turning it on for
+          a single screen would stack two headers on top of each other.
+        */}
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            animation: "slide_from_right",
+            contentStyle: { backgroundColor: colors.background },
+          }}
+        >
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="social" />
+          <Stack.Screen name="schools/add" />
+          <Stack.Screen name="schools/requests" />
+          <Stack.Screen name="manage" />
+          <Stack.Screen name="settings" />
+          <Stack.Screen name="settings/edit-profile" />
+          <Stack.Screen name="settings/change-password" />
+          <Stack.Screen name="support/help" />
+          <Stack.Screen name="support/contact" />
+          <Stack.Screen name="support/about" />
+          <Stack.Screen name="attendance/students" />
+          <Stack.Screen name="marks/classes" />
+          <Stack.Screen name="marks/exams" />
+          <Stack.Screen name="marks/students" />
+          <Stack.Screen name="profile/public" />
+          <Stack.Screen name="profile/edit/index" />
+          <Stack.Screen name="profile/edit/[section]" />
+          <Stack.Screen name="auth/index" options={{ animation: "fade" }} />
+          <Stack.Screen name="auth/verify-email" />
+          <Stack.Screen name="auth/account-help" />
+          <Stack.Screen name="setup" options={{ animation: "fade" }} />
+          <Stack.Screen name="index" options={{ animation: "fade" }} />
+          <Stack.Screen name="modal" options={{ presentation: "modal" }} />
         </Stack>
       </View>
     </NavigationThemeProvider>

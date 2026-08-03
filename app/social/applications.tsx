@@ -43,7 +43,7 @@ export default function ApplicationsScreen() {
 
   if (loading && snapshot.applications.length === 0) {
     return (
-      <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      <View style={[styles.screen, { backgroundColor: colors.feedBackground, paddingTop: insets.top }]}>
         <SocialScreenHeader title={t("my_applications")} />
         <LoadingState rows={3} />
       </View>
@@ -52,7 +52,7 @@ export default function ApplicationsScreen() {
 
   if (error && snapshot.applications.length === 0) {
     return (
-      <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      <View style={[styles.screen, { backgroundColor: colors.feedBackground, paddingTop: insets.top }]}>
         <SocialScreenHeader title={t("my_applications")} />
         <ErrorState message={error.message} onRetry={() => void retry()} />
       </View>
@@ -60,7 +60,7 @@ export default function ApplicationsScreen() {
   }
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <View style={[styles.screen, { backgroundColor: colors.feedBackground, paddingTop: insets.top }]}>
       <SocialScreenHeader title={t("my_applications")} />
       <FlatList
         data={[...snapshot.applications].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))}

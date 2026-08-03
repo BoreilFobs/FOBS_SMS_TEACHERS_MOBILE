@@ -241,6 +241,30 @@ export async function completeConsolidation(params: {
   });
 }
 
+// ------------------------------------------------------------------------ roles
+
+/**
+ * Adds a role to an identity that already exists on another role.
+ *
+ * Called after registration answers 409 `requires_password`. The address was
+ * verified when the identity was created, so proving the password is the only
+ * step — no second account, and no second verification email.
+ */
+export async function addRoleToIdentity(params: {
+  email: string;
+  password: string;
+  role: "teacher" | "owner" | "parent";
+}): Promise<VerificationSession & { message: string; roles: string[]; active_role: string }> {
+  return request("/auth/roles/add", {
+    method: "POST",
+    body: JSON.stringify({
+      email: params.email.trim().toLowerCase(),
+      password: params.password,
+      role: params.role,
+    }),
+  });
+}
+
 // ---------------------------------------------------------------------- session
 
 /** Stores a session returned by any identity endpoint. */

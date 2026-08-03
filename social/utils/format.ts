@@ -1,5 +1,24 @@
-export function formatRelativeTime(date: string, language: "en" | "fr") {
-  const seconds = Math.max(1, Math.round((Date.now() - new Date(date).getTime()) / 1000));
+/**
+ * Parses an API date, returning null rather than an Invalid Date.
+ *
+ * `Intl.*.format()` throws a RangeError on an invalid date, which crashes the
+ * whole screen mid-render. Records with a null or malformed date are normal, so
+ * every formatter here degrades to a placeholder instead.
+ */
+export function parseDate(value?: string | null): Date | null {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export function formatRelativeTime(
+  date: string | null | undefined,
+  language: "en" | "fr",
+) {
+  const parsed = parseDate(date);
+  if (!parsed) return "—";
+
+  const seconds = Math.max(1, Math.round((Date.now() - parsed.getTime()) / 1000));
   const formatter = new Intl.RelativeTimeFormat(language, { numeric: "auto" });
   if (seconds < 60) return formatter.format(-seconds, "second");
   const minutes = Math.round(seconds / 60);
@@ -11,14 +30,21 @@ export function formatRelativeTime(date: string, language: "en" | "fr") {
   return new Intl.DateTimeFormat(language, {
     day: "numeric",
     month: "short",
-    year: new Date(date).getFullYear() === new Date().getFullYear() ? undefined : "numeric",
-  }).format(new Date(date));
+    year:
+      parsed.getFullYear() === new Date().getFullYear() ? undefined : "numeric",
+  }).format(parsed);
 }
 
-export function formatDate(date: string, language: "en" | "fr") {
-  return new Intl.DateTimeFormat(language, {
+export function formatDate(
+  date: string | null | undefined,
+  language: "en" | "fr",
+  options: Intl.DateTimeFormatOptions = {
     day: "numeric",
     month: "short",
     year: "numeric",
-  }).format(new Date(date));
+  },
+) {
+  const parsed = parseDate(date);
+  if (!parsed) return "—";
+  return new Intl.DateTimeFormat(language, options).format(parsed);
 }

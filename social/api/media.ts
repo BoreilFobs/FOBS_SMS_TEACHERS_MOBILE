@@ -1,6 +1,8 @@
 import { MediaDto } from "@/social/api/dto";
 import { socialApi } from "@/social/api/client";
 import { SocialApiError } from "@/social/api/errors";
+import { appendImageToFormData } from "@/utils/imageUpload";
+import { resolveMediaUrl } from "@/utils/photoUri";
 
 /**
  * Post-image and profile-photo uploads.
@@ -116,12 +118,14 @@ export async function uploadImage(
   const mimeType = inferMimeType(image);
   const form = new FormData();
 
-  // React Native's FormData takes this {uri, name, type} shape rather than a Blob.
-  form.append(MEDIA_CONSTRAINTS.field, {
+  // Native takes a {uri, name, type} descriptor; the browser needs a real Blob.
+  // Sending the descriptor on web posts "[object Object]" and the server
+  // answers 422 because the field never arrives as a file.
+  await appendImageToFormData(form, MEDIA_CONSTRAINTS.field, {
     uri: image.uri,
-    name: inferFileName(image, mimeType),
-    type: mimeType,
-  } as unknown as Blob);
+    fileName: inferFileName(image, mimeType),
+    mimeType,
+  });
 
   if (image.altText) {
     form.append("alt_text", image.altText.slice(0, MEDIA_CONSTRAINTS.altTextMaxLength));
@@ -129,10 +133,14 @@ export async function uploadImage(
 
   const dto = await socialApi.upload<MediaDto>("/social/media", form, options);
 
+  // A freshly uploaded record comes back with the same server-built URL as the
+  // feed, so it needs the same repair before anything tries to render it.
+  const url = resolveMediaUrl(dto.url) ?? dto.url;
+
   return {
     id: String(dto.id),
-    url: dto.url,
-    thumbnailUrl: dto.thumbnail_url ?? dto.url,
+    url,
+    thumbnailUrl: resolveMediaUrl(dto.thumbnail_url) ?? url,
     altText: dto.alt_text ?? undefined,
   };
 }

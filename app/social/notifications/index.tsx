@@ -12,7 +12,13 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/hooks/useAppTheme";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { EmptyState, ErrorState, FilterChips } from "@/components/ui";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  PressableScale,
+  Segmented,
+} from "@/components/ui";
 import { NotificationCategory } from "@/social/models";
 import { useSocial } from "@/social/hooks/useSocial";
 import { SOCIAL_POLLING } from "@/social/constants/network";
@@ -20,7 +26,7 @@ import { usePolling } from "@/social/hooks/usePolling";
 import { useSocialResource } from "@/social/hooks/useSocialResource";
 import { SocialScreenHeader } from "@/social/components/ScreenHeader";
 import { formatDate, formatRelativeTime } from "@/social/utils/format";
-import { radii, spacing, typography } from "@/constants/theme";
+import { layout, radii, spacing, typography } from "@/constants/theme";
 
 interface NotificationItem {
   id: string;
@@ -84,28 +90,41 @@ export default function NotificationsScreen() {
   };
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <View
+      style={[
+        styles.screen,
+        { backgroundColor: colors.feedBackground, paddingTop: insets.top },
+      ]}
+    >
       <SocialScreenHeader
         title={t("notifications")}
         action={
-          <Pressable accessibilityRole="button" accessibilityLabel={t("mark_all_read")} onPress={markAll} style={styles.markAll}>
-            <Text style={[typography.label, { color: colors.primary }]}>{t("mark_all_read")}</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("mark_all_read")}
+            onPress={markAll}
+            hitSlop={8}
+            style={({ pressed }) => [styles.markAll, { opacity: pressed ? 0.6 : 1 }]}
+          >
+            <Feather name="check-circle" size={20} color={colors.primary} />
           </Pressable>
         }
       />
       <View style={styles.tabs}>
-        <FilterChips
+        <Segmented
           selected={category}
           onSelect={setCategory}
           options={[
-            { value: "social", label: `${t("social")} ${counts.social ? `(${counts.social})` : ""}` },
-            { value: "jobs", label: `${t("jobs")} ${counts.jobs ? `(${counts.jobs})` : ""}` },
-            { value: "school", label: `${t("school")} ${counts.school ? `(${counts.school})` : ""}` },
+            { value: "social", label: t("social"), badge: counts.social },
+            { value: "jobs", label: t("jobs"), badge: counts.jobs },
+            { value: "school", label: t("school"), badge: counts.school },
           ]}
         />
       </View>
       {loading && items.length === 0 ? (
-        <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xxl }} />
+        <View style={styles.tabs}>
+          <LoadingState rows={5} />
+        </View>
       ) : error && items.length === 0 ? (
         <ErrorState message={error.message} onRetry={() => void retry()} />
       ) : (
@@ -125,8 +144,9 @@ export default function NotificationsScreen() {
                     {formatDate(item.createdAt, language)}
                   </Text>
                 ) : null}
-                <Pressable
+                <PressableScale
                   accessibilityRole="button"
+                  accessibilityLabel={item.title}
                   onPress={() => {
                     // Server-side read state for every category, including the
                     // projected school ones (their ids are source-prefixed so the
@@ -140,28 +160,39 @@ export default function NotificationsScreen() {
                     styles.item,
                     {
                       backgroundColor: item.read ? colors.surface : colors.infoSoft,
-                      borderColor: item.read ? colors.border : colors.primary,
+                      borderColor: colors.border,
                     },
                   ]}
                 >
-                  <View style={[styles.icon, { backgroundColor: item.read ? colors.surfaceMuted : colors.surface }]}>
+                  {/* Unread items carry a left accent instead of a heavy border. */}
+                  {!item.read ? (
+                    <View style={[styles.accent, { backgroundColor: colors.primary }]} />
+                  ) : null}
+                  <View
+                    style={[
+                      styles.icon,
+                      { backgroundColor: item.read ? colors.surfaceMuted : colors.surface },
+                    ]}
+                  >
                     <Feather
                       name={category === "social" ? "users" : category === "jobs" ? "briefcase" : "home"}
-                      size={19}
+                      size={18}
                       color={item.read ? colors.textMuted : colors.primary}
                     />
                   </View>
-                  <View style={{ flex: 1, gap: 3 }}>
-                    <Text style={[item.read ? typography.bodyStrong : typography.heading, { color: colors.text }]}>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={[typography.bodyStrong, { color: colors.text }]}>
                       {item.title}
                     </Text>
-                    <Text style={[typography.body, { color: colors.textSecondary }]}>{item.body}</Text>
-                    <Text style={[typography.caption, { color: colors.textMuted }]}>
+                    <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                      {item.body}
+                    </Text>
+                    <Text style={[typography.micro, { color: colors.textMuted }]}>
                       {formatRelativeTime(item.createdAt, language)}
                     </Text>
                   </View>
                   {!item.read ? <View style={[styles.dot, { backgroundColor: colors.primary }]} /> : null}
-                </Pressable>
+                </PressableScale>
               </>
             );
           }}
@@ -175,11 +206,21 @@ export default function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  markAll: { minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.xs },
-  tabs: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
-  list: { padding: spacing.md, paddingBottom: spacing.xxl },
+  markAll: { width: 38, height: 38, alignItems: "center", justifyContent: "center" },
+  tabs: { paddingHorizontal: layout.gutter, paddingVertical: spacing.xs },
+  list: { paddingHorizontal: layout.gutter, paddingBottom: spacing.xxl },
   date: { paddingTop: spacing.sm, paddingBottom: spacing.xs },
-  item: { borderWidth: 1, borderRadius: radii.lg, padding: spacing.sm, flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
-  icon: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
-  dot: { width: 9, height: 9, borderRadius: 5, marginTop: 6 },
+  item: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radii.card,
+    padding: spacing.sm,
+    paddingLeft: spacing.md,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.sm,
+    overflow: "hidden",
+  },
+  accent: { position: "absolute", left: 0, top: 0, bottom: 0, width: 3 },
+  icon: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  dot: { width: 8, height: 8, borderRadius: 4, marginTop: 6 },
 });

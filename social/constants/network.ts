@@ -28,11 +28,17 @@ export const SOCIAL_POLLING = {
    */
   openConversationMs: 7_000,
 
-  /** Conversation list and its unread badge. Also refreshes on focus. */
-  conversationListMs: 45_000,
+  /**
+   * Conversation list and its unread badge. Also refreshes on focus.
+   *
+   * Short, because this screen is the one people sit on waiting for a reply.
+   * There is no push channel, so polling is what "live" means here; it is
+   * focused-only and paused in the background, which bounds the cost.
+   */
+  conversationListMs: 10_000,
 
   /** Notification list and badge. Also refreshes on app foreground. */
-  notificationsMs: 45_000,
+  notificationsMs: 20_000,
 
   /**
    * The feed is deliberately NOT polled while scrolling — it refreshes on

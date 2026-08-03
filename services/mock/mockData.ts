@@ -202,7 +202,7 @@ export const notifications: TeacherNotification[] = [
     isRead: false,
     schoolId: 1,
     schoolName: "Current school",
-    destination: "/updates/announcements/announcement-results-review",
+    destination: "/social/announcements/announcement-results-review",
   },
   {
     id: "notification-marks-open",
@@ -238,7 +238,7 @@ export const notifications: TeacherNotification[] = [
     body: "Five-minute checks that improve formative assessment",
     createdAt: "2026-07-24T16:35:00.000Z",
     isRead: true,
-    destination: "/updates/forum/forum-formative-assessment",
+    destination: "/social/forum/forum-formative-assessment",
   },
 ];
 

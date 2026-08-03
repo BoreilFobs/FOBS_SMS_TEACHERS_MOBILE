@@ -1,111 +1,151 @@
 import React, { useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  ImageBackground,
+  LayoutAnimation,
   Linking,
   Platform,
-  useColorScheme,
-  LayoutAnimation,
-  UIManager
+  StyleSheet,
+  Text,
+  UIManager,
+  View,
 } from "react-native";
-import { Feather, Ionicons, MaterialIcons } from "@expo/vector-icons";
-import Colors from "@/constants/Colors";
-import { BlurView } from "expo-blur";
-import { StatusBar } from "expo-status-bar";
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { AppHeader, Card, Divider, PressableScale, Screen, SectionHeader } from "@/components/ui";
+import { useAppTheme } from "@/hooks/useAppTheme";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { radii, spacing, typography } from "@/constants/theme";
 
 // Enable LayoutAnimation on Android
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
 const faqItems = [
   {
+    question: "How is the app organised?",
+    questionFr: "Comment l'application est-elle organisée ?",
+    answer:
+      "The app has two sections. The main section is your professional network: feed, teachers, jobs, messages and announcements. Tap 'My schools' at the top right to switch to the school management section, which is only for classes, attendance, marks and reports. The people icon in its header brings you back.",
+    answerFr:
+      "L'application a deux sections. La section principale est votre réseau professionnel : fil, enseignants, emplois, messages et annonces. Appuyez sur « Mes écoles » en haut à droite pour passer à la section de gestion scolaire, réservée aux classes, présences, notes et rapports. L'icône avec les personnes dans son en-tête vous ramène en arrière.",
+  },
+  {
+    question: "How do I join a school?",
+    questionFr: "Comment rejoindre une école ?",
+    answer:
+      "Open 'My schools'. If no school is connected yet, tap 'Send a request', enter the school code from your administrator, confirm the school that appears, then send. The administrator reviews it, and the school appears once approved.",
+    answerFr:
+      "Ouvrez « Mes écoles ». Si aucune école n'est connectée, appuyez sur « Envoyer une demande », entrez le code fourni par votre administrateur, confirmez l'école affichée, puis envoyez. L'administrateur l'examine et l'école apparaît une fois approuvée.",
+  },
+  {
     question: "How do I enter marks for my students?",
     questionFr: "Comment saisir les notes de mes élèves ?",
-    answer: "Go to the Subjects tab, select a class, then choose a subject. You can enter marks for the current exam sequence.",
-    answerFr: "Allez dans l'onglet Matières, sélectionnez une classe, puis choisissez une matière. Vous pouvez saisir les notes pour la séquence d'examen en cours."
+    answer:
+      "In the school management section, open the Marks tab. Choose a subject, then a class, then the exam sequence, and enter the marks.",
+    answerFr:
+      "Dans la section de gestion scolaire, ouvrez l'onglet Notes. Choisissez une matière, puis une classe, puis la séquence d'examen, et saisissez les notes.",
   },
   {
     question: "How do I take attendance?",
     questionFr: "Comment prendre les présences ?",
-    answer: "Navigate to the Attendance tab, select your class, and mark students as present or absent. Changes are saved automatically.",
-    answerFr: "Accédez à l'onglet Présences, sélectionnez votre classe et marquez les élèves comme présents ou absents. Les modifications sont enregistrées automatiquement."
+    answer:
+      "In the school management section, open the Attendance tab and pick a class. Tap the green check or red cross for each student — a small spinner shows while it saves, and the tick confirms it reached the server.",
+    answerFr:
+      "Dans la section de gestion scolaire, ouvrez l'onglet Présences et choisissez une classe. Appuyez sur la coche verte ou la croix rouge pour chaque élève — un indicateur s'affiche pendant l'enregistrement et confirme l'envoi au serveur.",
   },
   {
     question: "Can I teach at multiple schools?",
     questionFr: "Puis-je enseigner dans plusieurs écoles ?",
-    answer: "Yes! You can be linked to multiple schools. Use the school switcher in the home screen to switch between schools.",
-    answerFr: "Oui ! Vous pouvez être lié à plusieurs écoles. Utilisez le sélecteur d'école sur l'écran d'accueil pour changer d'école."
+    answer:
+      "Yes. You can be linked to several schools. In the school management section, tap the small school chip under the page title to switch. Attendance and marks always stay separated per school.",
+    answerFr:
+      "Oui. Vous pouvez être lié à plusieurs écoles. Dans la section de gestion scolaire, appuyez sur la petite puce sous le titre pour changer d'école. Les présences et les notes restent toujours séparées par école.",
   },
   {
     question: "How do I view student performance reports?",
     questionFr: "Comment voir les rapports de performance des élèves ?",
-    answer: "Tap on Reports from the Quick Actions on the home screen. You'll see performance analytics for all your classes and subjects.",
-    answerFr: "Appuyez sur Rapports depuis les Actions rapides sur l'écran d'accueil. Vous verrez les analyses de performance pour toutes vos classes et matières."
+    answer:
+      "In the school management section, open the Reports tab for performance analytics across your classes and subjects.",
+    answerFr:
+      "Dans la section de gestion scolaire, ouvrez l'onglet Rapports pour les analyses de performance de vos classes et matières.",
+  },
+  {
+    question: "How do I change my profile picture?",
+    questionFr: "Comment changer ma photo de profil ?",
+    answer:
+      "Go to Settings > Personal information and tap your photo. Pick an image, then tap 'Save changes'. It works on Android, iOS and the web app.",
+    answerFr:
+      "Allez dans Paramètres > Informations personnelles et appuyez sur votre photo. Choisissez une image, puis appuyez sur « Enregistrer ». Cela fonctionne sur Android, iOS et l'application web.",
+  },
+  {
+    question: "Where did notifications go?",
+    questionFr: "Où sont passées les notifications ?",
+    answer:
+      "They now live in the main social section, so all communication is in one place. Notifications are the bell in the top bar; announcements are the shortcut just under the composer on the home feed.",
+    answerFr:
+      "Elles se trouvent désormais dans la section sociale principale, pour regrouper toute la communication. Les notifications sont la cloche en haut ; les annonces sont le raccourci sous la zone de publication du fil d'accueil.",
   },
   {
     question: "What if I forget my password?",
     questionFr: "Que faire si j'oublie mon mot de passe ?",
-    answer: "Go to Settings > Change Password and tap 'Forgot Password?'. You'll receive an OTP via WhatsApp to reset your password.",
-    answerFr: "Allez dans Paramètres > Changer le mot de passe et appuyez sur 'Mot de passe oublié ?'. Vous recevrez un OTP via WhatsApp pour réinitialiser votre mot de passe."
+    answer:
+      "Go to Settings > Change Password and tap 'Forgot Password?'. You'll receive an OTP via WhatsApp to reset your password.",
+    answerFr:
+      "Allez dans Paramètres > Changer le mot de passe et appuyez sur 'Mot de passe oublié ?'. Vous recevrez un OTP via WhatsApp pour réinitialiser votre mot de passe.",
   },
   {
     question: "How do I change the app language?",
     questionFr: "Comment changer la langue de l'application ?",
-    answer: "Go to Settings and tap on Language. You can switch between English and French at any time.",
-    answerFr: "Allez dans Paramètres et appuyez sur Langue. Vous pouvez basculer entre l'anglais et le français à tout moment."
+    answer:
+      "Go to Settings and tap on Language. You can switch between English and French at any time.",
+    answerFr:
+      "Allez dans Paramètres et appuyez sur Langue. Vous pouvez basculer entre l'anglais et le français à tout moment.",
   },
   {
     question: "Is my data secure?",
     questionFr: "Mes données sont-elles sécurisées ?",
-    answer: "Yes, all data is encrypted and stored securely. We use industry-standard security protocols to protect your information.",
-    answerFr: "Oui, toutes les données sont cryptées et stockées de manière sécurisée. Nous utilisons des protocoles de sécurité standards de l'industrie pour protéger vos informations."
-  }
+    answer:
+      "Yes, all data is encrypted and stored securely. We use industry-standard security protocols to protect your information.",
+    answerFr:
+      "Oui, toutes les données sont cryptées et stockées de manière sécurisée. Nous utilisons des protocoles de sécurité standards de l'industrie pour protéger vos informations.",
+  },
 ];
 
 const contactOptions = [
   {
-    id: 'whatsapp',
-    title: 'WhatsApp',
-    titleFr: 'WhatsApp',
-    subtitle: '+237 671 820 738',
-    icon: 'logo-whatsapp',
-    color: '#25D366',
-    action: () => Linking.openURL('https://wa.me/237671820738')
+    id: "whatsapp",
+    title: "WhatsApp",
+    titleFr: "WhatsApp",
+    subtitle: "+237 671 820 738",
+    icon: "logo-whatsapp",
+    color: "#25D366",
+    action: () => Linking.openURL("https://wa.me/237671820738"),
   },
   {
-    id: 'email',
-    title: 'Email Support',
-    titleFr: 'Email Support',
-    subtitle: 'fobsboreil@gmail.com',
-    icon: 'mail-outline',
-    color: '#EA4335',
-    action: () => Linking.openURL('mailto:fobsboreil@gmail.com?subject=FOBS SMS Teachers App Support')
+    id: "email",
+    title: "Email support",
+    titleFr: "Support par email",
+    subtitle: "fobsboreil@gmail.com",
+    icon: "mail-outline",
+    color: "#EA4335",
+    action: () =>
+      Linking.openURL(
+        "mailto:fobsboreil@gmail.com?subject=FOBS SMS Teachers App Support",
+      ),
   },
   {
-    id: 'phone',
-    title: 'Call Us',
-    titleFr: 'Appelez-nous',
-    subtitle: '+237 671 820 738',
-    icon: 'call-outline',
-    color: '#3B82F6',
-    action: () => Linking.openURL('tel:+237671820738')
-  }
-];
+    id: "phone",
+    title: "Call us",
+    titleFr: "Appelez-nous",
+    subtitle: "+237 671 820 738",
+    icon: "call-outline",
+    color: "#3B82F6",
+    action: () => Linking.openURL("tel:+237671820738"),
+  },
+] as const;
 
 export default function HelpCenterScreen() {
-  const colorScheme = useColorScheme() === "dark" ? "dark" : "light";
-  const colors = Colors[colorScheme ?? "light"];
-  const router = useRouter();
+  const { colors } = useAppTheme();
   const { language } = useLanguage();
-  
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
 
   const toggleFaq = (index: number) => {
@@ -113,315 +153,195 @@ export default function HelpCenterScreen() {
     setExpandedFaq(expandedFaq === index ? null : index);
   };
 
-  return (
-    <ImageBackground
-      source={require("@/assets/images/auth-bg2.jpg")}
-      style={styles.container}
-      blurRadius={10}
-    >
-      <BlurView 
-        intensity={Platform.OS === 'ios' ? 80 : 100} 
-        style={StyleSheet.absoluteFill} 
-        tint={colorScheme === 'dark' ? 'dark' : 'light'} 
-      />
-      
-      <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
+  const copy =
+    language === "fr"
+      ? {
+          title: "Aide",
+          subtitle: "Réponses aux questions fréquentes",
+          heroTitle: "Comment pouvons-nous vous aider ?",
+          heroSubtitle:
+            "Parcourez les questions fréquentes ou contactez directement notre équipe.",
+          faq: "Questions fréquentes",
+          contact: "Contactez-nous",
+          tips: "Conseils rapides",
+        }
+      : {
+          title: "Help",
+          subtitle: "Answers to frequently asked questions",
+          heroTitle: "How can we help you?",
+          heroSubtitle:
+            "Browse frequently asked questions or reach our team directly.",
+          faq: "Frequently asked questions",
+          contact: "Contact us",
+          tips: "Quick tips",
+        };
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={[styles.backButton, { backgroundColor: colors.card + 'CC' }]}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>
-          {language === 'fr' ? 'Aide' : 'Help'}
+  const tips =
+    language === "fr"
+      ? [
+          "Tirez vers le bas pour actualiser les données sur n'importe quel écran",
+          "Appuyez longuement sur « Réagir » pour choisir une réaction précise",
+          "La puce sous le titre indique l'école active en gestion scolaire",
+          "Les notes sont automatiquement sauvegardées lors de la saisie",
+        ]
+      : [
+          "Pull down to refresh data on any screen",
+          "Long-press the react button to choose a specific reaction",
+          "The chip under the title shows which school you are managing",
+          "Marks are automatically saved as you enter them",
+        ];
+
+  return (
+    <Screen scroll bottomInset={false}>
+      <AppHeader title={copy.title} subtitle={copy.subtitle} back />
+
+      <Card variant="raised" style={styles.hero}>
+        <View style={[styles.heroIcon, { backgroundColor: colors.primary }]}>
+          <Ionicons name="help-circle" size={32} color={colors.onPrimary} />
+        </View>
+        <Text style={[typography.heading, { color: colors.text, textAlign: "center" }]}>
+          {copy.heroTitle}
         </Text>
-        <View style={{ width: 40 }} />
+        <Text
+          style={[
+            typography.caption,
+            { color: colors.textSecondary, textAlign: "center" },
+          ]}
+        >
+          {copy.heroSubtitle}
+        </Text>
+      </Card>
+
+      <SectionHeader title={copy.faq} />
+      <Card style={styles.flush}>
+        {faqItems.map((item, index) => {
+          const expanded = expandedFaq === index;
+          return (
+            <View key={item.question}>
+              <PressableScale
+                accessibilityRole="button"
+                accessibilityState={{ expanded }}
+                accessibilityLabel={language === "fr" ? item.questionFr : item.question}
+                onPress={() => toggleFaq(index)}
+                scaleTo={0.99}
+                style={styles.faqRow}
+              >
+                <View
+                  style={[
+                    styles.faqIcon,
+                    { backgroundColor: expanded ? colors.primary : colors.primarySoft },
+                  ]}
+                >
+                  <Ionicons
+                    name={expanded ? "remove" : "add"}
+                    size={16}
+                    color={expanded ? colors.onPrimary : colors.primary}
+                  />
+                </View>
+                <Text style={[typography.bodyStrong, { color: colors.text, flex: 1 }]}>
+                  {language === "fr" ? item.questionFr : item.question}
+                </Text>
+              </PressableScale>
+              {expanded ? (
+                <View style={styles.faqAnswer}>
+                  <Text style={[typography.body, { color: colors.textSecondary }]}>
+                    {language === "fr" ? item.answerFr : item.answer}
+                  </Text>
+                </View>
+              ) : null}
+              {index < faqItems.length - 1 ? <Divider inset={spacing.md} /> : null}
+            </View>
+          );
+        })}
+      </Card>
+
+      <SectionHeader title={copy.contact} />
+      <View style={styles.contactList}>
+        {contactOptions.map((option) => (
+          <Card key={option.id} onPress={option.action} accessibilityLabel={option.title}>
+            <View style={styles.contactRow}>
+              <View style={[styles.contactIcon, { backgroundColor: `${option.color}1F` }]}>
+                <Ionicons name={option.icon} size={21} color={option.color} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[typography.bodyStrong, { color: colors.text }]}>
+                  {language === "fr" ? option.titleFr : option.title}
+                </Text>
+                <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                  {option.subtitle}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+            </View>
+          </Card>
+        ))}
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Hero Section */}
-        <View style={[styles.heroCard, { backgroundColor: colors.card + 'E6' }]}>
-          <LinearGradient
-            colors={[colors.primary, colors.tint]}
-            start={[0, 0]}
-            end={[1, 1]}
-            style={styles.heroIcon}
-          >
-            <Ionicons name="help-circle" size={40} color="white" />
-          </LinearGradient>
-          <Text style={[styles.heroTitle, { color: colors.text }]}>
-            {language === 'fr' ? 'Comment pouvons-nous vous aider ?' : 'How can we help you?'}
-          </Text>
-          <Text style={[styles.heroSubtitle, { color: colors.textSecondary }]}>
-            {language === 'fr' 
-              ? 'Trouvez des réponses aux questions fréquentes'
-              : 'Find answers to frequently asked questions'
-            }
-          </Text>
-        </View>
-
-        {/* FAQ Section */}
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          {language === 'fr' ? 'Questions fréquentes' : 'Frequently Asked Questions'}
-        </Text>
-        <View style={[styles.faqCard, { backgroundColor: colors.card + 'E6' }]}>
-          {faqItems.map((item, index) => (
-            <View key={index}>
-              <TouchableOpacity
-                style={styles.faqItem}
-                onPress={() => toggleFaq(index)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.faqQuestion}>
-                  <View style={[styles.faqIcon, { backgroundColor: colors.primary + '15' }]}>
-                    <Ionicons 
-                      name={expandedFaq === index ? "remove" : "add"} 
-                      size={18} 
-                      color={colors.primary} 
-                    />
-                  </View>
-                  <Text style={[styles.faqQuestionText, { color: colors.text }]}>
-                    {language === 'fr' ? item.questionFr : item.question}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-              {expandedFaq === index && (
-                <View style={[styles.faqAnswer, { backgroundColor: colors.primary + '08' }]}>
-                  <Text style={[styles.faqAnswerText, { color: colors.textSecondary }]}>
-                    {language === 'fr' ? item.answerFr : item.answer}
-                  </Text>
-                </View>
-              )}
-              {index < faqItems.length - 1 && (
-                <View style={[styles.faqDivider, { backgroundColor: colors.border }]} />
-              )}
-            </View>
-          ))}
-        </View>
-
-        {/* Contact Section */}
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          {language === 'fr' ? 'Contactez-nous' : 'Contact Us'}
-        </Text>
-        <View style={styles.contactGrid}>
-          {contactOptions.map((option) => (
-            <TouchableOpacity
-              key={option.id}
-              style={[styles.contactCard, { backgroundColor: colors.card + 'E6' }]}
-              onPress={option.action}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.contactIcon, { backgroundColor: option.color + '20' }]}>
-                <Ionicons name={option.icon as any} size={24} color={option.color} />
+      <SectionHeader title={copy.tips} />
+      <Card>
+        <View style={styles.tipList}>
+          {tips.map((tip) => (
+            <View key={tip} style={styles.tipRow}>
+              <View style={[styles.tipIcon, { backgroundColor: colors.warningSoft }]}>
+                <Ionicons name="bulb-outline" size={16} color={colors.warning} />
               </View>
-              <Text style={[styles.contactTitle, { color: colors.text }]}>
-                {language === 'fr' ? option.titleFr : option.title}
+              <Text style={[typography.body, { color: colors.textSecondary, flex: 1 }]}>
+                {tip}
               </Text>
-              <Text style={[styles.contactSubtitle, { color: colors.textSecondary }]}>
-                {option.subtitle}
-              </Text>
-            </TouchableOpacity>
+            </View>
           ))}
         </View>
-
-        {/* Quick Tips */}
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          {language === 'fr' ? 'Conseils rapides' : 'Quick Tips'}
-        </Text>
-        <View style={[styles.tipsCard, { backgroundColor: colors.card + 'E6' }]}>
-          <View style={styles.tipItem}>
-            <View style={[styles.tipIcon, { backgroundColor: colors.primary + '15' }]}>
-              <Ionicons name="bulb-outline" size={20} color={colors.primary} />
-            </View>
-            <Text style={[styles.tipText, { color: colors.textSecondary }]}>
-              {language === 'fr' 
-                ? "Tirez vers le bas pour actualiser les données sur n'importe quel écran"
-                : "Pull down to refresh data on any screen"
-              }
-            </Text>
-          </View>
-          <View style={styles.tipItem}>
-            <View style={[styles.tipIcon, { backgroundColor: colors.primary + '15' }]}>
-              <Ionicons name="bulb-outline" size={20} color={colors.primary} />
-            </View>
-            <Text style={[styles.tipText, { color: colors.textSecondary }]}>
-              {language === 'fr' 
-                ? "Utilisez le sélecteur d'école pour basculer rapidement entre les écoles"
-                : "Use the school switcher to quickly switch between schools"
-              }
-            </Text>
-          </View>
-          <View style={styles.tipItem}>
-            <View style={[styles.tipIcon, { backgroundColor: colors.primary + '15' }]}>
-              <Ionicons name="bulb-outline" size={20} color={colors.primary} />
-            </View>
-            <Text style={[styles.tipText, { color: colors.textSecondary }]}>
-              {language === 'fr' 
-                ? "Les notes sont automatiquement sauvegardées lors de la saisie"
-                : "Marks are automatically saved as you enter them"
-              }
-            </Text>
-          </View>
-        </View>
-      </ScrollView>
-    </ImageBackground>
+      </Card>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 50,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
-  heroCard: {
-    borderRadius: 20,
-    padding: 24,
-    alignItems: 'center',
-    marginBottom: 24,
-  },
+  hero: { alignItems: "center", gap: spacing.xs },
   heroIcon: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.xxs,
   },
-  heroTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  heroSubtitle: {
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 12,
-    marginLeft: 4,
-  },
-  faqCard: {
-    borderRadius: 16,
-    marginBottom: 24,
-    overflow: 'hidden',
-  },
-  faqItem: {
-    padding: 16,
-  },
-  faqQuestion: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  flush: { padding: 0, overflow: "hidden" },
+  faqRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    padding: spacing.md,
+    minHeight: 60,
   },
   faqIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  faqQuestionText: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '600',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
   },
   faqAnswer: {
-    paddingHorizontal: 56,
-    paddingVertical: 12,
-    marginHorizontal: 16,
-    marginBottom: 12,
-    borderRadius: 10,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
+    paddingLeft: spacing.md + 30 + spacing.sm,
   },
-  faqAnswerText: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  faqDivider: {
-    height: 1,
-    marginLeft: 56,
-  },
-  contactGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-  },
-  contactCard: {
-    width: '31%',
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-  },
+  contactList: { gap: spacing.xs },
+  contactRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   contactIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
+    width: 44,
+    height: 44,
+    borderRadius: radii.md,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  contactTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  contactSubtitle: {
-    fontSize: 10,
-    textAlign: 'center',
-  },
-  tipsCard: {
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 24,
-  },
-  tipItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
+  tipList: { gap: spacing.md },
+  tipRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   tipIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  tipText: {
-    flex: 1,
-    fontSize: 14,
-    lineHeight: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

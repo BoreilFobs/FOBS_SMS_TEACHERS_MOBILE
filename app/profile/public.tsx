@@ -19,6 +19,7 @@ import { radii, spacing, typography } from "@/constants/theme";
 import useUserStore from "@/utils/stores/userStore";
 import useSchoolStore from "@/utils/stores/schoolStore";
 import Config from "@/constants/Config";
+import { resolveMediaUrl } from "@/utils/photoUri";
 
 export default function PublicProfileRoute() {
   return (
@@ -64,11 +65,7 @@ function PublicProfessionalProfile() {
     );
   }
 
-  const imageUri = teacher?.profile_photo
-    ? teacher.profile_photo.startsWith("http")
-      ? teacher.profile_photo
-      : `${Config.webBaseUrl}/storage/${teacher.profile_photo}`
-    : null;
+  const imageUri = resolveMediaUrl(teacher?.profile_photo) ?? null;
 
   return (
     <Screen scroll bottomInset={false}>

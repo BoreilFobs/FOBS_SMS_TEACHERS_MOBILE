@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/hooks/useAppTheme";
@@ -10,6 +10,7 @@ import { useSocial } from "@/social/hooks/useSocial";
 import { SocialScreenHeader } from "@/social/components/ScreenHeader";
 import { Avatar } from "@/social/components/Avatar";
 import { radii, spacing, typography } from "@/constants/theme";
+import { notify } from "@/utils/dialog";
 
 export default function InternalShareScreen() {
   const router = useRouter();
@@ -39,17 +40,15 @@ export default function InternalShareScreen() {
         kind: params.kind,
         sharedId: params.id,
       });
-      Alert.alert(t("success"), t("internal_share"), [
-        { text: t("done"), onPress: () => router.back() },
-      ]);
+      notify(t("success"), t("internal_share"), () => router.back());
     } catch {
-      Alert.alert(t("error"), t("operation_failed"));
+      notify(t("error"), t("operation_failed"));
     } finally {
       setSendingId(undefined);
     }
   };
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <View style={[styles.screen, { backgroundColor: colors.feedBackground, paddingTop: insets.top }]}>
       <SocialScreenHeader title={t("internal_share")} />
       <View style={styles.search}>
         <SearchInput value={query} onChangeText={setQuery} placeholder={t("messages")} />

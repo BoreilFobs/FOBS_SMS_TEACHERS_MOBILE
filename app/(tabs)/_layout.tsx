@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { Tabs, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { ColorValue, Platform, Pressable, StyleSheet, Text, View } from "react-native";
@@ -7,8 +7,6 @@ import SetupWrapper from "@/components/SetupWrapper";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAppTheme } from "@/hooks/useAppTheme";
 import { spacing } from "@/constants/theme";
-import { useSchools } from "@/hooks/useSchools";
-import useSchoolStore from "@/utils/stores/schoolStore";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -34,30 +32,6 @@ export default function TabLayout() {
   const router = useRouter();
   const { colors } = useAppTheme();
   const { t } = useLanguage();
-  const { schoolData, loading: schoolsLoading } = useSchools();
-  const setSchools = useSchoolStore((state) => state.setSchools);
-
-  useEffect(() => {
-    if (schoolsLoading) return;
-    setSchools(
-      schoolData.map((item) => ({
-        id: item.school.id,
-        name: item.school.name,
-        code: item.school.acronym || item.school.code || "",
-        logo: item.school.logo_url || undefined,
-        address: item.school.address,
-        phone: item.school.phone,
-        email: item.school.email,
-        academic_year: item.school.academic_year,
-        academic_year_id: item.school.academic_year_id,
-        status: "active" as const,
-        pivot: {
-          is_approved: Boolean(item.teacher_school.isActive),
-          created_at: item.teacher_school.created_at,
-        },
-      })),
-    );
-  }, [schoolData, schoolsLoading, setSchools]);
 
   return (
     <AuthWrapper>
@@ -152,10 +126,6 @@ export default function TabLayout() {
               ),
             }}
           />
-          <Tabs.Screen name="classes" options={{ href: null }} />
-          <Tabs.Screen name="updates" options={{ href: null }} />
-          <Tabs.Screen name="subjects" options={{ href: null }} />
-          <Tabs.Screen name="attendance" options={{ href: null }} />
         </Tabs>
       </SetupWrapper>
     </AuthWrapper>

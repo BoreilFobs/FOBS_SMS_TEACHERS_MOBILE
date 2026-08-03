@@ -1,179 +1,188 @@
-import React, { useState, useRef } from "react";
+import React, { useRef, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  TextInput,
-  ActivityIndicator,
   Alert,
-  ImageBackground,
-  Platform,
-  useColorScheme,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
-import { Feather, Ionicons } from "@expo/vector-icons";
-// import { useColorScheme } from "@/components/useColorScheme";
-import Colors from "@/constants/Colors";
-import { BlurView } from "expo-blur";
+import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { LinearGradient } from 'expo-linear-gradient';
-import useUserStore from '@/utils/stores/userStore';
-import { StatusBar } from "expo-status-bar";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Config from '@/constants/Config';
+import {
+  AppHeader,
+  Button,
+  Card,
+  FormField,
+  Screen,
+  SectionHeader,
+} from "@/components/ui";
+import { useAppTheme } from "@/hooks/useAppTheme";
 import { useLanguage } from "@/contexts/LanguageContext";
+import useUserStore from "@/utils/stores/userStore";
+import Config from "@/constants/Config";
+import { elevation, radii, spacing, typography } from "@/constants/theme";
 
-const withOpacity = (hex: string, alpha: number) => {
-  const clean = hex.replace('#', '');
-  const r = parseInt(clean.substring(0, 2), 16);
-  const g = parseInt(clean.substring(2, 4), 16);
-  const b = parseInt(clean.substring(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-};
+type ForgotPasswordStep = "email" | "otp" | "password";
 
-type ForgotPasswordStep = 'email' | 'otp' | 'password';
+const STEPS: ForgotPasswordStep[] = ["email", "otp", "password"];
 
 export default function ChangePasswordScreen() {
-  const colorScheme = useColorScheme() === "dark" ? "dark" : "light";
-  const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
+  const { colors } = useAppTheme();
   const { user } = useUserStore();
   const { language } = useLanguage();
 
-  // Change Password State
+  // Change password state
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [secureEntries, setSecureEntries] = useState({
-    current: true,
-    new: true,
-    confirm: true
-  });
 
-  // Forgot Password State
+  // Forgot password state
   const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [forgotPasswordStep, setForgotPasswordStep] = useState<ForgotPasswordStep>('email');
-  const [forgotEmail, setForgotEmail] = useState(user?.email || '');
-  const [forgotPhone, setForgotPhone] = useState('');
-  const [maskedPhone, setMaskedPhone] = useState('');
-  const [otpCode, setOtpCode] = useState(['', '', '', '', '', '']);
-  const [forgotNewPassword, setForgotNewPassword] = useState('');
-  const [forgotConfirmPassword, setForgotConfirmPassword] = useState('');
-  const [forgotPasswordError, setForgotPasswordError] = useState('');
+  const [forgotPasswordStep, setForgotPasswordStep] =
+    useState<ForgotPasswordStep>("email");
+  const [forgotEmail, setForgotEmail] = useState(user?.email || "");
+  const [forgotPhone, setForgotPhone] = useState("");
+  const [maskedPhone, setMaskedPhone] = useState("");
+  const [otpCode, setOtpCode] = useState(["", "", "", "", "", ""]);
+  const [forgotNewPassword, setForgotNewPassword] = useState("");
+  const [forgotConfirmPassword, setForgotConfirmPassword] = useState("");
+  const [forgotPasswordError, setForgotPasswordError] = useState("");
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
   const otpInputRefs = useRef<(TextInput | null)[]>([]);
 
-  // Translations
   const t = (key: string) => {
     const translations: { [key: string]: { en: string; fr: string } } = {
-      change_password: { en: 'Change Password', fr: 'Changer le mot de passe' },
-      current_password: { en: 'Current Password', fr: 'Mot de passe actuel' },
-      new_password: { en: 'New Password', fr: 'Nouveau mot de passe' },
-      confirm_password: { en: 'Confirm Password', fr: 'Confirmer le mot de passe' },
-      enter_current: { en: 'Enter current password', fr: 'Entrer le mot de passe actuel' },
-      enter_new: { en: 'Enter new password', fr: 'Entrer le nouveau mot de passe' },
-      confirm_new: { en: 'Confirm new password', fr: 'Confirmer le nouveau mot de passe' },
-      save_changes: { en: 'Save Changes', fr: 'Enregistrer' },
-      forgot_password: { en: 'Forgot Password?', fr: 'Mot de passe oublié ?' },
-      forgot_description: { en: "Enter your email to receive a verification code on WhatsApp", fr: "Entrez votre email pour recevoir un code de vérification sur WhatsApp" },
-      email_address: { en: 'Email Address', fr: 'Adresse email' },
-      continue: { en: 'Continue', fr: 'Continuer' },
-      verify_code: { en: 'Verify Code', fr: 'Vérifier le code' },
-      otp_sent_to: { en: 'Code sent to', fr: 'Code envoyé à' },
-      resend_code: { en: 'Resend Code', fr: 'Renvoyer le code' },
-      verify: { en: 'Verify', fr: 'Vérifier' },
-      reset_password: { en: 'Reset Password', fr: 'Réinitialiser le mot de passe' },
-      enter_new_password: { en: 'Enter your new password', fr: 'Entrez votre nouveau mot de passe' },
-      password_mismatch: { en: "Passwords don't match", fr: 'Les mots de passe ne correspondent pas' },
-      password_min_8: { en: 'Password must be at least 8 characters', fr: 'Le mot de passe doit contenir au moins 8 caractères' },
-      email_required: { en: 'Email is required', fr: "L'email est requis" },
-      email_invalid: { en: 'Invalid email format', fr: 'Format email invalide' },
-      email_not_found: { en: 'Email not found', fr: 'Email non trouvé' },
-      otp_incomplete: { en: 'Please enter the complete code', fr: 'Veuillez entrer le code complet' },
-      success: { en: 'Success', fr: 'Succès' },
-      password_changed: { en: 'Password changed successfully!', fr: 'Mot de passe modifié avec succès !' },
-      password_reset_success: { en: 'Password reset successfully!', fr: 'Mot de passe réinitialisé avec succès !' },
-      error: { en: 'Error', fr: 'Erreur' },
-      network_error: { en: 'Network error. Please try again.', fr: 'Erreur réseau. Veuillez réessayer.' },
-      otp_send_failed: { en: 'Failed to send verification code', fr: "Échec de l'envoi du code de vérification" },
-      otp_resent: { en: 'Verification code resent', fr: 'Code de vérification renvoyé' },
+      change_password: { en: "Change password", fr: "Changer le mot de passe" },
+      subtitle: { en: "Keep your account secure", fr: "Gardez votre compte sécurisé" },
+      current_password: { en: "Current password", fr: "Mot de passe actuel" },
+      new_password: { en: "New password", fr: "Nouveau mot de passe" },
+      confirm_password: { en: "Confirm password", fr: "Confirmer le mot de passe" },
+      enter_current: { en: "Enter current password", fr: "Entrer le mot de passe actuel" },
+      enter_new: { en: "Enter new password", fr: "Entrer le nouveau mot de passe" },
+      confirm_new: { en: "Confirm new password", fr: "Confirmer le nouveau mot de passe" },
+      save_changes: { en: "Save changes", fr: "Enregistrer" },
+      forgot_password: { en: "Forgot password?", fr: "Mot de passe oublié ?" },
+      forgot_description: {
+        en: "Enter your email to receive a verification code on WhatsApp",
+        fr: "Entrez votre email pour recevoir un code de vérification sur WhatsApp",
+      },
+      email_address: { en: "Email address", fr: "Adresse email" },
+      continue: { en: "Continue", fr: "Continuer" },
+      verify_code: { en: "Verify code", fr: "Vérifier le code" },
+      otp_sent_to: { en: "Code sent to", fr: "Code envoyé à" },
+      resend_code: { en: "Resend code", fr: "Renvoyer le code" },
+      verify: { en: "Verify", fr: "Vérifier" },
+      reset_password: { en: "Reset password", fr: "Réinitialiser le mot de passe" },
+      enter_new_password: { en: "Enter your new password", fr: "Entrez votre nouveau mot de passe" },
+      password_mismatch: {
+        en: "Passwords don't match",
+        fr: "Les mots de passe ne correspondent pas",
+      },
+      password_min_8: {
+        en: "Password must be at least 8 characters",
+        fr: "Le mot de passe doit contenir au moins 8 caractères",
+      },
+      email_required: { en: "Email is required", fr: "L'email est requis" },
+      email_invalid: { en: "Invalid email format", fr: "Format email invalide" },
+      email_not_found: { en: "Email not found", fr: "Email non trouvé" },
+      otp_incomplete: {
+        en: "Please enter the complete code",
+        fr: "Veuillez entrer le code complet",
+      },
+      success: { en: "Success", fr: "Succès" },
+      password_changed: {
+        en: "Password changed successfully!",
+        fr: "Mot de passe modifié avec succès !",
+      },
+      password_reset_success: {
+        en: "Password reset successfully!",
+        fr: "Mot de passe réinitialisé avec succès !",
+      },
+      error: { en: "Error", fr: "Erreur" },
+      network_error: {
+        en: "Network error. Please try again.",
+        fr: "Erreur réseau. Veuillez réessayer.",
+      },
+      otp_send_failed: {
+        en: "Failed to send verification code",
+        fr: "Échec de l'envoi du code de vérification",
+      },
+      otp_resent: { en: "Verification code resent", fr: "Code de vérification renvoyé" },
+      security_tip: {
+        en: "Use at least 8 characters, mixing letters, numbers and symbols.",
+        fr: "Utilisez au moins 8 caractères, en mélangeant lettres, chiffres et symboles.",
+      },
+      close: { en: "Close", fr: "Fermer" },
     };
     return translations[key]?.[language] || translations[key]?.en || key;
   };
 
-  const toggleSecureEntry = (field: keyof typeof secureEntries) => {
-    setSecureEntries(prev => ({
-      ...prev,
-      [field]: !prev[field]
-    }));
-  };
-
   const showAlert = (title: string, message: string, onOk?: () => void) => {
-    if (Platform.OS === 'web') {
+    if (Platform.OS === "web") {
       window.alert(`${title}\n${message}`);
       onOk?.();
     } else {
-      Alert.alert(title, message, [{ text: 'OK', onPress: onOk }]);
+      Alert.alert(title, message, [{ text: "OK", onPress: onOk }]);
     }
   };
 
   const handleChangePassword = async () => {
     if (newPassword !== confirmPassword) {
-      showAlert(t('error'), t('password_mismatch'));
+      showAlert(t("error"), t("password_mismatch"));
       return;
     }
-
     if (newPassword.length < 8) {
-      showAlert(t('error'), t('password_min_8'));
+      showAlert(t("error"), t("password_min_8"));
       return;
     }
 
     setIsLoading(true);
     try {
       const response = await fetch(`${Config.apiBaseUrl}/user/change-password`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${await AsyncStorage.getItem('token')}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${await AsyncStorage.getItem("token")}`,
         },
         body: JSON.stringify({
           user_id: user?.id,
           current_password: currentPassword,
           new_password: newPassword,
-          new_password_confirmation: confirmPassword
+          new_password_confirmation: confirmPassword,
         }),
       });
-
       const data = await response.json();
 
       if (data.success) {
-        showAlert(t('success'), t('password_changed'), () => router.back());
+        showAlert(t("success"), t("password_changed"), () => router.back());
       } else {
-        showAlert(t('error'), data.message || "Failed to change password");
+        showAlert(t("error"), data.message || "Failed to change password");
       }
     } catch (error) {
-      showAlert(t('error'), t('network_error'));
+      showAlert(t("error"), t("network_error"));
       console.error(error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Forgot Password Functions
   const resetForgotPassword = () => {
-    setForgotPasswordStep('email');
-    setForgotEmail(user?.email || '');
-    setForgotPhone('');
-    setMaskedPhone('');
-    setOtpCode(['', '', '', '', '', '']);
-    setForgotNewPassword('');
-    setForgotConfirmPassword('');
-    setForgotPasswordError('');
+    setForgotPasswordStep("email");
+    setForgotEmail(user?.email || "");
+    setForgotPhone("");
+    setMaskedPhone("");
+    setOtpCode(["", "", "", "", "", ""]);
+    setForgotNewPassword("");
+    setForgotConfirmPassword("");
+    setForgotPasswordError("");
     setForgotPasswordLoading(false);
   };
 
@@ -189,133 +198,113 @@ export default function ChangePasswordScreen() {
 
   const handleFindPhone = async () => {
     if (!forgotEmail.trim()) {
-      setForgotPasswordError(t('email_required'));
+      setForgotPasswordError(t("email_required"));
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(forgotEmail)) {
-      setForgotPasswordError(t('email_invalid'));
+      setForgotPasswordError(t("email_invalid"));
       return;
     }
 
     setForgotPasswordLoading(true);
-    setForgotPasswordError('');
-
+    setForgotPasswordError("");
     try {
       const response = await fetch(`${Config.apiBaseUrl}/forgot-password/find-phone`, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email: forgotEmail })
+        method: "POST",
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail }),
       });
-
       const result = await response.json();
 
       if (result.success) {
         setMaskedPhone(result.masked_phone);
-        // Now send the OTP
         const otpResponse = await fetch(`${Config.apiBaseUrl}/forgot-password/send-otp`, {
-          method: 'POST',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ email: forgotEmail })
+          method: "POST",
+          headers: { Accept: "application/json", "Content-Type": "application/json" },
+          body: JSON.stringify({ email: forgotEmail }),
         });
-
         const otpResult = await otpResponse.json();
 
         if (otpResult.success) {
           setForgotPhone(otpResult.phone);
-          setForgotPasswordStep('otp');
+          setForgotPasswordStep("otp");
         } else {
-          setForgotPasswordError(otpResult.message || t('otp_send_failed'));
+          setForgotPasswordError(otpResult.message || t("otp_send_failed"));
         }
       } else {
-        setForgotPasswordError(result.message || t('email_not_found'));
+        setForgotPasswordError(result.message || t("email_not_found"));
       }
     } catch (error) {
-      console.error('Find phone error:', error);
-      setForgotPasswordError(t('network_error'));
+      console.error("Find phone error:", error);
+      setForgotPasswordError(t("network_error"));
     } finally {
       setForgotPasswordLoading(false);
     }
   };
 
   const handleOtpChange = (index: number, value: string) => {
-    if (value.length > 1) {
-      value = value.slice(-1);
-    }
-    
+    const digit = value.length > 1 ? value.slice(-1) : value;
     const newOtp = [...otpCode];
-    newOtp[index] = value;
+    newOtp[index] = digit;
     setOtpCode(newOtp);
-    setForgotPasswordError('');
-
-    if (value && index < 5) {
+    setForgotPasswordError("");
+    if (digit && index < 5) {
       otpInputRefs.current[index + 1]?.focus();
     }
   };
 
   const handleOtpKeyPress = (index: number, key: string) => {
-    if (key === 'Backspace' && !otpCode[index] && index > 0) {
+    if (key === "Backspace" && !otpCode[index] && index > 0) {
       otpInputRefs.current[index - 1]?.focus();
     }
   };
 
-  const handleVerifyOtp = async () => {
-    const code = otpCode.join('');
-    if (code.length !== 6) {
-      setForgotPasswordError(t('otp_incomplete'));
+  const handleVerifyOtp = () => {
+    if (otpCode.join("").length !== 6) {
+      setForgotPasswordError(t("otp_incomplete"));
       return;
     }
-    setForgotPasswordStep('password');
+    setForgotPasswordStep("password");
   };
 
   const handleResetPassword = async () => {
     if (!forgotNewPassword) {
-      setForgotPasswordError(t('new_password') + ' ' + t('email_required').toLowerCase());
+      setForgotPasswordError(`${t("new_password")} ${t("email_required").toLowerCase()}`);
       return;
     }
     if (forgotNewPassword.length < 8) {
-      setForgotPasswordError(t('password_min_8'));
+      setForgotPasswordError(t("password_min_8"));
       return;
     }
     if (forgotNewPassword !== forgotConfirmPassword) {
-      setForgotPasswordError(t('password_mismatch'));
+      setForgotPasswordError(t("password_mismatch"));
       return;
     }
 
     setForgotPasswordLoading(true);
-    setForgotPasswordError('');
-
+    setForgotPasswordError("");
     try {
       const response = await fetch(`${Config.apiBaseUrl}/forgot-password/reset`, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
+        method: "POST",
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
         body: JSON.stringify({
           email: forgotEmail,
           phone: forgotPhone,
-          code: otpCode.join(''),
+          code: otpCode.join(""),
           new_password: forgotNewPassword,
-          new_password_confirmation: forgotConfirmPassword
-        })
+          new_password_confirmation: forgotConfirmPassword,
+        }),
       });
-
       const result = await response.json();
 
       if (result.success) {
-        showAlert(t('success'), t('password_reset_success'), handleForgotPasswordClose);
+        showAlert(t("success"), t("password_reset_success"), handleForgotPasswordClose);
       } else {
-        setForgotPasswordError(result.message || 'Failed to reset password');
+        setForgotPasswordError(result.message || "Failed to reset password");
       }
     } catch (error) {
-      console.error('Reset password error:', error);
-      setForgotPasswordError(t('network_error'));
+      console.error("Reset password error:", error);
+      setForgotPasswordError(t("network_error"));
     } finally {
       setForgotPasswordLoading(false);
     }
@@ -323,674 +312,353 @@ export default function ChangePasswordScreen() {
 
   const handleResendOtp = async () => {
     setForgotPasswordLoading(true);
-    setForgotPasswordError('');
-
+    setForgotPasswordError("");
     try {
       const response = await fetch(`${Config.apiBaseUrl}/forgot-password/send-otp`, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email: forgotEmail })
+        method: "POST",
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail }),
       });
-
       const result = await response.json();
 
       if (result.success) {
-        showAlert(t('success'), t('otp_resent'));
+        showAlert(t("success"), t("otp_resent"));
       } else {
-        setForgotPasswordError(result.message || t('otp_send_failed'));
+        setForgotPasswordError(result.message || t("otp_send_failed"));
       }
-    } catch (error) {
-      setForgotPasswordError(t('network_error'));
+    } catch {
+      setForgotPasswordError(t("network_error"));
     } finally {
       setForgotPasswordLoading(false);
     }
   };
 
+  const stepIndex = STEPS.indexOf(forgotPasswordStep);
+
   return (
-    <ImageBackground
-      source={require("@/assets/images/auth-bg2.jpg")}
-      style={styles.container}
-      blurRadius={10}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      style={styles.flex}
     >
-      <BlurView intensity={Platform.OS === 'ios' ? 330 : 100} style={StyleSheet.absoluteFill} tint={colorScheme === 'dark' ? 'dark' : 'light'} />
-      
-      <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
+      <Screen scroll bottomInset={false}>
+        <AppHeader title={t("change_password")} subtitle={t("subtitle")} back />
 
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity 
-            onPress={() => router.back()}
-            style={[styles.backButton, { backgroundColor: colors.card + 'CC', borderColor: colors.border }]}
+        <Card variant="raised" style={styles.hero}>
+          <View style={[styles.heroIcon, { backgroundColor: colors.primarySoft }]}>
+            <Feather name="lock" size={26} color={colors.primary} />
+          </View>
+          <Text
+            style={[
+              typography.caption,
+              { color: colors.textSecondary, textAlign: "center" },
+            ]}
           >
-            <Feather name="chevron-left" size={24} color={colors.text} />
-          </TouchableOpacity>
-          <Text style={[styles.title, { color: colors.text }]}>{t('change_password')}</Text>
-          <View style={{ width: 44 }} />
-        </View>
-      </View>
-
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <BlurView
-          intensity={Platform.OS === 'ios' ? 12 : 100}
-          tint={colorScheme === 'dark' ? 'dark' : 'light'}
-          style={[
-            styles.formSection,
-            {
-              backgroundColor: colorScheme === 'dark' 
-                ? withOpacity(colors.card, 0.6)
-                : withOpacity(colors.card, 0.85),
-              borderColor: colorScheme === 'dark'
-                ? withOpacity(colors.border, 0.3)
-                : withOpacity(colors.border, 0.5),
-            }
-          ]}
-        >
-          {/* Current Password */}
-          <View style={styles.inputContainer}>
-            <View style={styles.labelContainer}>
-              <Ionicons name="lock-closed-outline" size={18} color={colors.primary} />
-              <Text style={[styles.label, { color: colors.text }]}>{t('current_password')}</Text>
-            </View>
-            <View style={[
-              styles.inputWrapper,
-              {
-                backgroundColor: colorScheme === 'dark'
-                  ? withOpacity(colors.card, 0.8)
-                  : withOpacity('#ffffff', 0.9),
-                borderWidth: 1,
-                borderColor: colorScheme === 'dark'
-                  ? withOpacity(colors.border, 0.5)
-                  : withOpacity(colors.border, 0.3),
-              }
-            ]}>
-              <TextInput
-                style={[styles.input, { color: colors.text }]}
-                value={currentPassword}
-                onChangeText={setCurrentPassword}
-                placeholder={t('enter_current')}
-                placeholderTextColor={colors.textSecondary}
-                secureTextEntry={secureEntries.current}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity 
-                onPress={() => toggleSecureEntry('current')}
-                style={styles.eyeIcon}
-              >
-                <Feather 
-                  name={secureEntries.current ? "eye-off" : "eye"} 
-                  size={20} 
-                  color={colors.textSecondary} 
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* New Password */}
-          <View style={styles.inputContainer}>
-            <View style={styles.labelContainer}>
-              <Ionicons name="lock-open-outline" size={18} color={colors.primary} />
-              <Text style={[styles.label, { color: colors.text }]}>{t('new_password')}</Text>
-            </View>
-            <View style={[
-              styles.inputWrapper,
-              {
-                backgroundColor: colorScheme === 'dark'
-                  ? withOpacity(colors.card, 0.8)
-                  : withOpacity('#ffffff', 0.9),
-                borderWidth: 1,
-                borderColor: colorScheme === 'dark'
-                  ? withOpacity(colors.border, 0.5)
-                  : withOpacity(colors.border, 0.3),
-              }
-            ]}>
-              <TextInput
-                style={[styles.input, { color: colors.text }]}
-                value={newPassword}
-                onChangeText={setNewPassword}
-                placeholder={t('enter_new')}
-                placeholderTextColor={colors.textSecondary}
-                secureTextEntry={secureEntries.new}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity 
-                onPress={() => toggleSecureEntry('new')}
-                style={styles.eyeIcon}
-              >
-                <Feather 
-                  name={secureEntries.new ? "eye-off" : "eye"} 
-                  size={20} 
-                  color={colors.textSecondary} 
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Confirm Password */}
-          <View style={styles.inputContainer}>
-            <View style={styles.labelContainer}>
-              <Ionicons name="lock-closed-outline" size={18} color={colors.primary} />
-              <Text style={[styles.label, { color: colors.text }]}>{t('confirm_password')}</Text>
-            </View>
-            <View style={[
-              styles.inputWrapper,
-              {
-                backgroundColor: colorScheme === 'dark'
-                  ? withOpacity(colors.card, 0.8)
-                  : withOpacity('#ffffff', 0.9),
-                borderWidth: 1,
-                borderColor: colorScheme === 'dark'
-                  ? withOpacity(colors.border, 0.5)
-                  : withOpacity(colors.border, 0.3),
-              }
-            ]}>
-              <TextInput
-                style={[styles.input, { color: colors.text }]}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                placeholder={t('confirm_new')}
-                placeholderTextColor={colors.textSecondary}
-                secureTextEntry={secureEntries.confirm}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity 
-                onPress={() => toggleSecureEntry('confirm')}
-                style={styles.eyeIcon}
-              >
-                <Feather 
-                  name={secureEntries.confirm ? "eye-off" : "eye"} 
-                  size={20} 
-                  color={colors.textSecondary} 
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </BlurView>
-
-        {/* Forgot Password Link */}
-        <TouchableOpacity
-          style={styles.forgotPasswordButton}
-          onPress={handleForgotPasswordOpen}
-        >
-          <Ionicons name="help-circle-outline" size={18} color={colors.primary} />
-          <Text style={[styles.forgotPasswordText, { color: colors.primary }]}>
-            {t('forgot_password')}
+            {t("security_tip")}
           </Text>
-        </TouchableOpacity>
+        </Card>
 
-        <TouchableOpacity
-          style={[styles.saveButton, { backgroundColor: colors.primary }]}
-          onPress={handleChangePassword}
-          disabled={isLoading}
-        >
-          <LinearGradient
-            colors={[colors.primary, colors.primary + 'CC']}
-            style={styles.gradientButton}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
+        <SectionHeader title={t("change_password")} />
+        <Card style={styles.form}>
+          <FormField
+            label={t("current_password")}
+            secureToggle
+            value={currentPassword}
+            onChangeText={setCurrentPassword}
+            placeholder={t("enter_current")}
+            autoCapitalize="none"
+          />
+          <FormField
+            label={t("new_password")}
+            secureToggle
+            value={newPassword}
+            onChangeText={setNewPassword}
+            placeholder={t("enter_new")}
+            autoCapitalize="none"
+          />
+          <FormField
+            label={t("confirm_password")}
+            secureToggle
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            placeholder={t("confirm_new")}
+            autoCapitalize="none"
+            error={
+              confirmPassword && newPassword !== confirmPassword
+                ? t("password_mismatch")
+                : undefined
+            }
+          />
+          <Button
+            label={t("save_changes")}
+            icon="check"
+            loading={isLoading}
+            onPress={() => void handleChangePassword()}
+          />
+          <Pressable
+            accessibilityRole="button"
+            onPress={handleForgotPasswordOpen}
+            hitSlop={8}
+            style={({ pressed }) => [styles.forgotLink, { opacity: pressed ? 0.6 : 1 }]}
           >
-            {isLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.saveButtonText}>{t('save_changes')}</Text>
-            )}
-          </LinearGradient>
-        </TouchableOpacity>
-      </ScrollView>
+            <Text style={[typography.label, { color: colors.primary }]}>
+              {t("forgot_password")}
+            </Text>
+          </Pressable>
+        </Card>
+      </Screen>
 
-      {/* Forgot Password Modal */}
       <Modal
         visible={showForgotPassword}
         transparent
-        animationType="fade"
+        animationType="slide"
         onRequestClose={handleForgotPasswordClose}
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContainer, { backgroundColor: colors.card }]}>
-            {/* Header */}
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
-                {forgotPasswordStep === 'email' && t('forgot_password')}
-                {forgotPasswordStep === 'otp' && t('verify_code')}
-                {forgotPasswordStep === 'password' && t('reset_password')}
+        <View style={[styles.modalRoot, { backgroundColor: colors.overlay }]}>
+          <View
+            style={[
+              styles.sheet,
+              { backgroundColor: colors.surfaceElevated },
+              elevation.overlay,
+            ]}
+          >
+            <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
+            <View style={styles.sheetHeader}>
+              <Text style={[typography.heading, { color: colors.text, flex: 1 }]}>
+                {forgotPasswordStep === "email"
+                  ? t("forgot_password")
+                  : forgotPasswordStep === "otp"
+                    ? t("verify_code")
+                    : t("reset_password")}
               </Text>
-              <TouchableOpacity 
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("close")}
                 onPress={handleForgotPasswordClose}
-                style={styles.modalCloseButton}
+                hitSlop={8}
+                style={styles.closeButton}
               >
-                <Ionicons name="close" size={24} color={colors.textSecondary} />
-              </TouchableOpacity>
+                <Feather name="x" size={21} color={colors.text} />
+              </Pressable>
             </View>
 
-            {/* Step Indicator */}
-            <View style={styles.stepIndicator}>
-              {['email', 'otp', 'password'].map((step, index) => (
-                <View key={step} style={styles.stepContainer}>
-                  <View style={[
-                    styles.stepDot,
-                    {
-                      backgroundColor: ['email', 'otp', 'password'].indexOf(forgotPasswordStep) >= index 
-                        ? colors.primary 
-                        : colors.border
-                    }
-                  ]}>
-                    {['email', 'otp', 'password'].indexOf(forgotPasswordStep) > index ? (
-                      <Ionicons name="checkmark" size={12} color="white" />
+            {/* Step indicator */}
+            <View style={styles.steps}>
+              {STEPS.map((step, index) => (
+                <View key={step} style={styles.stepItem}>
+                  <View
+                    style={[
+                      styles.stepDot,
+                      {
+                        backgroundColor:
+                          index <= stepIndex ? colors.primary : colors.surfaceMuted,
+                      },
+                    ]}
+                  >
+                    {index < stepIndex ? (
+                      <Feather name="check" size={12} color={colors.onPrimary} />
                     ) : (
-                      <Text style={styles.stepNumber}>{index + 1}</Text>
+                      <Text
+                        style={[
+                          typography.micro,
+                          {
+                            color:
+                              index === stepIndex ? colors.onPrimary : colors.textMuted,
+                          },
+                        ]}
+                      >
+                        {index + 1}
+                      </Text>
                     )}
                   </View>
-                  {index < 2 && (
-                    <View style={[
-                      styles.stepLine,
-                      {
-                        backgroundColor: ['email', 'otp', 'password'].indexOf(forgotPasswordStep) > index 
-                          ? colors.primary 
-                          : colors.border
-                      }
-                    ]} />
-                  )}
+                  {index < STEPS.length - 1 ? (
+                    <View
+                      style={[
+                        styles.stepBar,
+                        {
+                          backgroundColor:
+                            index < stepIndex ? colors.primary : colors.surfaceMuted,
+                        },
+                      ]}
+                    />
+                  ) : null}
                 </View>
               ))}
             </View>
 
-            {/* Error Message */}
-            {forgotPasswordError ? (
-              <View style={[styles.errorContainer, { backgroundColor: colors.error + '20' }]}>
-                <Ionicons name="warning-outline" size={16} color={colors.error} />
-                <Text style={[styles.errorText, { color: colors.error }]}>
-                  {forgotPasswordError}
-                </Text>
-              </View>
-            ) : null}
-
-            {/* Step Content */}
-            {forgotPasswordStep === 'email' && (
-              <View>
-                <Text style={[styles.modalDescription, { color: colors.textSecondary }]}>
-                  {t('forgot_description')}
-                </Text>
-                <View style={[styles.modalInputContainer, { borderColor: colors.border }]}>
-                  <Ionicons 
-                    name="mail-outline" 
-                    size={20} 
-                    color={colors.textSecondary} 
-                    style={styles.modalInputIcon}
-                  />
-                  <TextInput
-                    style={[styles.modalInput, { color: colors.text }]}
-                    placeholder={t('email_address')}
-                    placeholderTextColor={colors.textSecondary}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.sheetContent}
+            >
+              {forgotPasswordStep === "email" ? (
+                <>
+                  <Text style={[typography.body, { color: colors.textSecondary }]}>
+                    {t("forgot_description")}
+                  </Text>
+                  <FormField
+                    label={t("email_address")}
                     value={forgotEmail}
                     onChangeText={(text) => {
                       setForgotEmail(text);
-                      setForgotPasswordError('');
+                      setForgotPasswordError("");
                     }}
-                    editable={!forgotPasswordLoading}
+                    placeholder="name@example.com"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    error={forgotPasswordError || undefined}
                   />
-                </View>
-                <TouchableOpacity 
-                  style={[styles.primaryButton, { backgroundColor: colors.primary }]}
-                  onPress={handleFindPhone}
-                  disabled={forgotPasswordLoading}
-                >
-                  {forgotPasswordLoading ? (
-                    <ActivityIndicator color="white" />
-                  ) : (
-                    <Text style={styles.primaryButtonText}>{t('continue')}</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            )}
+                  <Button
+                    label={t("continue")}
+                    loading={forgotPasswordLoading}
+                    onPress={() => void handleFindPhone()}
+                  />
+                </>
+              ) : null}
 
-            {forgotPasswordStep === 'otp' && (
-              <View>
-                <Text style={[styles.modalDescription, { color: colors.textSecondary }]}>
-                  {t('otp_sent_to')} {maskedPhone}
-                </Text>
-                <View style={styles.otpContainer}>
-                  {otpCode.map((digit, index) => (
-                    <TextInput
-                      key={index}
-                      ref={(ref) => {
-                        otpInputRefs.current[index] = ref;
-                      }}
-                      style={[
-                        styles.otpInput,
-                        { 
-                          borderColor: colors.border,
-                          color: colors.text,
-                          backgroundColor: colors.background
-                        }
-                      ]}
-                      maxLength={1}
-                      keyboardType="number-pad"
-                      value={digit}
-                      onChangeText={(value) => handleOtpChange(index, value)}
-                      onKeyPress={({ nativeEvent }) => handleOtpKeyPress(index, nativeEvent.key)}
-                    />
-                  ))}
-                </View>
-                <TouchableOpacity 
-                  onPress={handleResendOtp}
-                  disabled={forgotPasswordLoading}
-                  style={styles.resendButton}
-                >
-                  <Text style={[styles.resendText, { color: colors.primary }]}>
-                    {t('resend_code')}
+              {forgotPasswordStep === "otp" ? (
+                <>
+                  <Text style={[typography.body, { color: colors.textSecondary }]}>
+                    {t("otp_sent_to")} {maskedPhone}
                   </Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.primaryButton, { backgroundColor: colors.primary }]}
-                  onPress={handleVerifyOtp}
-                  disabled={forgotPasswordLoading || otpCode.join('').length !== 6}
-                >
-                  {forgotPasswordLoading ? (
-                    <ActivityIndicator color="white" />
-                  ) : (
-                    <Text style={styles.primaryButtonText}>{t('verify')}</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {forgotPasswordStep === 'password' && (
-              <View>
-                <Text style={[styles.modalDescription, { color: colors.textSecondary }]}>
-                  {t('enter_new_password')}
-                </Text>
-                <View style={[styles.modalInputContainer, { borderColor: colors.border }]}>
-                  <Ionicons 
-                    name="lock-closed-outline" 
-                    size={20} 
-                    color={colors.textSecondary} 
-                    style={styles.modalInputIcon}
+                  <View style={styles.otpRow}>
+                    {otpCode.map((digit, index) => (
+                      <TextInput
+                        key={index}
+                        ref={(element) => {
+                          otpInputRefs.current[index] = element;
+                        }}
+                        accessibilityLabel={`${t("verify_code")} ${index + 1}`}
+                        value={digit}
+                        onChangeText={(value) => handleOtpChange(index, value)}
+                        onKeyPress={({ nativeEvent }) =>
+                          handleOtpKeyPress(index, nativeEvent.key)
+                        }
+                        keyboardType="number-pad"
+                        maxLength={1}
+                        style={[
+                          styles.otpBox,
+                          {
+                            color: colors.text,
+                            backgroundColor: colors.surface,
+                            borderColor: digit ? colors.primary : colors.border,
+                          },
+                        ]}
+                      />
+                    ))}
+                  </View>
+                  {forgotPasswordError ? (
+                    <Text style={[typography.caption, { color: colors.error }]}>
+                      {forgotPasswordError}
+                    </Text>
+                  ) : null}
+                  <Button
+                    label={t("verify")}
+                    loading={forgotPasswordLoading}
+                    onPress={handleVerifyOtp}
                   />
-                  <TextInput
-                    style={[styles.modalInput, { color: colors.text }]}
-                    placeholder={t('new_password')}
-                    placeholderTextColor={colors.textSecondary}
-                    secureTextEntry={!showNewPassword}
+                  <Button
+                    label={t("resend_code")}
+                    variant="secondary"
+                    onPress={() => void handleResendOtp()}
+                  />
+                </>
+              ) : null}
+
+              {forgotPasswordStep === "password" ? (
+                <>
+                  <Text style={[typography.body, { color: colors.textSecondary }]}>
+                    {t("enter_new_password")}
+                  </Text>
+                  <FormField
+                    label={t("new_password")}
+                    secureToggle
                     value={forgotNewPassword}
                     onChangeText={(text) => {
                       setForgotNewPassword(text);
-                      setForgotPasswordError('');
+                      setForgotPasswordError("");
                     }}
-                    editable={!forgotPasswordLoading}
+                    placeholder={t("enter_new")}
+                    autoCapitalize="none"
                   />
-                  <TouchableOpacity onPress={() => setShowNewPassword(!showNewPassword)}>
-                    <Ionicons 
-                      name={showNewPassword ? 'eye-off-outline' : 'eye-outline'} 
-                      size={20} 
-                      color={colors.textSecondary} 
-                    />
-                  </TouchableOpacity>
-                </View>
-                <View style={[styles.modalInputContainer, { borderColor: colors.border, marginTop: 12 }]}>
-                  <Ionicons 
-                    name="lock-closed-outline" 
-                    size={20} 
-                    color={colors.textSecondary} 
-                    style={styles.modalInputIcon}
-                  />
-                  <TextInput
-                    style={[styles.modalInput, { color: colors.text }]}
-                    placeholder={t('confirm_password')}
-                    placeholderTextColor={colors.textSecondary}
-                    secureTextEntry={!showConfirmNewPassword}
+                  <FormField
+                    label={t("confirm_password")}
+                    secureToggle
                     value={forgotConfirmPassword}
                     onChangeText={(text) => {
                       setForgotConfirmPassword(text);
-                      setForgotPasswordError('');
+                      setForgotPasswordError("");
                     }}
-                    editable={!forgotPasswordLoading}
+                    placeholder={t("confirm_new")}
+                    autoCapitalize="none"
+                    error={forgotPasswordError || undefined}
                   />
-                  <TouchableOpacity onPress={() => setShowConfirmNewPassword(!showConfirmNewPassword)}>
-                    <Ionicons 
-                      name={showConfirmNewPassword ? 'eye-off-outline' : 'eye-outline'} 
-                      size={20} 
-                      color={colors.textSecondary} 
-                    />
-                  </TouchableOpacity>
-                </View>
-                <TouchableOpacity 
-                  style={[styles.primaryButton, { backgroundColor: colors.primary, marginTop: 20 }]}
-                  onPress={handleResetPassword}
-                  disabled={forgotPasswordLoading}
-                >
-                  {forgotPasswordLoading ? (
-                    <ActivityIndicator color="white" />
-                  ) : (
-                    <Text style={styles.primaryButtonText}>{t('reset_password')}</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            )}
+                  <Button
+                    label={t("reset_password")}
+                    loading={forgotPasswordLoading}
+                    onPress={() => void handleResetPassword()}
+                  />
+                </>
+              ) : null}
+            </ScrollView>
           </View>
         </View>
       </Modal>
-    </ImageBackground>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 35
+  flex: { flex: 1 },
+  hero: { alignItems: "center", gap: spacing.xs },
+  heroIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  header: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    marginBottom: 16,
+  form: { gap: spacing.sm },
+  forgotLink: { alignSelf: "center", minHeight: 40, justifyContent: "center" },
+  modalRoot: { flex: 1, justifyContent: "flex-end" },
+  sheet: {
+    maxHeight: "88%",
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    padding: spacing.lg,
+    paddingTop: spacing.xs,
   },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  sheetHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: radii.pill,
+    alignSelf: "center",
+    marginBottom: spacing.sm,
   },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
+  sheetHeader: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  closeButton: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
+  steps: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: spacing.md,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 100,
-  },
-  formSection: {
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: 20,
-    marginBottom: 24,
-    overflow: 'hidden',
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  labelContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 8,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  inputWrapper: {
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  input: {
-    fontSize: 16,
-    flex: 1,
-    paddingRight: 8,
-  },
-  eyeIcon: {
-    padding: 4,
-  },
-  saveButton: {
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  gradientButton: {
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  forgotPasswordButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    marginBottom: 20,
-    paddingVertical: 8,
-  },
-  forgotPasswordText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  // Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContainer: {
-    width: '100%',
-    maxWidth: 400,
-    borderRadius: 20,
-    padding: 24,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  modalCloseButton: {
-    padding: 4,
-  },
-  modalDescription: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  stepIndicator: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  stepContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+  stepItem: { flexDirection: "row", alignItems: "center", flex: 1 },
   stepDot: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  stepNumber: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  stepLine: {
-    width: 50,
-    height: 2,
-    marginHorizontal: 4,
-  },
-  errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 16,
-    gap: 8,
-  },
-  errorText: {
-    fontSize: 13,
+  stepBar: { flex: 1, height: 2, marginHorizontal: 6 },
+  sheetContent: { gap: spacing.sm, paddingBottom: spacing.xxl },
+  otpRow: { flexDirection: "row", gap: spacing.xs, justifyContent: "space-between" },
+  otpBox: {
     flex: 1,
-  },
-  modalInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    height: 54,
     borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 16,
-  },
-  modalInputIcon: {
-    marginRight: 10,
-  },
-  modalInput: {
-    flex: 1,
-    fontSize: 16,
-  },
-  primaryButton: {
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  primaryButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  otpContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-    gap: 8,
-  },
-  otpInput: {
-    flex: 1,
-    height: 50,
-    borderWidth: 1,
-    borderRadius: 10,
-    textAlign: 'center',
+    borderRadius: radii.md,
+    textAlign: "center",
     fontSize: 20,
-    fontWeight: '600',
-  },
-  resendButton: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  resendText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "700",
   },
 });

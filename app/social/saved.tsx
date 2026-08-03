@@ -23,7 +23,7 @@ export default function SavedPostsScreen() {
 
   if (loading && posts.length === 0) {
     return (
-      <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      <View style={[styles.screen, { backgroundColor: colors.feedBackground, paddingTop: insets.top }]}>
         <SocialScreenHeader title={t("saved_posts")} />
         <LoadingState />
       </View>
@@ -32,7 +32,7 @@ export default function SavedPostsScreen() {
 
   if (error && posts.length === 0) {
     return (
-      <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      <View style={[styles.screen, { backgroundColor: colors.feedBackground, paddingTop: insets.top }]}>
         <SocialScreenHeader title={t("saved_posts")} />
         <ErrorState message={error.message} onRetry={() => void retry()} />
       </View>
@@ -40,7 +40,7 @@ export default function SavedPostsScreen() {
   }
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <View style={[styles.screen, { backgroundColor: colors.feedBackground, paddingTop: insets.top }]}>
       <SocialScreenHeader title={t("saved_posts")} />
       <FlatList
         data={posts}

@@ -24,8 +24,13 @@ export interface SocialFeedRepository {
 
 export interface PostsRepository {
   getPost(id: string): Promise<SocialPost | undefined>;
-  createPost(draft: PostDraft): Promise<SocialPost>;
-  editPost(id: string, draft: PostDraft): Promise<SocialPost>;
+  /** `onProgress` reports 0..1 across image uploads, for the publish banner. */
+  createPost(draft: PostDraft, onProgress?: (fraction: number) => void): Promise<SocialPost>;
+  editPost(
+    id: string,
+    draft: PostDraft,
+    onProgress?: (fraction: number) => void,
+  ): Promise<SocialPost>;
   deletePost(id: string): Promise<void>;
   react(id: string, reaction?: ReactionType): Promise<void>;
   savePost(id: string): Promise<void>;
@@ -50,8 +55,23 @@ export interface MessagingRepository {
   getConversations(): Promise<Conversation[]>;
   getEligibleTeachers(): Promise<SocialTeacher[]>;
   startConversation(teacherId: string): Promise<Conversation>;
-  sendMessage(conversationId: string, text: string): Promise<Message>;
-  sendImage(conversationId: string, uri: string): Promise<Message>;
+  sendMessage(
+    conversationId: string,
+    text: string,
+    options?: { replyToId?: string; forwarded?: boolean },
+  ): Promise<Message>;
+  /** Corrects the text of a message, allowed for a short window after sending. */
+  editMessage(conversationId: string, messageId: string, text: string): Promise<Message>;
+  /** Leaves a tombstone in place of the message. */
+  deleteMessage(conversationId: string, messageId: string): Promise<Message>;
+  /** Clears the conversation for the current teacher only. */
+  deleteConversation(conversationId: string): Promise<void>;
+  /** `onProgress` reports 0..1 while the image uploads, for the chat bubble. */
+  sendImage(
+    conversationId: string,
+    uri: string,
+    onProgress?: (fraction: number) => void,
+  ): Promise<Message>;
   share(conversationId: string, input: SharedMessageInput): Promise<Message>;
   markConversationRead(conversationId: string): Promise<void>;
 }

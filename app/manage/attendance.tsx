@@ -10,7 +10,6 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import Config from "@/constants/Config";
 import {
-  AppHeader,
   Card,
   EmptyState,
   ErrorState,
@@ -18,47 +17,49 @@ import {
   SchoolSelector,
   StatusChip,
 } from "@/components/ui";
+import { ManageHeader } from "@/components/manage/ManageHeader";
 import { useAppTheme } from "@/hooks/useAppTheme";
 import { useLanguage } from "@/contexts/LanguageContext";
 import useSchoolStore from "@/utils/stores/schoolStore";
-import useUserStore from "@/utils/stores/userStore";
 import { radii, spacing, typography } from "@/constants/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { authFetch } from "@/services/authFetch";
 
-interface Subject {
+interface SchoolClass {
   id: number;
   name: string;
-  code?: string;
+  level?: string;
+  academic_year?: string;
+  academic_year_id?: number;
 }
 
-export default function MarksSubjectsScreen() {
+export default function AttendanceClassesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors } = useAppTheme();
   const { language } = useLanguage();
   const activeSchool = useSchoolStore((store) => store.activeSchool);
-  const teacher = useUserStore((store) => store.teacher);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [classes, setClasses] = useState<SchoolClass[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!activeSchool || !teacher) {
+    if (!activeSchool) {
       setLoading(false);
+      setRefreshing(false);
       return;
     }
     setError(null);
     try {
       const response = await authFetch(
-        `${Config.apiBaseUrl}/teacher-subjects?school_id=${activeSchool.id}&teacher_id=${teacher.id}`,
+        `${Config.apiBaseUrl}/school-classes?school_id=${activeSchool.id}`,
       );
       const payload = await response.json();
       if (!response.ok || !payload.success) {
-        throw new Error(payload.message ?? "Unable to load subjects.");
+        throw new Error(payload.message ?? "Unable to load classes.");
       }
-      setSubjects(payload.data ?? []);
+      setClasses(payload.classes ?? []);
     } catch (loadError) {
       setError(
         loadError instanceof Error ? loadError.message : "Network error.",
@@ -67,7 +68,7 @@ export default function MarksSubjectsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activeSchool, teacher]);
+  }, [activeSchool]);
 
   useEffect(() => {
     setLoading(true);
@@ -77,22 +78,27 @@ export default function MarksSubjectsScreen() {
   const copy =
     language === "fr"
       ? {
-          title: "Saisie des notes",
-          subtitle: "Étape 1 sur 3 · Choisir une matière",
-          noSchool: "Aucune école sélectionnée",
-          empty: "Aucune matière assignée",
+          title: "Présences",
+          subtitle: "Choisir une classe pour commencer",
+          count: "classes dans",
+          empty: "Aucune classe assignée",
           emptyMessage:
-            "Cette école ne contient aucune matière attribuée à votre compte.",
-          continue: "Choisir",
+            "Cette école ne contient aucune classe disponible pour l’appel.",
+          noSchool: "Aucune école sélectionnée",
+          noSchoolMessage:
+            "Choisissez l’école avant d’enregistrer les présences.",
+          action: "Faire l’appel",
         }
       : {
-          title: "Enter marks",
-          subtitle: "Step 1 of 3 · Choose a subject",
-          noSchool: "No school selected",
-          empty: "No assigned subjects",
+          title: "Attendance",
+          subtitle: "Choose a class to begin",
+          count: "classes at",
+          empty: "No assigned classes",
           emptyMessage:
-            "No subjects are assigned to your account at this school.",
-          continue: "Choose",
+            "There are no classes available for attendance at this school.",
+          noSchool: "No school selected",
+          noSchoolMessage: "Choose the school before recording attendance.",
+          action: "Take attendance",
         };
 
   return (
@@ -113,65 +119,72 @@ export default function MarksSubjectsScreen() {
           />
         }
       >
-        <AppHeader
+        <ManageHeader
           title={copy.title}
           subtitle={copy.subtitle}
-          onBack={() => router.replace("/(tabs)/classes")}
+          showSchool={Boolean(activeSchool)}
         />
-        <SchoolSelector />
         {!activeSchool ? (
-          <EmptyState
-            icon="home"
-            title={copy.noSchool}
-            message={copy.emptyMessage}
-          />
+          <>
+            <SchoolSelector />
+            <EmptyState
+              icon="home"
+              title={copy.noSchool}
+              message={copy.noSchoolMessage}
+            />
+          </>
         ) : loading ? (
-          <LoadingState rows={5} />
+          <LoadingState rows={6} />
         ) : error ? (
           <ErrorState message={error} onRetry={load} />
-        ) : subjects.length === 0 ? (
+        ) : classes.length === 0 ? (
           <EmptyState
-            icon="book-open"
+            icon="users"
             title={copy.empty}
             message={copy.emptyMessage}
           />
         ) : (
-          <View style={styles.list}>
-            {subjects.map((subject) => (
-              <Card
-                key={subject.id}
-                onPress={() =>
-                  router.push(
-                    `/marks/classes?subjectId=${subject.id}&subjectName=${encodeURIComponent(subject.name)}&school_id=${activeSchool.id}`,
-                  )
-                }
-              >
-                <View style={styles.row}>
-                  <View
-                    style={[
-                      styles.icon,
-                      { backgroundColor: colors.primarySoft },
-                    ]}
-                  >
-                    <Feather name="book-open" size={21} color={colors.primary} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[typography.bodyStrong, { color: colors.text }]}>
-                      {subject.name}
-                    </Text>
-                    {subject.code ? (
+          <>
+            <Text style={[typography.caption, { color: colors.textSecondary }]}>
+              {classes.length} {copy.count} {activeSchool.name}
+            </Text>
+            <View style={styles.list}>
+              {classes.map((item) => (
+                <Card
+                  key={item.id}
+                  onPress={() =>
+                    router.push(
+                      `/attendance/students?class_id=${item.id}&school_id=${activeSchool.id}&class_name=${encodeURIComponent(item.name)}`,
+                    )
+                  }
+                >
+                  <View style={styles.row}>
+                    <View
+                      style={[
+                        styles.icon,
+                        { backgroundColor: colors.primarySoft },
+                      ]}
+                    >
+                      <Feather name="users" size={21} color={colors.primary} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[typography.bodyStrong, { color: colors.text }]}>
+                        {item.name}
+                      </Text>
                       <Text
                         style={[typography.caption, { color: colors.textSecondary }]}
                       >
-                        {subject.code}
+                        {[item.level, item.academic_year]
+                          .filter(Boolean)
+                          .join(" • ")}
                       </Text>
-                    ) : null}
+                    </View>
+                    <StatusChip label={copy.action} tone="info" />
                   </View>
-                  <StatusChip label={copy.continue} tone="info" />
-                </View>
-              </Card>
-            ))}
-          </View>
+                </Card>
+              ))}
+            </View>
+          </>
         )}
       </ScrollView>
     </View>

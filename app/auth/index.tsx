@@ -22,6 +22,7 @@ import {
 } from "@/components/ui";
 import Config from "@/constants/Config";
 import {
+  addRoleToIdentity,
   findSimilarAccounts,
   persistSession,
   requestPasswordReset,
@@ -72,17 +73,53 @@ export default function AuthenticationScreen() {
   const [resetError, setResetError] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
 
+  // Set when registration reports the address already belongs to an identity
+  // under a different role. Holds the prompt until the password is confirmed.
+  const [addRolePrompt, setAddRolePrompt] = useState<{ email: string; message: string } | null>(null);
+  const [addRolePassword, setAddRolePassword] = useState("");
+  const [addRoleError, setAddRoleError] = useState("");
+  const [addRoleLoading, setAddRoleLoading] = useState(false);
+
+  /** Confirms the password and attaches the teacher role to the existing account. */
+  const confirmAddRole = async () => {
+    if (!addRolePrompt) return;
+
+    setAddRoleLoading(true);
+    setAddRoleError("");
+
+    try {
+      const session = await addRoleToIdentity({
+        email: addRolePrompt.email,
+        password: addRolePassword,
+        role: "teacher",
+      });
+
+      await persistSession(session);
+      setUser(session.user as never);
+      setAddRolePrompt(null);
+      setAddRolePassword("");
+
+      // Straight into the teacher onboarding: the address was verified long
+      // ago, so there is nothing else to confirm.
+      router.replace("/setup");
+    } catch (cause) {
+      setAddRoleError((cause as IdentityError).message);
+    } finally {
+      setAddRoleLoading(false);
+    }
+  };
+
   const copy =
     language === "fr"
       ? {
           app: "FobsSMS Teacher",
-          eyebrow: "ESPACE ENSEIGNANT",
+          eyebrow: "RÉSEAU DES ENSEIGNANTS",
           loginTitle: "Heureux de vous revoir",
           loginSubtitle:
-            "Connectez-vous pour gérer vos classes, présences et notes.",
-          registerTitle: "Créer un compte enseignant",
+            "Connectez-vous pour échanger avec des enseignants, partager votre travail et développer votre réseau professionnel.",
+          registerTitle: "Rejoindre le réseau",
           registerSubtitle:
-            "Commencez avec vos informations de compte, puis configurez votre profil.",
+            "Retrouvez une communauté d’enseignants : partagez vos idées, suivez vos collègues et découvrez des opportunités.",
           login: "Connexion",
           register: "Inscription",
           name: "Nom complet",
@@ -119,13 +156,13 @@ export default function AuthenticationScreen() {
         }
       : {
           app: "FobsSMS Teacher",
-          eyebrow: "TEACHER WORKSPACE",
+          eyebrow: "TEACHER NETWORK",
           loginTitle: "Welcome back",
           loginSubtitle:
-            "Sign in to manage your classes, attendance, and marks.",
-          registerTitle: "Create a teacher account",
+            "Sign in to connect with teachers, share your work, and grow your professional network.",
+          registerTitle: "Join the network",
           registerSubtitle:
-            "Start with your account details, then set up your teacher profile.",
+            "Meet a community of teachers — share ideas, follow colleagues, and discover opportunities.",
           login: "Log in",
           register: "Register",
           name: "Full name",
@@ -235,6 +272,18 @@ export default function AuthenticationScreen() {
           router.push({
             pathname: "/auth/verify-email",
             params: { email: (authError.response.data?.email ?? form.email).trim() },
+          });
+          setLoading(false);
+          return;
+        }
+
+        // The address already belongs to an identity registered under another
+        // role. Not a failure and not a duplicate: confirm the password and
+        // the teacher role is added to the account they already have.
+        if (authError.response.status === 409 && authError.response.data?.requires_password) {
+          setAddRolePrompt({
+            email: String(authError.response.data.email ?? form.email).trim(),
+            message: String(authError.response.data.message ?? ""),
           });
           setLoading(false);
           return;
@@ -560,6 +609,75 @@ export default function AuthenticationScreen() {
           </Text>
         </View>
       </ScrollView>
+
+      {/* The address already has an account under another role. Confirming the
+          password adds the teacher role to it — no duplicate account, and no
+          second verification email, because the address is already proven. */}
+      <Modal
+        visible={addRolePrompt !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setAddRolePrompt(null)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalRoot}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <Pressable
+            style={[StyleSheet.absoluteFill, { backgroundColor: colors.overlay }]}
+            onPress={() => setAddRolePrompt(null)}
+          />
+          <View style={[styles.sheet, { backgroundColor: colors.surfaceElevated }]}>
+            <View style={[styles.handle, { backgroundColor: colors.border }]} />
+            <View style={styles.sheetTitle}>
+              <View style={{ flex: 1 }}>
+                <Text style={[typography.heading, { color: colors.text }]}>
+                  {language === "fr" ? "Ce compte existe déjà" : "This account already exists"}
+                </Text>
+                <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                  {addRolePrompt?.message}
+                </Text>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={copy.cancel}
+                onPress={() => setAddRolePrompt(null)}
+                style={styles.close}
+              >
+                <Feather name="x" size={22} color={colors.text} />
+              </Pressable>
+            </View>
+
+            {addRoleError ? (
+              <View style={[styles.errorBanner, { backgroundColor: colors.errorSoft }]}>
+                <Feather name="alert-circle" size={18} color={colors.error} />
+                <Text style={[typography.body, { color: colors.error, flex: 1 }]}>
+                  {addRoleError}
+                </Text>
+              </View>
+            ) : null}
+
+            <FormField
+              label={language === "fr" ? "Mot de passe" : "Password"}
+              value={addRolePassword}
+              onChangeText={(value) => {
+                setAddRolePassword(value);
+                setAddRoleError("");
+              }}
+              secureTextEntry
+              autoCapitalize="none"
+              placeholder={language === "fr" ? "Votre mot de passe" : "Your password"}
+            />
+
+            <Button
+              label={language === "fr" ? "Ajouter l\u2019acc\u00e8s enseignant" : "Add teacher access"}
+              icon="user-plus"
+              loading={addRoleLoading}
+              onPress={() => void confirmAddRole()}
+            />
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       <Modal
         visible={showReset}

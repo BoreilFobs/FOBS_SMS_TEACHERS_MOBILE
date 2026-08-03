@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/hooks/useAppTheme";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -10,6 +10,7 @@ import { useSocial } from "@/social/hooks/useSocial";
 import { useSocialResource } from "@/social/hooks/useSocialResource";
 import { describeSocialError } from "@/social/api/describeError";
 import { radii, spacing, typography } from "@/constants/theme";
+import { notify } from "@/utils/dialog";
 
 export default function BlockedAccountsScreen() {
   const insets = useSafeAreaInsets();
@@ -23,7 +24,7 @@ export default function BlockedAccountsScreen() {
 
   if (loading && teachers.length === 0) {
     return (
-      <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      <View style={[styles.screen, { backgroundColor: colors.feedBackground, paddingTop: insets.top }]}>
         <SocialScreenHeader title={t("blocked_accounts")} />
         <LoadingState rows={3} />
       </View>
@@ -32,7 +33,7 @@ export default function BlockedAccountsScreen() {
 
   if (error && teachers.length === 0) {
     return (
-      <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      <View style={[styles.screen, { backgroundColor: colors.feedBackground, paddingTop: insets.top }]}>
         <SocialScreenHeader title={t("blocked_accounts")} />
         <ErrorState message={error.message} onRetry={() => void retry()} />
       </View>
@@ -40,7 +41,7 @@ export default function BlockedAccountsScreen() {
   }
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <View style={[styles.screen, { backgroundColor: colors.feedBackground, paddingTop: insets.top }]}>
       <SocialScreenHeader title={t("blocked_accounts")} />
       <FlatList
         data={teachers}
@@ -60,7 +61,7 @@ export default function BlockedAccountsScreen() {
               accessibilityRole="button"
               onPress={() => {
                 void repository.unblock(item.id).catch((cause) => {
-                  Alert.alert(t("error"), describeSocialError(cause, t("error")));
+                  notify(t("error"), describeSocialError(cause, t("error")));
                 });
               }}
               style={[styles.unblock, { borderColor: colors.primary }]}

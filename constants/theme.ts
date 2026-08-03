@@ -24,6 +24,10 @@ export const palette = {
   red400: "#F87171",
   cyan700: "#0E7490",
   cyan300: "#67E8F9",
+  violet600: "#7C3AED",
+  violet300: "#C4B5FD",
+  pink600: "#DB2777",
+  pink300: "#F9A8D4",
 } as const;
 
 export const themeColors = {
@@ -54,6 +58,21 @@ export const themeColors = {
     overlay: "rgba(15, 23, 42, 0.55)",
     onPrimary: palette.white,
     tabBar: palette.white,
+    accent: palette.violet600,
+    accentSoft: "#F5F3FF",
+    // Feed cards float on a shade separated from `surface` so they read as
+    // detached objects rather than stacked rows.
+    feedBackground: palette.slate100,
+    feedCard: palette.white,
+    ring: palette.slate200,
+    skeleton: palette.slate200,
+    skeletonHighlight: palette.slate100,
+    headerSurface: "rgba(255, 255, 255, 0.92)",
+    // Always-dark brand gradient for hero panels that print white text. The
+    // themed `primary` is a pale blue in dark mode, which leaves white text
+    // unreadable, so these stay fixed across themes.
+    brandGradientFrom: palette.blue600,
+    brandGradientTo: "#3B82F6",
   },
   dark: {
     primary: palette.blue300,
@@ -82,6 +101,16 @@ export const themeColors = {
     overlay: "rgba(2, 6, 23, 0.72)",
     onPrimary: palette.slate950,
     tabBar: "#141D2E",
+    accent: palette.violet300,
+    accentSoft: "#2E1065",
+    feedBackground: palette.slate950,
+    feedCard: "#141D2E",
+    ring: palette.slate700,
+    skeleton: "#1F2937",
+    skeletonHighlight: "#2B3648",
+    headerSurface: "rgba(20, 29, 46, 0.92)",
+    brandGradientFrom: "#1E3A8A",
+    brandGradientTo: "#2563EB",
   },
 } as const;
 
@@ -103,18 +132,35 @@ export const radii = {
   sm: 8,
   md: 12,
   lg: 16,
+  card: 18,
   xl: 22,
   pill: 999,
 } as const;
 
+/**
+ * Two canonical horizontal rhythms. Feed surfaces (the social section) use the
+ * narrower `gutter` so cards feel wide and immersive; management surfaces use
+ * `screenPadding` so forms and tables stay comfortable to read.
+ */
+export const layout = {
+  gutter: 12,
+  screenPadding: 20,
+  cardGap: 10,
+  maxContentWidth: 760,
+  tabBarClearance: 110,
+} as const;
+
 export const typography = {
   display: { fontSize: 30, lineHeight: 36, fontWeight: "700" as const },
+  titleLarge: { fontSize: 27, lineHeight: 33, fontWeight: "800" as const },
   title: { fontSize: 24, lineHeight: 30, fontWeight: "700" as const },
   heading: { fontSize: 18, lineHeight: 24, fontWeight: "700" as const },
+  subheading: { fontSize: 16, lineHeight: 22, fontWeight: "700" as const },
   body: { fontSize: 15, lineHeight: 22, fontWeight: "400" as const },
   bodyStrong: { fontSize: 15, lineHeight: 22, fontWeight: "600" as const },
   label: { fontSize: 13, lineHeight: 18, fontWeight: "600" as const },
-  caption: { fontSize: 12, lineHeight: 17, fontWeight: "500" as const },
+  caption: { fontSize: 12, lineHeight: 16, fontWeight: "500" as const },
+  micro: { fontSize: 11, lineHeight: 15, fontWeight: "600" as const },
 } as const;
 
 export const iconSizes = { sm: 16, md: 20, lg: 24, xl: 32 } as const;
@@ -129,5 +175,30 @@ export const elevation = {
     shadowRadius: 8,
     elevation: 2,
   },
+  /** Feed cards — softer and wider so they lift off the feed background. */
+  raised: {
+    shadowColor: "#020617",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+  /** Sheets, floating headers and anything overlaying content. */
+  overlay: {
+    shadowColor: "#020617",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.16,
+    shadowRadius: 24,
+    elevation: 12,
+  },
+} as const;
+
+/** Reaction identity shared by the post card, pickers and summary bars. */
+export const reactionPalette = {
+  like: "#2563EB",
+  love: "#DB2777",
+  support: "#0E7490",
+  insightful: "#B45309",
+  celebrate: "#7C3AED",
 } as const;
 

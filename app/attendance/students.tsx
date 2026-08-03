@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Modal,
   Pressable,
@@ -31,6 +32,10 @@ import useSchoolStore from "@/utils/stores/schoolStore";
 import useUserStore from "@/utils/stores/userStore";
 import { radii, spacing, typography } from "@/constants/theme";
 import { authFetch } from "@/services/authFetch";
+import { cacheKeys, readCache, writeCache } from "@/utils/offline/cache";
+import { outbox } from "@/utils/offline/outbox";
+import { usePendingWrites } from "@/hooks/useOutbox";
+import { notify } from "@/utils/dialog";
 
 interface Student {
   id: number;
@@ -82,14 +87,28 @@ function ClassAttendanceScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [savingIds, setSavingIds] = useState<Set<number>>(new Set());
+  // student id -> the value being written, so only the tapped button spins.
+  const [savingIds, setSavingIds] = useState<Map<number, boolean>>(new Map());
   const [bulkSaving, setBulkSaving] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const pendingAttendance = usePendingWrites("attendance");
 
   const term = getCurrentTerm();
   const load = useCallback(async () => {
-    if (!classId || !schoolId) return;
+    if (!classId || !schoolId) {
+      setLoading(false);
+      return;
+    }
     setError(null);
+
+    // Show the last known roster immediately so a class visited before can be
+    // marked with no connection at all.
+    const cachedRoster = await readCache<Student[]>(cacheKeys.classStudents(classId));
+    if (cachedRoster?.length) {
+      setStudents(cachedRoster);
+      setLoading(false);
+    }
+
     try {
       const urls = [
         `${Config.apiBaseUrl}/class-students?class_id=${classId}`,
@@ -108,25 +127,25 @@ function ClassAttendanceScreen() {
       }
       const attendance = attendancePayload.success ? attendancePayload.data ?? [] : [];
       setClassInfo(studentPayload.class);
-      setStudents(
-        (studentPayload.students ?? []).map(
-          (student: { id: number; name: string }) => {
-            const saved = attendance.find(
-              (item: { student_id: number }) => item.student_id === student.id,
-            );
-            return {
-              ...student,
-              absences: Number(saved?.hours ?? 0),
-              isPresent:
-                typeof saved?.is_present === "boolean"
-                  ? saved.is_present
-                  : saved
-                    ? Boolean(saved.is_present)
-                    : null,
-            };
-          },
-        ),
+      const roster: Student[] = (studentPayload.students ?? []).map(
+        (student: { id: number; name: string }) => {
+          const saved = attendance.find(
+            (item: { student_id: number }) => item.student_id === student.id,
+          );
+          return {
+            ...student,
+            absences: Number(saved?.hours ?? 0),
+            isPresent:
+              typeof saved?.is_present === "boolean"
+                ? saved.is_present
+                : saved
+                  ? Boolean(saved.is_present)
+                  : null,
+          };
+        },
       );
+      setStudents(roster);
+      await writeCache(cacheKeys.classStudents(classId), roster);
       if (attendance.length > 0) {
         setSubject(String(attendance[0].subject ?? ""));
         setPeriods(Number(attendance[0].hours) === 2 ? 2 : 1);
@@ -134,9 +153,12 @@ function ClassAttendanceScreen() {
       }
       if (subjectPayload?.success) setSubjects(subjectPayload.data ?? []);
     } catch (loadError) {
-      setError(
-        loadError instanceof Error ? loadError.message : "Network error.",
-      );
+      // Offline with a cached roster is a working screen, not an error.
+      if (!cachedRoster?.length) {
+        setError(
+          loadError instanceof Error ? loadError.message : "Network error.",
+        );
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -167,6 +189,8 @@ function ClassAttendanceScreen() {
           noStudentsMessage: "Aucun élève n’est inscrit dans cette classe.",
           chooseSubject: "Choisissez une matière avant de commencer.",
           change: "Modifier la séance",
+          pendingSync: (count: number) =>
+            `${count} présence(s) en attente de synchronisation`,
         }
       : {
           title: "Attendance",
@@ -186,47 +210,72 @@ function ClassAttendanceScreen() {
           noStudentsMessage: "There are no students enrolled in this class.",
           chooseSubject: "Choose a subject before starting.",
           change: "Edit session",
+          pendingSync: (count: number) => `${count} record(s) waiting to sync`,
         };
+
+  /** Applies the new status locally, keeping the absence tally consistent. */
+  const applyLocalAttendance = (student: Student, isPresent: boolean) => {
+    setStudents((current) =>
+      current.map((item) => {
+        if (item.id !== student.id) return item;
+        const adjustedAbsences = isPresent
+          ? item.isPresent === false
+            ? Math.max(0, item.absences - periods)
+            : item.absences
+          : item.isPresent === false
+            ? item.absences
+            : item.absences + periods;
+        return { ...item, isPresent, absences: adjustedAbsences };
+      }),
+    );
+  };
 
   const saveAttendance = async (student: Student, isPresent: boolean) => {
     if (!subject.trim() || savingIds.has(student.id)) return false;
-    setSavingIds((current) => new Set(current).add(student.id));
+    setSavingIds((current) => new Map(current).set(student.id, isPresent));
+    const body = {
+      school_id: schoolId,
+      student_id: student.id,
+      class_id: classId,
+      term,
+      date: today,
+      subject: subject.trim(),
+      hours: isPresent ? 0 : periods,
+      is_present: isPresent,
+    };
+
     try {
-      const response = await authFetch(`${Config.apiBaseUrl}/attendances`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({
-          school_id: schoolId,
-          student_id: student.id,
-          class_id: classId,
-          term,
-          date: today,
-          subject: subject.trim(),
-          hours: isPresent ? 0 : periods,
-          is_present: isPresent,
-        }),
-      });
+      let response: Response;
+      try {
+        response = await authFetch(`${Config.apiBaseUrl}/attendances`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify(body),
+        });
+      } catch {
+        // Offline: record it locally and replay on reconnect. The endpoint is
+        // keyed by student+class+date+subject, so a replay overwrites.
+        await outbox.enqueue({
+          url: `${Config.apiBaseUrl}/attendances`,
+          method: "POST",
+          body,
+          kind: "attendance",
+          label: student.name,
+        });
+        applyLocalAttendance(student, isPresent);
+        setLastSavedAt(new Date());
+        return true;
+      }
+
       const payload = await response.json();
       if (!response.ok || !payload.success) {
         throw new Error(payload.message ?? "Unable to save attendance.");
       }
-      setStudents((current) =>
-        current.map((item) => {
-          if (item.id !== student.id) return item;
-          const adjustedAbsences = isPresent
-            ? item.isPresent === false
-              ? Math.max(0, item.absences - periods)
-              : item.absences
-            : item.isPresent === false
-              ? item.absences
-              : item.absences + periods;
-          return { ...item, isPresent, absences: adjustedAbsences };
-        }),
-      );
+      applyLocalAttendance(student, isPresent);
       setLastSavedAt(new Date());
       return true;
     } catch (saveError) {
-      Alert.alert(
+      notify(
         language === "fr" ? "Échec de l’enregistrement" : "Save failed",
         saveError instanceof Error
           ? saveError.message
@@ -237,7 +286,7 @@ function ClassAttendanceScreen() {
       return false;
     } finally {
       setSavingIds((current) => {
-        const next = new Set(current);
+        const next = new Map(current);
         next.delete(student.id);
         return next;
       });
@@ -317,6 +366,15 @@ function ClassAttendanceScreen() {
           </Pressable>
         </Card>
 
+        {pendingAttendance.length > 0 ? (
+          <View style={[styles.pendingBanner, { backgroundColor: colors.warningSoft }]}>
+            <Feather name="cloud-off" size={16} color={colors.warning} />
+            <Text style={[typography.caption, { color: colors.warning, flex: 1 }]}>
+              {copy.pendingSync(pendingAttendance.length)}
+            </Text>
+          </View>
+        ) : null}
+
         {started ? (
           <>
             <View style={styles.summary}>
@@ -377,7 +435,7 @@ function ClassAttendanceScreen() {
                 key={student.id}
                 student={student}
                 started={started}
-                saving={savingIds.has(student.id)}
+                savingValue={savingIds.get(student.id)}
                 presentLabel={copy.present}
                 absentLabel={copy.absent}
                 onChange={(value) => void saveAttendance(student, value)}
@@ -501,19 +559,21 @@ function Summary({
 function StudentAttendanceRow({
   student,
   started,
-  saving,
+  savingValue,
   presentLabel,
   absentLabel,
   onChange,
 }: {
   student: Student;
   started: boolean;
-  saving: boolean;
+  /** The value currently being written, or undefined when idle. */
+  savingValue?: boolean;
   presentLabel: string;
   absentLabel: string;
   onChange: (present: boolean) => void;
 }) {
   const { colors } = useAppTheme();
+  const saving = savingValue !== undefined;
   return (
     <Card>
       <View style={styles.studentRow}>
@@ -551,13 +611,18 @@ function StudentAttendanceRow({
                 },
               ]}
             >
-              <Ionicons
-                name="checkmark"
-                size={22}
-                color={
-                  student.isPresent === true ? "#FFFFFF" : colors.success
-                }
-              />
+              {savingValue === true ? (
+                <ActivityIndicator
+                  size="small"
+                  color={student.isPresent === true ? "#FFFFFF" : colors.success}
+                />
+              ) : (
+                <Ionicons
+                  name="checkmark"
+                  size={22}
+                  color={student.isPresent === true ? "#FFFFFF" : colors.success}
+                />
+              )}
             </Pressable>
             <Pressable
               accessibilityRole="button"
@@ -574,11 +639,18 @@ function StudentAttendanceRow({
                 },
               ]}
             >
-              <Ionicons
-                name="close"
-                size={22}
-                color={student.isPresent === false ? "#FFFFFF" : colors.error}
-              />
+              {savingValue === false ? (
+                <ActivityIndicator
+                  size="small"
+                  color={student.isPresent === false ? "#FFFFFF" : colors.error}
+                />
+              ) : (
+                <Ionicons
+                  name="close"
+                  size={22}
+                  color={student.isPresent === false ? "#FFFFFF" : colors.error}
+                />
+              )}
             </Pressable>
           </View>
         ) : (
@@ -597,6 +669,13 @@ function getCurrentTerm() {
 }
 
 const styles = StyleSheet.create({
+  pendingBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    borderRadius: radii.md,
+    padding: spacing.sm,
+  },
   root: { flex: 1 },
   content: {
     flexGrow: 1,

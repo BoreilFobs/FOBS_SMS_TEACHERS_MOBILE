@@ -18,6 +18,28 @@ export default {
           resizeMode: "contain",
           backgroundColor: "#2f373f"
         }
+      ],
+      [
+        // Required for profile photo upload: iOS refuses library access without
+        // a usage description, and Android needs the media permissions.
+        "expo-image-picker",
+        {
+          photosPermission:
+            "Allow FobsSMS to access your photos so you can set a profile picture.",
+          cameraPermission:
+            "Allow FobsSMS to use the camera so you can take a profile picture."
+        }
+      ],
+      [
+        // Saving a received chat image into the device gallery.
+        "expo-media-library",
+        {
+          photosPermission:
+            "Allow FobsSMS to access your photos so you can save images from your chats.",
+          savePhotosPermission:
+            "Allow FobsSMS to save images from your chats to your photos.",
+          isAccessMediaLocationEnabled: false
+        }
       ]
     ],
     updates: {

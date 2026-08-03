@@ -14,6 +14,7 @@ import type {
   UpdatesSnapshot,
 } from "@/models/updates";
 import { updatesRepository } from "@/services/mock/repositories";
+import { fetchAnnouncements, markAnnouncementRead as markAnnouncementReadApi } from "@/services/announcements";
 import useSchoolStore from "@/utils/stores/schoolStore";
 
 interface UpdatesContextValue {
@@ -57,7 +58,18 @@ export function UpdatesProvider({ children }: { children: React.ReactNode }) {
     setState("loading");
     setError(null);
     try {
-      setSnapshot(await updatesRepository.getSnapshot());
+      // Announcements are real server data. The rest of this snapshot is still
+      // local, so the two are loaded independently: an announcements failure
+      // must not blank the whole screen, and vice versa.
+      const [local, announcements] = await Promise.all([
+        updatesRepository.getSnapshot(),
+        fetchAnnouncements().catch(() => null),
+      ]);
+
+      setSnapshot({
+        ...local,
+        announcements: announcements ?? [],
+      });
       setState("ready");
     } catch (loadError) {
       setError(
@@ -73,23 +85,9 @@ export function UpdatesProvider({ children }: { children: React.ReactNode }) {
     void reload();
   }, [reload]);
 
-  const announcements = useMemo(
-    () =>
-      snapshot.announcements.map((announcement, index) => {
-        const school =
-          assignedSchools[index % Math.max(assignedSchools.length, 1)] ??
-          assignedSchools[0] ??
-          null;
-        if (!school) return announcement;
-        return {
-          ...announcement,
-          schoolId: school.id,
-          schoolName: school.name,
-          schoolAcronym: school.code || school.name.slice(0, 4).toUpperCase(),
-        };
-      }),
-    [assignedSchools, snapshot.announcements],
-  );
+  // The server already scopes announcements to the teacher's schools and names
+  // them, so the previous round-robin relabelling is gone.
+  const announcements = snapshot.announcements;
 
   const notifications = useMemo(
     () =>
@@ -122,14 +120,16 @@ export function UpdatesProvider({ children }: { children: React.ReactNode }) {
   };
 
   const markAnnouncementRead = async (id: string) => {
-    const announcement = await updatesRepository.markAnnouncementRead(id);
-    if (!announcement) return;
+    // Optimistic: the badge should clear the moment it is opened, and a failed
+    // write is not worth blocking the reader over.
     setSnapshot((current) => ({
       ...current,
       announcements: current.announcements.map((item) =>
-        item.id === id ? announcement : item,
+        item.id === id ? { ...item, isRead: true } : item,
       ),
     }));
+
+    await markAnnouncementReadApi(id).catch(() => undefined);
   };
 
   const openNotification = async (id: string) => {

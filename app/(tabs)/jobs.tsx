@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
   Modal,
   Pressable,
@@ -15,11 +14,18 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/hooks/useAppTheme";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Button, EmptyState, FilterChips, SearchInput } from "@/components/ui";
+import {
+  Button,
+  EmptyState,
+  IconButton,
+  LoadingState,
+  SearchInput,
+  Segmented,
+} from "@/components/ui";
 import { EmploymentType, Job, JobFilters } from "@/social/models";
 import { JobCard } from "@/social/components/JobCard";
 import { useSocial } from "@/social/hooks/useSocial";
-import { radii, spacing, typography } from "@/constants/theme";
+import { elevation, layout, radii, spacing, typography } from "@/constants/theme";
 
 type JobsView = "recommended" | "recent" | "saved";
 
@@ -61,22 +67,26 @@ export default function JobsScreen() {
   );
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <View
+      style={[
+        styles.screen,
+        { backgroundColor: colors.feedBackground, paddingTop: insets.top },
+      ]}
+    >
       <View style={styles.header}>
-        <View>
-          <Text style={[typography.title, { color: colors.text }]}>{t("jobs")}</Text>
-          <Text style={[typography.body, { color: colors.textSecondary }]}>
-            {t("recommended_jobs")}
+        <View style={{ flex: 1 }}>
+          <Text style={[typography.titleLarge, { color: colors.text }]}>{t("jobs")}</Text>
+          <Text style={[typography.caption, { color: colors.textSecondary }]}>
+            {jobs.length} {t("jobs")}
           </Text>
         </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t("my_applications")}
+        <IconButton
+          icon="document-text"
+          label={t("my_applications")}
+          tone="primary"
+          size={40}
           onPress={() => router.push("/social/applications")}
-          style={[styles.applicationButton, { backgroundColor: colors.primarySoft }]}
-        >
-          <Feather name="file-text" size={20} color={colors.primary} />
-        </Pressable>
+        />
       </View>
       <View style={styles.controls}>
         <View style={styles.searchRow}>
@@ -87,30 +97,41 @@ export default function JobsScreen() {
             accessibilityRole="button"
             accessibilityLabel={t("filters")}
             onPress={() => setFilterVisible(true)}
-            style={[
+            style={({ pressed }) => [
               styles.filterButton,
               {
                 backgroundColor: activeFilterCount ? colors.primary : colors.surface,
                 borderColor: activeFilterCount ? colors.primary : colors.border,
+                opacity: pressed ? 0.75 : 1,
               },
             ]}
           >
-            <Feather name="sliders" size={20} color={activeFilterCount ? colors.onPrimary : colors.text} />
-            {activeFilterCount ? <Text style={{ color: colors.onPrimary }}>{activeFilterCount}</Text> : null}
+            <Feather
+              name="sliders"
+              size={19}
+              color={activeFilterCount ? colors.onPrimary : colors.text}
+            />
+            {activeFilterCount ? (
+              <Text style={[typography.micro, { color: colors.onPrimary }]}>
+                {activeFilterCount}
+              </Text>
+            ) : null}
           </Pressable>
         </View>
-        <FilterChips
+        <Segmented
           selected={view}
           onSelect={setView}
           options={[
-            { value: "recommended", label: t("recommended_jobs") },
-            { value: "recent", label: t("recent_jobs") },
-            { value: "saved", label: t("saved_jobs") },
+            { value: "recommended", label: t("recommended") },
+            { value: "recent", label: t("recent") },
+            { value: "saved", label: t("saved") },
           ]}
         />
       </View>
       {loading ? (
-        <ActivityIndicator color={colors.primary} style={styles.loading} />
+        <View style={styles.loadingBox}>
+          <LoadingState rows={4} />
+        </View>
       ) : (
         <FlatList
           data={jobs}
@@ -122,7 +143,8 @@ export default function JobsScreen() {
             />
           )}
           contentContainerStyle={styles.list}
-          ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+          showsVerticalScrollIndicator={false}
+          ItemSeparatorComponent={() => <View style={{ height: layout.cardGap }} />}
           ListEmptyComponent={<EmptyState icon="briefcase" title={t("no_jobs")} message={t("clear_filters")} />}
         />
       )}
@@ -176,10 +198,23 @@ function JobFiltersModal({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
-        <View style={[styles.modal, { backgroundColor: colors.surfaceElevated }]}>
+        <View
+          style={[
+            styles.modal,
+            { backgroundColor: colors.surfaceElevated },
+            elevation.overlay,
+          ]}
+        >
+          <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
           <View style={styles.modalHeader}>
             <Text style={[typography.title, { color: colors.text }]}>{t("filters")}</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel={t("close")} onPress={onClose} style={styles.applicationButton}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("close")}
+              onPress={onClose}
+              hitSlop={8}
+              style={({ pressed }) => [styles.closeButton, { opacity: pressed ? 0.6 : 1 }]}
+            >
               <Feather name="x" size={22} color={colors.text} />
             </Pressable>
           </View>
@@ -233,15 +268,23 @@ function JobFiltersModal({
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  header: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  controls: { paddingHorizontal: spacing.md, paddingBottom: spacing.sm, gap: spacing.xs },
+  header: {
+    paddingHorizontal: layout.gutter,
+    paddingBottom: spacing.xs,
+    paddingTop: spacing.xxs,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  controls: { paddingHorizontal: layout.gutter, paddingBottom: spacing.sm, gap: spacing.xs },
   searchRow: { flexDirection: "row", gap: spacing.xs },
-  applicationButton: { width: 48, height: 48, borderRadius: radii.pill, alignItems: "center", justifyContent: "center" },
-  filterButton: { minWidth: 50, height: 50, borderWidth: 1, borderRadius: radii.md, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 3 },
-  list: { paddingHorizontal: spacing.md, paddingBottom: 110 },
-  loading: { marginTop: spacing.xxl },
+  closeButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  filterButton: { minWidth: 48, height: 48, borderWidth: 1, borderRadius: radii.md, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 3 },
+  list: { paddingHorizontal: layout.gutter, paddingBottom: layout.tabBarClearance },
+  loadingBox: { paddingHorizontal: layout.gutter },
   modalOverlay: { flex: 1, justifyContent: "flex-end" },
-  modal: { maxHeight: "88%", borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing.md },
+  modal: { maxHeight: "88%", borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing.md, paddingTop: spacing.xs },
+  sheetHandle: { width: 40, height: 4, borderRadius: radii.pill, alignSelf: "center", marginBottom: spacing.xs },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   filterContent: { gap: spacing.sm, paddingBottom: spacing.xxl },
   field: { gap: 5 },

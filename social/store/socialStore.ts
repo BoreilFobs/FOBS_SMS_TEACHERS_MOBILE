@@ -240,6 +240,30 @@ class SocialStore {
     });
   }
 
+  /** Swaps one message in place, for an edit or a delete tombstone. */
+  replaceMessage(conversationId: string, message: Message): void {
+    this.patch({
+      conversations: this.state.conversations.map((conversation) =>
+        conversation.id === conversationId
+          ? {
+              ...conversation,
+              messages: conversation.messages.map((existing) =>
+                existing.id === message.id ? message : existing,
+              ),
+            }
+          : conversation,
+      ),
+    });
+  }
+
+  removeConversation(conversationId: string): void {
+    this.patch({
+      conversations: this.state.conversations.filter(
+        (conversation) => conversation.id !== conversationId,
+      ),
+    });
+  }
+
   removeConversationsWith(teacherId: string): void {
     this.patch({
       conversations: this.state.conversations.filter(

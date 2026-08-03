@@ -193,6 +193,18 @@ export interface MessageDto {
   client_id: string | null;
   sent_at: string | null;
   status: "sent" | "read";
+  deleted?: boolean;
+  edited_at?: string | null;
+  forwarded?: boolean;
+  can_edit?: boolean;
+  can_delete?: boolean;
+  reply_to?: {
+    id: string;
+    sender_id: string;
+    kind: string;
+    text?: string | null;
+    deleted?: boolean;
+  } | null;
 }
 
 export interface ConversationDto {

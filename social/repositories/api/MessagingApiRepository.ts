@@ -5,7 +5,7 @@ import { socialApi } from "@/social/api/client";
 import { SocialApiError } from "@/social/api/errors";
 import { SOCIAL_NETWORK } from "@/social/constants/network";
 import { mapConversation, mapMessage, mapTeacher } from "@/social/api/mappers";
-import { getCurrentTeacherId, toRemoteId } from "@/social/api/identity";
+import { toRemoteId } from "@/social/api/identity";
 import { uploadImage } from "@/social/api/media";
 import { socialStore } from "@/social/store/socialStore";
 import { CURRENT_TEACHER_ID } from "@/social/models";
@@ -76,11 +76,63 @@ export class MessagingApiRepository implements MessagingRepository {
     return { messages, nextCursor: page.meta.next_cursor ?? undefined };
   }
 
-  async sendMessage(conversationId: string, text: string): Promise<Message> {
-    return this.send(conversationId, { type: "text", text: text.trim() }, {
-      kind: "text",
-      text: text.trim(),
-    });
+  async sendMessage(
+    conversationId: string,
+    text: string,
+    options: { replyToId?: string; forwarded?: boolean } = {},
+  ): Promise<Message> {
+    return this.send(
+      conversationId,
+      {
+        type: "text",
+        text: text.trim(),
+        reply_to_id: options.replyToId ? Number(options.replyToId) : undefined,
+        forwarded: options.forwarded ? true : undefined,
+      },
+      {
+        kind: "text",
+        text: text.trim(),
+        replyToId: options.replyToId,
+        forwarded: options.forwarded,
+      },
+    );
+  }
+
+  async editMessage(
+    conversationId: string,
+    messageId: string,
+    text: string,
+  ): Promise<Message> {
+    const dto = await socialApi.patch<MessageDto>(
+      `/social/conversations/${conversationId}/messages/${messageId}`,
+      { body: { text: text.trim() } },
+    );
+
+    const updated = mapMessage(dto);
+    socialStore.replaceMessage(conversationId, updated);
+
+    return updated;
+  }
+
+  async deleteMessage(conversationId: string, messageId: string): Promise<Message> {
+    const dto = await socialApi.delete<MessageDto>(
+      `/social/conversations/${conversationId}/messages/${messageId}`,
+    );
+
+    // The server answers with the tombstone rather than nothing, so the thread
+    // keeps its shape instead of a row vanishing under the reader.
+    const tombstone = mapMessage(dto);
+    socialStore.replaceMessage(conversationId, tombstone);
+
+    return tombstone;
+  }
+
+  async deleteConversation(conversationId: string): Promise<void> {
+    await socialApi.delete<{ cleared: boolean }>(
+      `/social/conversations/${conversationId}`,
+    );
+
+    socialStore.removeConversation(conversationId);
   }
 
   /**
@@ -90,8 +142,12 @@ export class MessagingApiRepository implements MessagingRepository {
    * once the server confirms, the message carries the hosted URL and the local URI
    * is discarded — nothing keeps rendering from a `file://` path.
    */
-  async sendImage(conversationId: string, uri: string): Promise<Message> {
-    const media = await uploadImage({ uri });
+  async sendImage(
+    conversationId: string,
+    uri: string,
+    onProgress?: (fraction: number) => void,
+  ): Promise<Message> {
+    const media = await uploadImage({ uri }, { onProgress });
 
     return this.send(
       conversationId,
@@ -149,7 +205,10 @@ export class MessagingApiRepository implements MessagingRepository {
     const placeholder: Message = {
       id: temporaryId,
       conversationId,
-      senderId: getCurrentTeacherId() ?? CURRENT_TEACHER_ID,
+      // Always the local sentinel: mapMessage() maps our own remote id to it,
+      // so using the raw id here made a just-sent message render on the left
+      // and jump right once confirmed.
+      senderId: CURRENT_TEACHER_ID,
       kind: optimistic.kind,
       text: optimistic.text,
       mediaUri: optimistic.mediaUri,

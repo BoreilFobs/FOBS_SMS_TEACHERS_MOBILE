@@ -17,7 +17,8 @@ import { useAppTheme } from "@/hooks/useAppTheme";
 import { useLanguage } from "@/contexts/LanguageContext";
 import useSchoolStore from "@/utils/stores/schoolStore";
 import { radii, spacing, typography } from "@/constants/theme";
-import { authFetch } from "@/services/authFetch";
+import { fetchJson } from "@/services/fetchJson";
+import { formatDate } from "@/social/utils/format";
 
 interface ExamSequence {
   id: number;
@@ -56,16 +57,18 @@ function MarksExamsScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!params.school_id) return;
+    if (!params.school_id) {
+      // Without a school there is nothing to fetch, but the screen must still
+      // leave its loading state or it spins forever.
+      setError("No school selected.");
+      setLoading(false);
+      return;
+    }
     setError(null);
     try {
-      const response = await authFetch(
+      const payload = await fetchJson<{ data?: ExamSequence[] }>(
         `${Config.apiBaseUrl}/exam-sequences?school_id=${params.school_id}`,
       );
-      const payload = await response.json();
-      if (!response.ok || !payload.success) {
-        throw new Error(payload.message ?? "Unable to load sequences.");
-      }
       setSequences(payload.data ?? []);
     } catch (loadError) {
       setError(
@@ -165,10 +168,7 @@ function MarksExamsScreen() {
                     {copy.term} {item.term} · {item.academic_year}
                   </Text>
                   <Text style={[typography.caption, { color: colors.textMuted }]}>
-                    {new Intl.DateTimeFormat(
-                      language === "fr" ? "fr-FR" : "en-GB",
-                      { dateStyle: "medium" },
-                    ).format(new Date(item.start_date))}
+                    {formatDate(item.start_date, language, { dateStyle: "medium" })}
                   </Text>
                 </View>
                 <View style={styles.statuses}>

@@ -62,7 +62,7 @@ export default function GlobalSearchScreen() {
 
   const data = results[tab] as Array<SocialTeacher | SocialPost | Job>;
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <View style={[styles.screen, { backgroundColor: colors.feedBackground, paddingTop: insets.top }]}>
       <View style={[styles.searchHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <Pressable accessibilityRole="button" accessibilityLabel={t("back")} onPress={() => router.back()} style={styles.iconButton}>
           <Feather name="arrow-left" size={22} color={colors.text} />

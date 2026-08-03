@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -31,21 +31,41 @@ export default function PostDetailsScreen() {
   const { colors } = useAppTheme();
   const { t } = useLanguage();
   const { repository, snapshot } = useSocial();
-  const [loading, setLoading] = useState(true);
   const [text, setText] = useState("");
   const [replyTo, setReplyTo] = useState<Comment>();
   const [sending, setSending] = useState(false);
   const post = snapshot.posts.find((candidate) => candidate.id === id);
 
-  // The mock held every post in memory, so this screen only needed comments.
-  // Now the post itself may not be cached — deep link, notification tap, cold
-  // start — so both are fetched.
+  // Arriving from the feed the post is already in the store, so it is rendered
+  // straight away and only the comments show a loading state. A cold entry
+  // (deep link, notification tap) has nothing cached and must wait for the
+  // post itself — captured on first render so a later refresh cannot flip the
+  // screen back into a skeleton.
+  const hadCachedPost = useRef(Boolean(post)).current;
+  const [postLoading, setPostLoading] = useState(!hadCachedPost);
+  const [commentsLoading, setCommentsLoading] = useState(true);
+
   useEffect(() => {
-    setLoading(true);
-    void Promise.all([
-      repository.getPost(id).catch(() => undefined),
-      repository.getComments(id).catch(() => undefined),
-    ]).finally(() => setLoading(false));
+    let cancelled = false;
+
+    void repository
+      .getComments(id)
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setCommentsLoading(false);
+      });
+
+    // Still refreshed, so counts and edits are current — just not blocking.
+    void repository
+      .getPost(id)
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setPostLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [id, repository]);
 
   const roots = useMemo(
@@ -72,9 +92,15 @@ export default function PostDetailsScreen() {
 
   if (!post) {
     return (
-      <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      <View style={[styles.screen, { backgroundColor: colors.feedBackground, paddingTop: insets.top }]}>
         <Header title={t("post")} onBack={() => router.back()} />
-        <EmptyState icon="file-text" title={t("original_unavailable")} message={t("back")} />
+        {postLoading ? (
+          <View style={{ padding: spacing.md }}>
+            <LoadingState rows={3} variant="post" />
+          </View>
+        ) : (
+          <EmptyState icon="file-text" title={t("original_unavailable")} message={t("back")} />
+        )}
       </View>
     );
   }
@@ -82,15 +108,10 @@ export default function PostDetailsScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}
+      style={[styles.screen, { backgroundColor: colors.feedBackground, paddingTop: insets.top }]}
     >
       <Header title={t("post")} onBack={() => router.back()} />
-      {loading ? (
-        <View style={{ padding: spacing.md }}>
-          <LoadingState rows={6} />
-        </View>
-      ) : (
-        <FlatList
+      <FlatList
           data={roots}
           keyExtractor={(comment) => comment.id}
           renderItem={({ item }) => (
@@ -109,11 +130,16 @@ export default function PostDetailsScreen() {
             </>
           }
           ListEmptyComponent={
-            <EmptyState icon="message-circle" title={t("no_comments")} message={t("add_comment")} />
+            commentsLoading ? (
+              <View style={{ padding: spacing.md }}>
+                <LoadingState rows={3} />
+              </View>
+            ) : (
+              <EmptyState icon="message-circle" title={t("no_comments")} message={t("add_comment")} />
+            )
           }
           contentContainerStyle={{ paddingBottom: 120 }}
         />
-      )}
       {replyTo ? (
         <View style={[styles.replyBanner, { backgroundColor: colors.infoSoft }]}>
           <Text numberOfLines={1} style={[typography.caption, { color: colors.info, flex: 1 }]}>

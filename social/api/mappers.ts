@@ -27,6 +27,7 @@ import {
 } from "@/social/api/dto";
 import { toLocalId } from "@/social/api/identity";
 import { rememberMediaUrl } from "@/social/api/mediaRegistry";
+import { resolveMediaUrl } from "@/utils/photoUri";
 
 /**
  * Wire → domain translation.
@@ -77,7 +78,9 @@ export function mapTeacher(dto: TeacherDto): SocialTeacher {
     name: dto.name ?? "",
     headline: dto.headline ?? "",
     biography: dto.biography ?? "",
-    photoUrl: dto.photo_url ?? undefined,
+    // Same repair as the rest of the app: some stored photo URLs lost the
+    // colon in their scheme, which renders as a broken relative path.
+    photoUrl: resolveMediaUrl(dto.photo_url),
     city: dto.city ?? "",
     subjects: dto.subjects ?? [],
     levels: dto.levels ?? [],
@@ -113,9 +116,18 @@ function mapPoll(dto: PollDto): PollData {
 }
 
 export function mapPost(dto: PostDto): SocialPost {
+  // Repair once, up front. Some stored media URLs lost the colon in their
+  // scheme ("https//host/..."), which renders as a broken relative path.
+  // The registry must hold the same repaired value the model exposes, or an
+  // edit that keeps an existing image would fail to match its media id.
+  const images = (dto.images ?? []).map((image) => ({
+    ...image,
+    url: resolveMediaUrl(image.url) ?? image.url,
+  }));
+
   // Keep the id behind each image URL so an edit that retains an existing image
   // can send its media id back instead of re-uploading it.
-  (dto.images ?? []).forEach((image) => rememberMediaUrl(image.url, image.id));
+  images.forEach((image) => rememberMediaUrl(image.url, image.id));
 
   const base = {
     id: String(dto.id),
@@ -124,8 +136,8 @@ export function mapPost(dto: PostDto): SocialPost {
     editedAt: dto.edited_at ?? undefined,
     text: dto.text ?? "",
     // The domain model carries plain URLs; the backend returns media records.
-    images: (dto.images ?? []).map((image) => image.url),
-    imageDescriptions: (dto.images ?? []).map((image) => image.alt_text ?? ""),
+    images: images.map((image) => image.url),
+    imageDescriptions: images.map((image) => image.alt_text ?? ""),
     category: dto.category ?? undefined,
     schoolAffiliation: dto.school?.name ?? undefined,
     location: dto.location ?? undefined,
@@ -214,7 +226,7 @@ export function mapJob(dto: JobDto): Job {
     id: String(dto.id),
     title: dto.title ?? "",
     schoolName: dto.school?.name ?? "",
-    schoolLogoUrl: dto.school?.logo_url ?? undefined,
+    schoolLogoUrl: resolveMediaUrl(dto.school?.logo_url),
     schoolSummary: dto.school?.summary ?? "",
     location: dto.location ?? "",
     subjects: dto.subjects ?? [],
@@ -252,12 +264,29 @@ export function mapMessage(dto: MessageDto): Message {
     senderId: toLocalId(dto.sender_id),
     kind: dto.kind as MessageKind,
     text: dto.text ?? undefined,
-    mediaUri: dto.media_url ?? undefined,
+    // Same scheme repair as post images: a stored URL that lost its colon
+    // renders as a broken relative path and the bubble shows nothing.
+    mediaUri: resolveMediaUrl(dto.media_url),
     sharedId: dto.shared_id ? toLocalId(dto.shared_id) : undefined,
     sentAt: dto.sent_at ?? new Date().toISOString(),
     // `sending` is a client-only optimistic state; the server only ever reports
     // sent or read.
     status: dto.status === "read" ? "read" : "sent",
+    deleted: Boolean(dto.deleted),
+    editedAt: dto.edited_at ?? undefined,
+    forwarded: Boolean(dto.forwarded),
+    replyToId: dto.reply_to?.id ? String(dto.reply_to.id) : undefined,
+    replyPreview: dto.reply_to
+      ? {
+          id: String(dto.reply_to.id),
+          senderId: toLocalId(dto.reply_to.sender_id),
+          kind: dto.reply_to.kind as MessageKind,
+          text: dto.reply_to.text ?? undefined,
+          deleted: Boolean(dto.reply_to.deleted),
+        }
+      : undefined,
+    canEdit: Boolean(dto.can_edit),
+    canDelete: Boolean(dto.can_delete),
   };
 }
 
