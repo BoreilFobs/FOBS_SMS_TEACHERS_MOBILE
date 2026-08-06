@@ -39,6 +39,7 @@ export const cacheKeys = {
   attendance: (classId: string | number, date: string) => `attendance.${classId}.${date}`,
   // Namespaced per user: badge totals must never leak across accounts.
   unreadCounts: (userId: string | number) => `social.${userId}.unreadCounts`,
+  jobs: (view: string) => `jobs.${view}`,
   conversations: "chat.conversations",
   messages: (conversationId: string) => `chat.${conversationId}.messages`,
 } as const;

@@ -17,7 +17,11 @@ import { useAppTheme } from "@/hooks/useAppTheme";
 import { UpdatesProvider } from "@/contexts/UpdatesContext";
 import { ProfessionalProfileProvider } from "@/contexts/ProfessionalProfileContext";
 import { SocialProvider } from "@/social/hooks/useSocial";
+import { installWebAlertShim } from "@/utils/alertShim";
 export { ErrorBoundary } from "expo-router";
+
+// Runs at module evaluation, before any screen can raise a dialog.
+installWebAlertShim();
 
 export const unstable_settings = {
   initialRouteName: "(tabs)",

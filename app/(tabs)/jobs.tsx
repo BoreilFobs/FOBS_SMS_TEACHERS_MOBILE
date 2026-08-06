@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
   Modal,
@@ -25,6 +25,10 @@ import {
 import { EmploymentType, Job, JobFilters } from "@/social/models";
 import { JobCard } from "@/social/components/JobCard";
 import { useSocial } from "@/social/hooks/useSocial";
+import { socialStore } from "@/social/store/socialStore";
+import { SOCIAL_POLLING } from "@/social/constants/network";
+import { useThrottledFocusRefresh } from "@/social/hooks/usePolling";
+import { cacheKeys, readCache, writeCache } from "@/utils/offline/cache";
 import { elevation, layout, radii, spacing, typography } from "@/constants/theme";
 
 type JobsView = "recommended" | "recent" | "saved";
@@ -40,26 +44,92 @@ export default function JobsScreen() {
   const [view, setView] = useState<JobsView>("recommended");
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<JobFilters>(emptyFilters);
-  const [jobs, setJobs] = useState<Job[]>([]);
+  // Server order, kept as ids. The card bodies are read out of the store below,
+  // so saving a job updates it in place without another request.
+  const [order, setOrder] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterVisible, setFilterVisible] = useState(false);
+  // Read inside the debounced effect without becoming a dependency of it —
+  // depending on `order` would re-run the fetch every time results arrive.
+  const hasContent = useRef(false);
+
+  const sortJobs = useCallback(
+    (result: Job[]) =>
+      view === "recommended"
+        ? [...result].sort((a, b) => Number(b.recommended) - Number(a.recommended))
+        : [...result].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt)),
+    [view],
+  );
+
+  const load = useCallback(async () => {
+    try {
+      const result = await repository.getJobs({
+        ...filters,
+        query,
+        savedOnly: view === "saved",
+      });
+      const sorted = sortJobs(result);
+      setOrder(sorted.map((job) => job.id));
+      hasContent.current = sorted.length > 0;
+
+      // Only the unfiltered default view is worth caching: it is what opens on
+      // a cold start, and a cached filtered result would be misleading.
+      if (!query && Object.keys(filters).length === 0) {
+        void writeCache(cacheKeys.jobs(view), sorted.slice(0, 20));
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [filters, query, repository, sortJobs, view]);
+
+  // Paint the cached page first so the tab opens with content rather than a
+  // skeleton, then let the request below refresh it.
+  useEffect(() => {
+    let cancelled = false;
+    // A new view has nothing on screen yet, so it earns a skeleton rather than
+    // showing the previous view's results while it loads.
+    hasContent.current = false;
+    setOrder([]);
+
+    void (async () => {
+      const cached = await readCache<Job[]>(cacheKeys.jobs(view));
+      if (cancelled || !cached?.length) return;
+      socialStore.upsertJobs(cached);
+      setOrder(cached.map((job) => job.id));
+      hasContent.current = true;
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [view]);
 
   useEffect(() => {
+    // Debounced so typing in the search box does not fire a request per key.
+    //
+    // `snapshot.jobs` must NOT be a dependency: getJobs() writes results into
+    // the store, which changes that array's identity, which would re-run this
+    // effect and fetch again — an endless loop that reloaded the list roughly
+    // once a second.
     const timer = setTimeout(() => {
-      setLoading(true);
-      void repository
-        .getJobs({ ...filters, query, savedOnly: view === "saved" })
-        .then((result) => {
-          setJobs(
-            view === "recommended"
-              ? [...result].sort((a, b) => Number(b.recommended) - Number(a.recommended))
-              : [...result].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt)),
-          );
-        })
-        .finally(() => setLoading(false));
+      // Keep whatever is on screen while refreshing; only show the skeleton
+      // when there is nothing to show yet.
+      if (!hasContent.current) setLoading(true);
+      void load();
     }, 220);
     return () => clearTimeout(timer);
-  }, [filters, query, repository, snapshot.jobs, view]);
+  }, [load]);
+
+  // Openings change through the day rather than by the second, so this
+  // refreshes when the tab is focused instead of polling.
+  useThrottledFocusRefresh(load, SOCIAL_POLLING.feedFocusThrottleMs);
+
+  const jobs = useMemo(() => {
+    const byId = new Map(snapshot.jobs.map((job) => [job.id, job]));
+    return order
+      .map((id) => byId.get(id))
+      .filter((job): job is Job => Boolean(job));
+  }, [order, snapshot.jobs]);
 
   const activeFilterCount = useMemo(
     () => Object.values(filters).filter((value) => value !== undefined && value !== "").length,

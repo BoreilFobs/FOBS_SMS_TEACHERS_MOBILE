@@ -230,7 +230,15 @@ function CommentThread({
           <Avatar name={author.name} uri={author.photoUrl} size={nested ? 32 : 38} />
         </Pressable>
         <View style={{ flex: 1, gap: 4 }}>
-          <View style={[styles.commentBubble, { backgroundColor: colors.surfaceMuted }]}>
+          {/* `surfaceMuted` is the same slate as `feedBackground` in the light
+              theme, so the bubble vanished into the page. `surface` plus a
+              hairline edge separates it in both themes. */}
+          <View
+            style={[
+              styles.commentBubble,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
             <Text style={[typography.label, { color: colors.text }]}>{author.name}</Text>
             <Text style={[typography.body, { color: item.deleted ? colors.textMuted : colors.text }]}>
               {item.deleted ? t("comment_deleted") : item.text}
@@ -279,7 +287,12 @@ const styles = StyleSheet.create({
   thread: { paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
   comment: { flexDirection: "row", gap: spacing.xs },
   nestedComment: { marginLeft: 42, marginTop: spacing.xs, paddingLeft: spacing.sm, borderLeftWidth: 2 },
-  commentBubble: { borderRadius: radii.md, padding: spacing.sm, gap: 2 },
+  commentBubble: {
+    borderRadius: radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: spacing.sm,
+    gap: 2,
+  },
   commentActions: { minHeight: 28, flexDirection: "row", alignItems: "center", gap: spacing.md, paddingHorizontal: spacing.xs },
   composer: { borderTopWidth: StyleSheet.hairlineWidth, flexDirection: "row", alignItems: "flex-end", gap: spacing.xs, paddingHorizontal: spacing.sm, paddingTop: spacing.xs },
   commentInput: { flex: 1, minHeight: 46, maxHeight: 110, borderWidth: 1, borderRadius: 23, paddingHorizontal: spacing.md, paddingVertical: 11, ...typography.body },

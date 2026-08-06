@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -20,6 +19,7 @@ import { CURRENT_TEACHER_ID } from "@/social/models";
 import { useSocial } from "@/social/hooks/useSocial";
 import { useSocialResource } from "@/social/hooks/useSocialResource";
 import { describeSocialError } from "@/social/api/describeError";
+import { confirmAction, notify } from "@/utils/dialog";
 import { SocialScreenHeader } from "@/social/components/ScreenHeader";
 import { formatDate } from "@/social/utils/format";
 import { radii, spacing, typography } from "@/constants/theme";
@@ -75,28 +75,37 @@ export default function JobDetailsScreen() {
     );
   }
 
+  const incomplete = !motivation.trim() || !availability.trim();
+
+  // `Alert.alert` is a no-op on React Native Web, so the confirmation never
+  // appeared there and pressing Apply did nothing at all. `confirmAction` and
+  // `notify` fall back to the browser dialogs.
   const submit = () =>
-    Alert.alert(t("apply"), t("apply_confirm"), [
-      { text: t("cancel"), style: "cancel" },
-      {
-        text: t("apply"),
-        onPress: () => {
-          setSubmitting(true);
-          void repository
-            .apply(job.id, motivation, availability)
-            .then(() => {
-              setApplying(false);
-              Alert.alert(t("success"), t("application_submitted"));
-            })
-            .catch((cause) =>
-              // The server states the rule that blocked it: ALREADY_APPLIED,
-              // JOB_CLOSED, or a field-level validation complaint.
-              Alert.alert(t("error"), describeSocialError(cause, t("validation_required"))),
-            )
-            .finally(() => setSubmitting(false));
-        },
+    confirmAction({
+      title: t("apply"),
+      message: t("apply_confirm"),
+      confirmLabel: t("apply"),
+      cancelLabel: t("cancel"),
+      onConfirm: () => {
+        setSubmitting(true);
+        void repository
+          .apply(job.id, motivation, availability)
+          .then(() => {
+            // The store now holds the application, so the screen re-renders into
+            // its "applied" state; the draft is dropped so reopening is clean.
+            setApplying(false);
+            setMotivation("");
+            setAvailability("");
+            notify(t("success"), t("application_submitted"));
+          })
+          .catch((cause) =>
+            // The server states the rule that blocked it: ALREADY_APPLIED,
+            // JOB_CLOSED, or a field-level validation complaint.
+            notify(t("error"), describeSocialError(cause, t("validation_required"))),
+          )
+          .finally(() => setSubmitting(false));
       },
-    ]);
+    });
 
   return (
     <KeyboardAvoidingView
@@ -184,6 +193,12 @@ export default function JobDetailsScreen() {
               placeholderTextColor={colors.textMuted}
               style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
             />
+            {/* A disabled button with no explanation reads as a broken one. */}
+            {incomplete ? (
+              <Text style={[typography.caption, { color: colors.textMuted }]}>
+                {t("validation_required")}
+              </Text>
+            ) : null}
             <View style={styles.buttonRow}>
               <View style={{ flex: 1 }}>
                 <Button label={t("cancel")} variant="secondary" onPress={() => setApplying(false)} />
@@ -192,7 +207,7 @@ export default function JobDetailsScreen() {
                 <Button
                   label={t("apply")}
                   loading={submitting}
-                  disabled={!motivation.trim() || !availability.trim()}
+                  disabled={incomplete || submitting}
                   onPress={submit}
                 />
               </View>
